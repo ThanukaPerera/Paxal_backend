@@ -1,19 +1,37 @@
-const express =require("express");
-const mongoose=require('mongoose');
+const express = require('express');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const parcelRoutes = require('./routes/parcelRoutes');
+const cors = require ('cors');
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-const port =8000;
+app.use(express.json()); // Parse incoming JSON requests (Body Parsing Middleware)
+app.use(cors());
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.log('MongoDB connection error:', err));
 
-const db_URL='mongodb+srv://AlgoRhythm-PAXAL:Sehara2002@pms.5jolo.mongodb.net/?retryWrites=true&w=majority&appName=PMS';
+// Set up routes
+app.use('/api/parcels', parcelRoutes);
 
-mongoose.connect(db_URL)
-.then(()=>{
-    console.log("Database connected successfully");
-})
-.catch((err)=>{
-    console.log("DB connection error",err)
-})
-
-app.listen(port,()=>{
-    console.log(`Server is running on ${port}`);
+app.get("/posts", (req, res) => {
+  res.json([{ id: 1, title: "Sample Post" }]);
 });
+
+
+// Start server
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
+
+
+//Loads the environment variables.
+//Sets up the Express server.
+//Connects to MongoDB using Mongoose.
+//Routes requests to /api/parcels to the parcelRoutes.js file
