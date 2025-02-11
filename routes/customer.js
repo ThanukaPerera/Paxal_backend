@@ -16,6 +16,16 @@ const {
   Branch,
 } = require("../models/models");
 
+router.get("/customers", async (req, res) => {
+  try {
+    const customers = await Customer.find();
+
+    res.status(200).json(customers);
+  } catch (err) {
+    return err;
+  }
+});
+
 // Customer Routes
 router.post("/customer/save", async (req, res) => {
   try {
@@ -25,7 +35,6 @@ router.post("/customer/save", async (req, res) => {
     return res.status(200).json({
       success: "Customer saved successfully",
     });
-    
   } catch (error) {
     return res.status(400).json({
       error: error.message,
@@ -154,18 +163,17 @@ router.post("/inquiry/save", async (req, res) => {
   }
 });
 
-router.post("/branch/save",async(req,res)=>{
-  try{
+router.post("/branch/save", async (req, res) => {
+  try {
     const branch = new Branch(req.body);
     await branch.save();
     res.status(201).send(branch);
   } catch (error) {
     res.status(400).send(error);
   }
-  });
+});
 
 module.exports = router;
-
 
 //Adding Staff
 // {
@@ -249,18 +257,17 @@ module.exports = router;
 //   "driverId": "67aab148db18e325006901a8" // Reference to Driver
 // }
 
-
 // To access data from referenced fields (`customerId` and `staffId` in your `inquirySchema`), you need to use **Mongoose's `populate()` method**. Here's how you can retrieve inquiries along with the referenced customer and staff details:
 
 // ---
 
-// ### 1️⃣ **Basic Query (Without Populating References)**  
+// ### 1️⃣ **Basic Query (Without Populating References)**
 // If you just fetch an inquiry, you'll get only the IDs of referenced documents:
 // ```javascript
 // const Inquiry = require("./models/Inquiry"); // Import your Inquiry model
 
 // async function getInquiries() {
-//   const inquiries = await Inquiry.find(); 
+//   const inquiries = await Inquiry.find();
 //   console.log(inquiries);
 // }
 // getInquiries();
@@ -404,15 +411,15 @@ module.exports = router;
 
 // Let me know if you need more details! 🚀
 
-// Your error is caused by this line in `inquirySchema`:  
+// Your error is caused by this line in `inquirySchema`:
 
 // ```js
 // parcelTrackingNo: { type: mongoose.Schema.Types.trackingNo, ref: "Parcel", required: true }
 // ```
 // ### **Issues:**
-// 1. **`mongoose.Schema.Types.trackingNo` does not exist**  
-//    - Mongoose only has built-in types like `String`, `Number`, `ObjectId`, etc.  
-// 2. **Incorrect use of `ref`**  
+// 1. **`mongoose.Schema.Types.trackingNo` does not exist**
+//    - Mongoose only has built-in types like `String`, `Number`, `ObjectId`, etc.
+// 2. **Incorrect use of `ref`**
 //    - `ref` should only be used with `ObjectId`, not `String`.
 
 // ---
@@ -431,9 +438,9 @@ module.exports = router;
 //   staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false },
 // }, { timestamps: true });
 // ```
-// ✅ **Why?**  
-// - `parcelTrackingNo` is a `String`, just like `trackingNo` in `Parcel`.  
-// - You can still query related parcels:  
+// ✅ **Why?**
+// - `parcelTrackingNo` is a `String`, just like `trackingNo` in `Parcel`.
+// - You can still query related parcels:
 //   ```js
 //   const inquiry = await Inquiry.findOne({ parcelTrackingNo: "ABC123" });
 //   const parcel = await Parcel.findOne({ trackingNo: inquiry.parcelTrackingNo });
@@ -446,8 +453,8 @@ module.exports = router;
 // ```js
 // parcelId: { type: mongoose.Schema.Types.ObjectId, ref: "Parcel", required: true },
 // ```
-// ✅ **Pros:** Can use `.populate("parcelId")` to fetch parcel details directly.  
-// ❌ **Cons:** You must store `_id` instead of `trackingNo`.  
+// ✅ **Pros:** Can use `.populate("parcelId")` to fetch parcel details directly.
+// ❌ **Cons:** You must store `_id` instead of `trackingNo`.
 
 // ---
 
