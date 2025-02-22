@@ -188,7 +188,8 @@ const adminSchema = new mongoose.Schema(
     password: { type: String, required: true }, // AWS token
     profilePicLink: { type: String, required: false },
     email: { type: String, required: true, unique: true },
-    contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    // contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    contactNo:{type:String,required:true}
   },
   { timestamps: true }
 );

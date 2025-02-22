@@ -5,18 +5,20 @@ const routes=require('./routes/customer');
 const auth = require("./routes/auth");
 require('dotenv').config();
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 
 
 
 const app = express();
 const PORT =8000;
-app.use(cors({
-    origin: 'http://localhost:3000', // Allow requests from React app
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type']
-  }));
-
+app.use(
+    cors({
+      origin: "http://localhost:5173", // Your frontend URL
+      credentials: true, // Allow credentials (cookies)
+    })
+  );
+app.use(cookieParser());
 
 app.use(bodyParser.json());
 app.use(routes);

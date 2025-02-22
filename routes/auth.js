@@ -3,13 +3,11 @@
   const router = express.Router();
   const bcrypt = require("bcryptjs");
   const jwt = require("jsonwebtoken");
+  const authenticateAdmin = require("../middlewares/authMiddleware");
 
-  // async function verifyPassword(plainTextPassword, storedHash) {
-  //   const isMatch = await bcrypt.compare(plainTextPassword, storedHash);
-  //   return isMatch;
-  // }
+ 
 
-  router.post("/register", async (req, res) => {
+  router.post("/register",authenticateAdmin, async (req, res) => {
     try {
       // Find last admin ID and generate the next one
       const lastAdmin = await Admin.findOne().sort({ adminId: -1 }).lean();
@@ -20,62 +18,55 @@
         nextAdminId = `ADMIN${String(lastIdNumber + 1).padStart(3, "0")}`;
       }
 
-      const hashedPassword = await bcrypt.hash(req.body.password, 10);
+      const hashedPassword = await bcrypt.hash(req.body.password, 12);
 
       // Create new admin with the generated ID
       const adminData = { ...req.body, adminId: nextAdminId, password: hashedPassword, };
       const admin = new Admin(adminData);
+      console.log("Admin registered",adminData);
       const savedAdmin = await admin.save();
       res.status(201).json({ message: "Admin registered", savedAdmin });
-      console.log(req.body);
     } catch (error) {
       res.status(500).json({ message: "Error registering admin", error });
     }
   });
 
-  // const AdminData = await Admin.findOne();
-  // const fetchedPassword = AdminData.password;
-
-  // const match = await verifyPassword("Dilakshana1@", fetchedPassword);
-  // if (match) {
-  //   console.log("Password matched");
-  // } else {
-  //   console.log("Password unmatched");
-  // }
 
   // Admin Login
   router.post("/login", async (req, res) => {
+    console.log("");
     try {
-      
       const { email, password } = req.body;
 
       // Find admin by email
       const admin = await Admin.findOne({ email });
 
       if (!admin) {
-        return res.status(401).json({ message: "Invalid email or password" });
+        return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Compare password
       const isMatch = await bcrypt.compare(password, admin.password);
       if (!isMatch) {
-        return res.status(401).json({ message: "Invalid email or password" });
+        return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Generate JWT Token
-      const token = jwt.sign(
-        { adminId: admin.adminId, email: admin.email },
-        process.env.JWT_SECRET || "your_secret_key", // Use a strong secret in production
-        { expiresIn: "20s" }
-      );
-
-      res.status(200).json({ message: "Login successful", token });
+      const token = jwt.sign({ adminId: admin.adminId, email: admin.email },process.env.JWT_SECRET, { expiresIn: "1h" });// Use a strong secret in production
+      res.cookie("AdminToken",token,{httpOnly:true,secure:process.env.NODE_ENV ==="production",sameSite:"Strict",maxAge:60*60*1000});
+      res.status(200).json({ message: "Login successful"});
     } catch (error) {
-      res.status(500).json({ message: "Error logging in", error });
+      console.error("Login error:", error); // Log for debugging
+      res.status(500).json({ message: "Something went wrong. Try again later." });
     }
   });
 
-  const authenticateAdmin = require("../middlewares/authMiddleware");
+  router.post("/logout",authenticateAdmin,(req,res)=>{
+      res.clearCookie("AdminToken");
+      res.status(200).json({message:"Logged out Successfully"});
+  });
+
+  
 
   router.get("/dashboard", authenticateAdmin, (req, res) => {
     res.json({ message: "Welcome to Admin Dashboard", admin: req.admin });
@@ -88,7 +79,7 @@
 
   // Admin CRUD Operations
 // Get all admins
-router.get("/all", async (req, res) => {
+router.get("/all", authenticateAdmin,async (req, res) => {
   try {
     const admins = await Admin.find();
     res.status(200).json({ message: "Admins fetched successfully", admins });
@@ -98,7 +89,7 @@ router.get("/all", async (req, res) => {
 });
 
 //Get an admin by adminId
-router.get("/:adminId", async (req, res) => {
+router.get("/:adminId",authenticateAdmin, async (req, res) => {
   try {
     const admin = await Admin.findOne({ adminId: req.params.adminId });
     if (!admin) {
@@ -110,19 +101,19 @@ router.get("/:adminId", async (req, res) => {
   }
 });
 
-//Add a new admin
-router.post("/save", async (req, res) => {
-  try {
-    const admin = new Admin(req.body);
-    const savedAdmin = await admin.save();
-    res.status(201).json({ message: "Admin saved successfully", savedAdmin });
-  } catch (error) {
-    res.status(500).json({ message: "Error saving admin", error });
-  }
-});
+// //Add a new admin
+// router.post("/save",authenticateAdmin, async (req, res) => {
+//   try {
+//     const admin = new Admin(req.body);
+//     const savedAdmin = await admin.save();
+//     res.status(201).json({ message: "Admin saved successfully", savedAdmin });
+//   } catch (error) {
+//     res.status(500).json({ message: "Error saving admin", error });
+//   }
+// });
 
 //Update an admin by adminId
-router.put("/update/:adminId", async (req, res) => {
+router.put("/update/:adminId",authenticateAdmin, async (req, res) => {
   try {
     const admin = await Admin.findOne({ adminId: req.params.adminId });
     if (!admin) {
@@ -137,7 +128,7 @@ router.put("/update/:adminId", async (req, res) => {
 });
 
 // Delete an admin by adminId
-router.delete("/delete/:adminId", async (req, res) => {
+router.delete("/delete/:adminId",authenticateAdmin, async (req, res) => {
   try {
     const result = await Admin.deleteOne({ adminId: req.params.adminId });
     if (result.deletedCount === 0) {
