@@ -124,7 +124,7 @@ router.post("/customer/save", async (req, res) => {
   try {
     const newCustomer = new Customer(req.body);
     await newCustomer.save();
-    res.status(20).send(newCustomer);
+    res.status(200).send(newCustomer);
     return res.status(200).json({
       success: "Customer saved successfully",
     });

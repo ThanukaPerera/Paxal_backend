@@ -3,25 +3,26 @@ const mongoose = require("mongoose");
 const customerSchema = new mongoose.Schema(
   {
     customerId: { type: String, required: true, unique: true },
-    nic: { type: String, required: true, unique: true },
-    fName: { type: String, required: true },
-    lName: { type: String, required: true },
+    nic: { type: String, required: true, unique: false },
+    fName: { type: String, required: false },
+    lName: { type: String, required: false },
     fullName: { type: String, required: true },
-    contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    contact: { type: String, required: false }, // Array of up to 3 contact numbers
     email: { type: String, required: true, unique: true },
-    username: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
-    profilePicLink: { type: String, required: true },
-    address: { type: String, required: true },
+    profilePicLink: { type: String, required: false },
+    address: { type: String, required: false },
     landmark: { type: String, required: false },
-    type: { type: String, enum: ["office", "home"], required: true }, // Enum for address type
-    city: { type: String, required: true },
-    district: { type: String, required: true },
-    province: { type: String, required: true },
-    zone: { type: String, required: true },
+    type: { type: String, enum: ["office", "home"], required: false }, // Enum for address type
+    city: { type: String, required: false },
+    district: { type: String, required: false },
+    province: { type: String, required: false },
+    zone: { type: String, required: false },
   },
   { timestamps: true }
 );
+
+//username: { type: String, required: true, unique: true },
 
 
 const parcelSchema = new mongoose.Schema(
