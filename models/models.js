@@ -42,6 +42,9 @@ const parcelSchema = new mongoose.Schema(
     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
+
+    //New to parcel schema this is not included to PDF in the group
+    status:{type:String,required:true}
   },
   { timestamps: true }
 );
