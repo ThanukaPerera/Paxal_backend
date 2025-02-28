@@ -176,7 +176,7 @@ const driverSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
     contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    licenceId: { type: String, required: true },
+    licenseId: { type: String, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
   },
   { timestamps: true }
