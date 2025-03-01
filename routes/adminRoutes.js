@@ -5,6 +5,15 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const authenticateAdmin = require("../middlewares/authMiddleware");
 
+
+// Server route (add this to your backend)
+router.get('/status', authenticateAdmin, (req, res) => {
+  res.status(200).json({ isAuthenticated: true, user: req.admin });
+});
+
+
+
+
 router.post("/register", authenticateAdmin, async (req, res) => {
   try {
     // Find last admin ID and generate the next one
@@ -35,7 +44,6 @@ router.post("/register", authenticateAdmin, async (req, res) => {
 
 
 
-router.get("/verify-token",authenticateAdmin);
 
 
 
@@ -44,7 +52,6 @@ router.get("/verify-token",authenticateAdmin);
 
 // Admin Login
 router.post("/login", async (req, res) => {
-  console.log("");
   try {
     const { email, password } = req.body;
 
@@ -60,9 +67,10 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-
+    console.log(admin);
     // Generate JWT Token
     const token = jwt.sign(
+      
       { adminId: admin.adminId, email: admin.email },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -70,7 +78,7 @@ router.post("/login", async (req, res) => {
     res.cookie("AdminToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      sameSite: "Lax",
       maxAge: 60 * 60 * 1000,
     });
     res.status(200).json({ message: "Login successful" });
@@ -80,29 +88,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// router.get("/verify", (req, res) => {
-//   const token = req.cookies.AdminToken;
-//   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
-//   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-//     if (err) return res.status(403).json({ message: "Invalid token" });
-
-//     res.status(200).json({ message: "Token is valid", admin: decoded });
-//   });
-// });
-
-
-
-// router.post("/logout", authenticateAdmin, (req, res) => {
-//   try{
-//     res.status(200).json({ message: "Logged out Successfully" });
-//     res.clearCookie("AdminToken");
-//     res.status(200).json({ message: "Logged out Successfully" });
-//   }
-//   catch(error){
-//     res.status(400).json({message:"Cannot logout",error});
-//   }
-// });
 
 router.post("/logout", authenticateAdmin, (req, res) => {
   try {
@@ -122,6 +108,7 @@ router.get("/dashboard", authenticateAdmin, (req, res) => {
 // Get all admins
 router.get("/all", authenticateAdmin, async (req, res) => {
   try {
+    console.log("Cookies:", req.cookies);
     const admins = await Admin.find();
     res.status(200).json({ message: "Admins fetched successfully", admins });
   } catch (error) {
@@ -142,16 +129,7 @@ router.get("/:adminId", authenticateAdmin, async (req, res) => {
   }
 });
 
-// //Add a new admin
-// router.post("/save",authenticateAdmin, async (req, res) => {
-//   try {
-//     const admin = new Admin(req.body);
-//     const savedAdmin = await admin.save();
-//     res.status(201).json({ message: "Admin saved successfully", savedAdmin });
-//   } catch (error) {
-//     res.status(500).json({ message: "Error saving admin", error });
-//   }
-// });
+
 
 //Update an admin by adminId
 router.put("/update/:adminId", authenticateAdmin, async (req, res) => {
