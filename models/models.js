@@ -43,6 +43,20 @@ const parcelSchema = new mongoose.Schema(
     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
+
+    //New to parcel schema this is not included to PDF in the group
+    status:{type:String,enum:["OrderPlaced",
+        "PendingPickup",
+        "PickedUp",
+        "ArrivedAtDistributionCentre",
+        "ShipmentAssigned",
+        "InTransit",
+        "ArrivedAtCollectionCentre",
+        "DeliveryDispatched",
+        "Delivered",
+        "NotAccepted",
+        "WrongAddress",
+        "Return",],required:true}
   },
   { timestamps: true }
 );
@@ -174,7 +188,7 @@ const driverSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
     contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    licenceId: { type: String, required: true },
+    licenseId: { type: String, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
   },
   { timestamps: true }
@@ -189,7 +203,8 @@ const adminSchema = new mongoose.Schema(
     password: { type: String, required: true }, // AWS token
     profilePicLink: { type: String, required: false },
     email: { type: String, required: true, unique: true },
-    contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    // contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    contactNo:{type:String,required:true}
   },
   { timestamps: true }
 );
