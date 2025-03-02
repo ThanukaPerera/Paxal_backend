@@ -1,9 +1,27 @@
 const express = require("express");
-const { Admin } = require("../models/models");
+// const { Admin } = require("../models/models");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const authenticateAdmin = require("../middlewares/authMiddleware");
+const getCount =require("../middlewares/getCount");
+const {
+  Customer,
+  Parcel,
+  Shipping,
+  Pickup,
+  Deliver,
+  Receiver,
+  Staff,
+  B2BShipment,
+  Payment,
+  Driver,
+  Admin,
+  Inquiry,
+  Branch,
+  ParcelAssignedToB2BShipment,
+} = require("../models/models");
+
 
 
 // Server route (add this to your backend)
@@ -42,14 +60,6 @@ router.post("/register", authenticateAdmin, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
 // Admin Login
 router.post("/login", async (req, res) => {
   try {
@@ -61,27 +71,28 @@ router.post("/login", async (req, res) => {
     if (!admin) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+    
+
+
 
     // Compare password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid credentials"  });
     }
-    console.log(admin);
     // Generate JWT Token
     const token = jwt.sign(
-      
       { adminId: admin.adminId, email: admin.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    ); // Use a strong secret in production
+      { expiresIn: "1h" }); // Use a strong secret in production
     res.cookie("AdminToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
       maxAge: 60 * 60 * 1000,
     });
-    res.status(200).json({ message: "Login successful" });
+    res.status(200).json({ message: "Login successful"});
+    console.log(admin.adminId,admin.name,"Login Successfully");
   } catch (error) {
     console.error("Login error:", error); // Log for debugging
     res.status(500).json({ message: "Something went wrong. Try again later." });
@@ -90,27 +101,35 @@ router.post("/login", async (req, res) => {
 
 
 
-router.post("/logout", authenticateAdmin, (req, res) => {
+router.post("/logout", authenticateAdmin, async (req, res) => {
   try {
     res.clearCookie("AdminToken", { httpOnly: true, secure: true, sameSite: "None" }); 
     res.status(200).json({ message: "Logged out Successfully" });
+
+    const reqAdmin = await Admin.findOne({adminId:req.admin.adminId});
+
+    console.log(reqAdmin.adminId,reqAdmin.name,"Logged out Successfully");
   } catch (error) {
     res.status(500).json({ message: "Cannot logout", error });
   }
 });
 
 
-router.get("/dashboard", authenticateAdmin, (req, res) => {
-  res.json({ message: "Welcome to Admin Dashboard", admin: req.admin });
-});
+// router.get("/dashboard", authenticateAdmin, (req, res) => {
+//   res.json({ message: "Welcome to Admin Dashboard", admin: req.admin });
+// });
 
 // Admin CRUD Operations
 // Get all admins
 router.get("/all", authenticateAdmin, async (req, res) => {
   try {
-    console.log("Cookies:", req.cookies);
+    const reqAdminId=req.admin.adminId;
+    const reqAdmin = await Admin.findOne({ adminId: reqAdminId });
+
+    console.log("All admin data is fetched by",reqAdminId,reqAdmin.name);
     const admins = await Admin.find();
     res.status(200).json({ message: "Admins fetched successfully", admins });
+    
   } catch (error) {
     res.status(500).json({ message: "Error fetching admins", error });
   }
@@ -160,5 +179,11 @@ router.delete("/delete/:adminId", authenticateAdmin, async (req, res) => {
     res.status(500).json({ message: "Error deleting admin", error });
   }
 });
+
+router.get("/chart/data",authenticateAdmin,async (req,res)=>{
+  const orderPlacedCount=await getCount(Parcel);
+  res.status(200).json({message:"Chart Data fetched successfully",orderPlacedCount: orderPlacedCount});
+  console.log(orderPlacedCount);
+})
 
 module.exports = router;

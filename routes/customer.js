@@ -152,6 +152,83 @@ router.post("/customer/save", async (req, res) => {
   }
 });
 
+router.post("/customersBulk/save", async (req, res) => {
+  try {
+    const customers = req.body; // Expecting an array of customers
+    if (!Array.isArray(customers)) {
+      return res.status(400).json({ message: "Input should be an array of customers" });
+    }
+    
+    const savedCustomers = await Customer.insertMany(customers);
+    return res.status(200).json({
+      success: "Customers saved successfully",
+      savedCustomers
+    });
+
+  } catch (error) {
+    return res.status(400).json({ message: "Error saving customers", error });
+  }
+});
+
+// Bulk insert Receivers
+router.post("/receiversBulk/save", async (req, res) => {
+  try {
+    if (!Array.isArray(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: "Invalid input, expected an array of receivers." });
+    }
+
+    const newReceivers = await Receiver.insertMany(req.body);
+    return res.status(200).json({ success: "Receivers inserted successfully", newReceivers });
+  } catch (error) {
+    return res.status(400).json({ message: "Error inserting receivers", error });
+  }
+});
+
+// Bulk insert Branches
+router.post("/branchesBulk/save", async (req, res) => {
+  try {
+    if (!Array.isArray(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: "Invalid input, expected an array of branches." });
+    }
+
+    const newBranches = await Branch.insertMany(req.body);
+    return res.status(200).json({ success: "Branches inserted successfully", newBranches });
+  } catch (error) {
+    return res.status(400).json({ message: "Error inserting branches", error });
+  }
+});
+
+router.post("/staffsBulk/save", async (req, res) => {
+  try {
+    if (!Array.isArray(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: "Invalid input, expected an array of staff entries." });
+    }
+
+    const newStaff = await Staff.insertMany(req.body);
+    return res.status(200).json({ success: "Staff inserted successfully", newStaff });
+  } catch (error) {
+    return res.status(400).json({ message: "Error inserting staff", error });
+  }
+});
+
+
+router.post("/parcelsBulk/save", async (req, res) => {
+  try {
+    if (!Array.isArray(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: "Invalid input, expected an array of parcel entries." });
+    }
+
+    const newParcels = await Parcel.insertMany(req.body);
+    return res.status(200).json({ success: "Parcels inserted successfully", newParcels });
+  } catch (error) {
+    return res.status(400).json({ message: "Error inserting parcels", error });
+  }
+});
+
+
+
+
+
 
 // Update a customer by customerId
 router.put("/customerUpdate/:customerId",async(req,res)=>{

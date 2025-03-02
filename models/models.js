@@ -44,7 +44,18 @@ const parcelSchema = new mongoose.Schema(
     arrivedToCollectionCenterTime: { type: Date, required: false },
 
     //New to parcel schema this is not included to PDF in the group
-    status:{type:String,required:true}
+    status:{type:String,enum:["OrderPlaced",
+        "PendingPickup",
+        "PickedUp",
+        "ArrivedAtDistributionCentre",
+        "ShipmentAssigned",
+        "InTransit",
+        "ArrivedAtCollectionCentre",
+        "DeliveryDispatched",
+        "Delivered",
+        "NotAccepted",
+        "WrongAddress",
+        "Return",],required:true}
   },
   { timestamps: true }
 );
