@@ -146,20 +146,7 @@ router.post("/customer/save", async (req, res) => {
   try {
     const newCustomer = new Customer(req.body);
     await newCustomer.save();
-    return res.status(200).json({success: "Customer saved successfully",newCustomer});
-  } catch (error) {
-    return res.status(400).json({ message: "Error saving parcel", error });
-  }
-});
-
-router.post("/customersBulk/save", async (req, res) => {
-  try {
-    const customers = req.body; // Expecting an array of customers
-    if (!Array.isArray(customers)) {
-      return res.status(400).json({ message: "Input should be an array of customers" });
-    }
-    
-    const savedCustomers = await Customer.insertMany(customers);
+    res.status(200).send(newCustomer);
     return res.status(200).json({
       success: "Customers saved successfully",
       savedCustomers
