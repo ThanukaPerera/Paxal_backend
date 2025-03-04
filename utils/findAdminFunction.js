@@ -1,9 +1,11 @@
 const {Admin}=require("../models/models");
 
-const findAdmin = async(adminId) => {
+
+//This will only use for BACKEND
+const findAdminFunction = async(adminId) => {
     const reqAdmin = await Admin.findOne({adminId});
     return reqAdmin;
 }
 
-module.exports=findAdmin;
+module.exports=findAdminFunction;
 

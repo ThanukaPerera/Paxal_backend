@@ -1,4 +1,4 @@
-const findAdmin = require("../../utils/findAdmin.js");
+const findAdminFunction = require("../../utils/findAdminFunction.js");
 
 const adminLogout = async (req, res) => {
     try {
@@ -6,7 +6,7 @@ const adminLogout = async (req, res) => {
       res.status(200).json({ message: "Logged out Successfully" });
         
       
-      const reqAdmin = await findAdmin(req.admin.adminId);
+      const reqAdmin = await findAdminFunction(req.admin.adminId);
       console.log(reqAdmin.adminId,reqAdmin.name,"Logged out Successfully");
     } catch (error) {
       res.status(500).json({ message: "Cannot logout", error });
