@@ -3,35 +3,27 @@ const express =require("express");
 const mongoose=require('mongoose');
 const bodyParser = require('body-parser');
 const routes=require('./routes/customer');
-
 const mobileRoutes = require("./routes/mobile");
-
 const app = express();
 const PORT =8000;
 
+
 app.use(bodyParser.json());
 app.use(routes);
-app.use("/api/mobile", mobileRoutes);  
-
+app.use("/api/mobile", mobileRoutes);
 
 
 
 const db_URL='mongodb+srv://AlgoRhythm-PAXAL:Sehara2002@pms.5jolo.mongodb.net/?retryWrites=true&w=majority&appName=PMS';
 
-
- mongoose.connect(db_URL)
+mongoose.connect(db_URL)
 .then(()=>{
     console.log("Database connected successfully");
- })
- .catch((err)=>{
-     console.log("DB connection error",err)
- })
+})
+.catch((err)=>{
+    console.log("DB connection error",err)
+})
 
-
-
-
-  app.listen(PORT,()=>{
+app.listen(PORT,()=>{
     console.log(`Server is running on ${PORT}`);
 });
-
-
