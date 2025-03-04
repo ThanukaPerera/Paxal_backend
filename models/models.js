@@ -1,3 +1,5 @@
+//models.js 
+
 const mongoose = require("mongoose");
 
 const customerSchema = new mongoose.Schema(
@@ -42,6 +44,8 @@ const parcelSchema = new mongoose.Schema(
     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
+    status:{type:String,required:true}
+
   },
   { timestamps: true }
 );

@@ -1,15 +1,17 @@
-
+//server.js
 const express =require("express");
 const mongoose=require('mongoose');
 const bodyParser = require('body-parser');
 const routes=require('./routes/customer');
 
+const mobileRoutes = require("./routes/mobile");
+
 const app = express();
 const PORT =8000;
 
-
 app.use(bodyParser.json());
 app.use(routes);
+app.use("/api/mobile", mobileRoutes);  
 
 
 
