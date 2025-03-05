@@ -204,7 +204,9 @@ const adminSchema = new mongoose.Schema(
     profilePicLink: { type: String, required: false },
     email: { type: String, required: true, unique: true },
     // contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    contactNo:{type:String,required:true}
+    contactNo:{type:String,required:true},
+    resetCode: { type: Number },  // Store reset code
+    resetCodeExpires: { type: Date }, // Store reset code expiry  
   },
   { timestamps: true }
 );
