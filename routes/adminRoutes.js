@@ -14,8 +14,9 @@ const findAdminById = require("../controllers/adminControllers/findAdminById");
 const updateAdminById = require("../controllers/adminControllers/updateAdminById");
 const deleteAdminById = require("../controllers/adminControllers/deleteAdminById");
 const fetchChartData = require("../controllers/adminControllers/fetchChartData");
-const resetPassword = require("../controllers/adminControllers/resetPassword");
+const forgotPassword = require("../controllers/adminControllers/forgotPassword");
 const verifyOTP = require("../controllers/adminControllers/verifyOTP");//importing verifyOTP controller
+const resetPassword = require("../controllers/adminControllers/resetPassword");
 
 
 
@@ -47,9 +48,11 @@ router.delete("/delete/:adminId", authenticateAdmin,deleteAdminById);
 // Fetch Chart Data
 router.get("/chart/data",authenticateAdmin,fetchChartData);
 
-router.post("/resetPassword",resetPassword);
+router.post("/forgotPassword",forgotPassword);
 
 
 router.post("/verifyOTP",verifyOTP);
+
+router.post("/reset-password",resetPassword);
 
 module.exports = router;

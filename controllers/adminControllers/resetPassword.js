@@ -1,33 +1,41 @@
+const bcrypt = require("bcryptjs");
 const { Admin } = require("../../models/models");
-const sendEmail = require("../../utils/sendEmail");
 
-const requestPasswordReset = async (req, res) => {
-    const email = req.body.email;
+const resetPassword = async (req, res) => {
+    const { email, otp, password,confirmPassword } = req.body;
 
+    console.log("Reset password request received for:", email);
+    
     try {
         const admin = await Admin.findOne({ email });
+
         if (!admin) {
-            return res.status(404).json({ message: "Admin not found" });
+            console.log("Admin not found.");
+            return res.status(404).json({ success: false, message: "Admin not found." });
         }
 
-        // Generate a 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000);
-        const otpExpiry = Date.now() + 10 * 60 * 1000; // OTP valid for 10 minutes
+        if (admin.resetCode !== parseInt(otp) || Date.now() > admin.resetCodeExpires) {
+            console.log("Invalid or expired reset code.");
+            return res.status(400).json({ success: false, message: "Invalid or expired reset code." });
+        }
 
-        // Store OTP and expiry in DB
-        admin.resetCode = otp;
-        admin.resetCodeExpires = otpExpiry;
+        // Hash the new password before saving
+        const hashedPassword = await bcrypt.hash(password, 10);
+        admin.password = hashedPassword;
+
+        // Clear reset code fields after successful reset
+        admin.resetCode = null;
+        admin.resetCodeExpires = null;
+
         await admin.save();
 
-        // Send OTP via email
-        await sendEmail(email, "Password Reset Code", `Your password reset code is: ${otp}`);
-
-        res.status(200).json({ message: "Password reset code sent to your email" });
+        console.log("Password reset successfully.");
+        res.status(200).json({ success: true, message: "Password reset successfully." });
 
     } catch (err) {
-        console.error("Error sending reset code:", err);
-        res.status(500).json({ message: "Internal server error" });
+        console.error("Error resetting password:", err);
+        res.status(500).json({ success: false, message: "Internal server error." });
     }
 };
 
-module.exports = requestPasswordReset;
+module.exports = resetPassword;
