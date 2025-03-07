@@ -17,7 +17,7 @@ const fetchChartData = require("../controllers/adminControllers/fetchChartData")
 const forgotPassword = require("../controllers/adminControllers/forgotPassword");
 const verifyOTP = require("../controllers/adminControllers/verifyOTP");//importing verifyOTP controller
 const resetPassword = require("../controllers/adminControllers/resetPassword");
-
+const fetchNoOfUsers = require("../controllers/adminControllers/fetchNoOfUsers");
 
 
 // Server route (add this to your backend)
@@ -28,8 +28,7 @@ router.post("/register", authenticateAdmin,registerAdmin);
 
 // Admin Login
 router.post("/login", adminLogin);
-
-
+router.get("/hello",fetchNoOfUsers);
 //Admin Logout
 router.post("/logout", authenticateAdmin, adminLogout);
 
@@ -54,5 +53,12 @@ router.post("/forgotPassword",forgotPassword);
 router.post("/verifyOTP",verifyOTP);
 
 router.post("/reset-password",resetPassword);
+
+router.get("/user/count",fetchNoOfUsers);
+
+
+
+
+
 
 module.exports = router;
