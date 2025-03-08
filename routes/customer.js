@@ -799,6 +799,7 @@ router.get("/branches", async (req, res) => {
   try {
     const branches = await Branch.find();
     res.status(200).json({ message: "Branches fetched successfully", branches });
+    console.log("All branches Fetched");
   } catch (error) {
     res.status(500).json({ message: "Error fetching branches", error });
   }
