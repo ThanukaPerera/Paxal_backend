@@ -3,7 +3,7 @@ const bcrypt=require("bcryptjs");
 
 const registerAdmin =  async (req, res) => {
     try {
-      console.log("HItted");
+      
       // Find last admin ID and generate the next one
       const lastAdmin = await Admin.findOne().sort({ adminId: -1 }).lean();
       let nextAdminId = "ADMIN001"; // Default ID if no admins exist

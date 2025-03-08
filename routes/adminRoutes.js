@@ -58,8 +58,12 @@ router.get("/user/count",fetchNoOfUsers);
 
 const registerDriver=require("../controllers/adminControllers/registerDriver");
 const registerStaff=require("../controllers/adminControllers/registerStaff");
-router.post("/driver/register",registerDriver);
-router.post("/staff/register",registerStaff);
+const fetchAllStaff=require("../controllers/adminControllers/fetchAllStaff");
+const fetchAllDriver=require("../controllers/adminControllers/fetchAllDriver");
+router.post("/driver/register",authenticateAdmin,registerDriver);
+router.post("/staff/register",authenticateAdmin,registerStaff);
+router.get("staff/all",authenticateAdmin,fetchAllStaff);
+router.get("driver/all",authenticateAdmin,fetchAllDriver);
 
 
 

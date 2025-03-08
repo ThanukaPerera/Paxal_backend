@@ -13,6 +13,7 @@ const authenticateAdmin = async(req, res, next) => {
         return res.status(403).json({ message: "Unauthorized: Invalid token" });
       }
       req.admin = decoded; // Store admin data in request
+      console.log(req.admin.email, "Authenticated");
       next();
     });
   } catch (error) {
