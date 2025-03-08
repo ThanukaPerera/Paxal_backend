@@ -56,6 +56,11 @@ router.post("/reset-password",resetPassword);
 
 router.get("/user/count",fetchNoOfUsers);
 
+const registerDriver=require("../controllers/adminControllers/registerDriver");
+const registerStaff=require("../controllers/adminControllers/registerStaff");
+router.post("/driver/register",registerDriver);
+router.post("/staff/register",registerStaff);
+
 
 
 
