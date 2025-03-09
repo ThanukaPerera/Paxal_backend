@@ -62,8 +62,8 @@ const fetchAllStaff=require("../controllers/adminControllers/fetchAllStaff");
 const fetchAllDriver=require("../controllers/adminControllers/fetchAllDriver");
 router.post("/driver/register",authenticateAdmin,registerDriver);
 router.post("/staff/register",authenticateAdmin,registerStaff);
-router.get("staff/all",authenticateAdmin,fetchAllStaff);
-router.get("driver/all",authenticateAdmin,fetchAllDriver);
+router.get("/staff/all",authenticateAdmin,fetchAllStaff);
+router.get("/driver/all",authenticateAdmin,fetchAllDriver);
 
 
 
