@@ -4,17 +4,21 @@ const mongoose=require('mongoose');
 const bodyParser = require('body-parser');
 const routes=require('./routes/customer');
 const mobileRoutes = require("./routes/mobile");
+
+require('dotenv').config();
 const app = express();
 const PORT =8000;
 
 
+app.use(express.json({ limit: '10mb' })); 
 app.use(bodyParser.json());
 app.use(routes);
 app.use("/api/mobile", mobileRoutes);
 
 
+// MongoDB connection
+const db_URL = process.env.MONGODB_URI;
 
-const db_URL='mongodb+srv://AlgoRhythm-PAXAL:Sehara2002@pms.5jolo.mongodb.net/?retryWrites=true&w=majority&appName=PMS';
 
 mongoose.connect(db_URL)
 .then(()=>{

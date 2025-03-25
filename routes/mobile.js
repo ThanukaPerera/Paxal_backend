@@ -1,10 +1,13 @@
 //mobile.js
 const express = require("express");
-const { Driver , Parcel, Pickup} = require("../models/models");  // ✅ Adjust if your model is different
- 
+const { Driver , Parcel} = require("../models/models");  
+
+
 const router = express.Router();
 
-// ✅ Register a new driver (Save username & password directly)
+
+
+// Register a new driver (Save username & password directly)
 router.post("/driver/register", async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -26,7 +29,7 @@ router.post("/driver/register", async (req, res) => {
     }
 });
 
-// ✅ Driver login (Compare entered password with stored password)
+//  Driver login (Compare entered password with stored password)
 router.post("/driver/login", async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -52,16 +55,16 @@ router.post("/driver/login", async (req, res) => {
     }
 });
 
-// ✅ Fetch Parcel Counts (Assigned, Picked Up, Pending)
+// Fetch Parcel Counts (Assigned, Picked Up, Pending)
 router.get("/parcel-counts", async (req, res) => {
     try {
         const assignedCount = await Parcel.countDocuments({ status: 'Assigned' });
         const pickedUpCount = await Parcel.countDocuments({ status: 'Picked Up' });
-        const pendingCount = await Parcel.countDocuments({ status: 'Pending' });
+        const pendingCount = await Parcel.countDocuments({ status: 'Pending Pickup' });
 
         console.log('Assigned:', assignedCount);
         console.log('Picked Up:', pickedUpCount);
-        console.log('Pending:', pendingCount);  
+        console.log('Pending Pickup:', pendingCount);  
                 // Send the counts as a response
         res.status(200).json({
             assignedCount,
@@ -99,7 +102,56 @@ router.post("/updateParcelStatus", async (req, res) => {
     }
 });
 
-module.exports = router;
 
 
+//Profile picture upload
+router.put("/drivers/:email/profilepicture", async (req, res) => {
+  try {
+      const { profilePicture } = req.body;
+      if (!profilePicture) {
+          return res.status(400).json({ message: "No image provided" });
+      }
 
+      const updatedDriver = await Driver.findOneAndUpdate(
+          { email: req.params.email }, 
+          { profilePicture: profilePicture }, 
+          { new: true } // Return updated document
+      );
+
+      if (!updatedDriver) {
+          return res.status(404).json({ message: "Driver not found" });
+      }
+
+      res.status(200).json(updatedDriver);
+  } catch (error) {
+      console.error("Error saving profile picture:", error);
+      res.status(500).json({ message: "Server error", error });
+  }
+});
+
+  // Fetch driver details by email
+  router.get("/driver/email/:email", async (req, res) => {
+    try {
+      const driver = await Driver.findOne({ email: req.params.email });
+      if (!driver) {
+        return res.status(404).json({ message: 'Driver not found' });
+      }
+      res.status(200).json(driver);
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error });
+    }
+  });
+
+    // Fetch all parcels with receiver details
+router.get('/parcels', async (req, res) => {
+    try {
+      const parcels = await Parcel.find({})
+        .populate('receiverId', 'fullName address') // Populate receiver's name and address
+        .select('parcelId trackingNo receiverId status'); // Select only required fields
+      res.json(parcels);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch parcels' });
+    }
+  });
+    
+  module.exports = router;

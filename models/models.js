@@ -40,11 +40,12 @@ const parcelSchema = new mongoose.Schema(
     latestLocation: { type: String, required: true },
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true }, // Reference to Customer
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Receiver", required: true }, // Reference to Receiver
-    orderPlacedTime: { type: Date, required: true },
+    orderPlacedTime: { type: Date, required: false },
     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
-    status:{type:String,required:true}
+    status:{type:String,required:true},
+    pickupAddress: { type: String, required: false }
 
   },
   { timestamps: true }
@@ -70,7 +71,7 @@ const pickupSchema = new mongoose.Schema(
     pickupId: { type: String, required: true, unique: true },
     parcelId: { type: mongoose.Schema.Types.ObjectId, ref: "Parcel", required: true }, // Reference to Parcel
     driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true }, // Reference to Driver
-    staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: true }, // Reference to Staff
+    staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     pickupAddress: { type: String, required: true },
     pickedUpTime: { type: Date, required: false },
   },
@@ -172,12 +173,13 @@ const paymentSchema = new mongoose.Schema(
 const driverSchema = new mongoose.Schema(
   {
     driverId: { type: String, required: true, unique: true },
+    profilePicture:{type: String, required: false}, 
     name: { type: String, required: true },
     nic: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
-    contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    licenceId: { type: String, required: true },
+    contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    licenseId: { type: String, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
   },
   { timestamps: true }
