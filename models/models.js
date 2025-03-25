@@ -1,50 +1,50 @@
 const mongoose = require("mongoose");
 
-const customerSchema = new mongoose.Schema(
-  {
-    customerId: { type: String, required: true, unique: true },
-    nic: { type: String, required: true, unique: true },
-    fName: { type: String, required: true },
-    lName: { type: String, required: true },
-    fullName: { type: String, required: true },
-    contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    email: { type: String, required: true, unique: true },
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true }, // AWS token
-    profilePicLink: { type: String, required: true },
-    address: { type: String, required: true },
-    landmark: { type: String, required: false },
-    type: { type: String, enum: ["office", "home"], required: true }, // Enum for address type
-    city: { type: String, required: true },
-    district: { type: String, required: true },
-    province: { type: String, required: true },
-    zone: { type: String, required: true },
-  },
-  { timestamps: true }
-);
+// const customerSchema = new mongoose.Schema(
+//   {
+//     customerId: { type: String, required: true, unique: true },
+//     nic: { type: String, required: true, unique: true },
+//     fName: { type: String, required: true },
+//     lName: { type: String, required: true },
+//     fullName: { type: String, required: true },
+//     contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+//     email: { type: String, required: true, unique: true },
+//     username: { type: String, required: true, unique: true },
+//     password: { type: String, required: true }, // AWS token
+//     profilePicLink: { type: String, required: true },
+//     address: { type: String, required: true },
+//     landmark: { type: String, required: false },
+//     type: { type: String, enum: ["office", "home"], required: true }, // Enum for address type
+//     city: { type: String, required: true },
+//     district: { type: String, required: true },
+//     province: { type: String, required: true },
+//     zone: { type: String, required: true },
+//   },
+//   { timestamps: true }
+// );
 
 
-const parcelSchema = new mongoose.Schema(
-  {
-    parcelId: { type: String, required: true, unique: true },
-    trackingNo: { type: String, required: true, unique: true },
-    qrCodeNo: { type: String, required: true, unique: true },
-    itemType: { type: String, required: true },
-    itemSize: { type: String, enum: ["small", "medium", "large"], required: true }, // Enum for size
-    specialInstructions: { type: String, required: false },
-    submittingType: { type: String, enum: ["pickup", "branch"], required: true }, // Enum for submission type
-    receivingType: { type: String, enum: ["doorstep", "collection_center"], required: true }, // Enum for receiving type
-    shippingMethod: { type: String, enum: ["standard", "express"], required: true }, // Enum for shipping method
-    latestLocation: { type: String, required: true },
-    senderId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true }, // Reference to Customer
-    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Receiver", required: true }, // Reference to Receiver
-    orderPlacedTime: { type: Date, required: true },
-    orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
-    shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
-    arrivedToCollectionCenterTime: { type: Date, required: false },
-  },
-  { timestamps: true }
-);
+// const parcelSchema = new mongoose.Schema(
+//   {
+//     parcelId: { type: String, required: true, unique: true },
+//     trackingNo: { type: String, required: true, unique: true },
+//     qrCodeNo: { type: String, required: true, unique: true },
+//     itemType: { type: String, required: true },
+//     itemSize: { type: String, enum: ["small", "medium", "large"], required: true }, // Enum for size
+//     specialInstructions: { type: String, required: false },
+//     submittingType: { type: String, enum: ["pickup", "drop-off","branch"], required: true }, // Enum for submission type
+//     receivingType: { type: String, enum: ["doorstep", "collection_center"], required: true }, // Enum for receiving type
+//     shippingMethod: { type: String, enum: ["standard", "express"], required: true }, // Enum for shipping method
+//     latestLocation: { type: String, required: true },
+//     senderId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true }, // Reference to Customer
+//     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Receiver", required: true }, // Reference to Receiver
+//     orderPlacedTime: { type: Date, required: true },
+//     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
+//     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
+//     arrivedToCollectionCenterTime: { type: Date, required: false },
+//   },
+//   { timestamps: true }
+// );
 
 
 
@@ -98,22 +98,22 @@ const deliverSchema = new mongoose.Schema(
 
 
 
-const receiverSchema = new mongoose.Schema(
-  {
-    receiverId: { type: String, required: true, unique: true },
-    fullName: { type: String, required: true },
-    contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    email: { type: String, required: true },
-    address: { type: String, required: true },
-    landmark: { type: String, required: false },
-    type: { type: String, enum: ["office", "home"], required: true }, // Enum for address type
-    city: { type: String, required: true },
-    district: { type: String, required: true },
-    province: { type: String, required: true },
-    zone: { type: String, required: true },
-  },
-  { timestamps: true }
-);
+// const receiverSchema = new mongoose.Schema(
+//   {
+//     receiverId: { type: String, required: true, unique: true },
+//     fullName: { type: String, required: true },
+//     contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+//     email: { type: String, required: true },
+//     address: { type: String, required: true },
+//     landmark: { type: String, required: false },
+//     type: { type: String, enum: ["office", "home"], required: true }, // Enum for address type
+//     city: { type: String, required: true },
+//     district: { type: String, required: true },
+//     province: { type: String, required: true },
+//     zone: { type: String, required: true },
+//   },
+//   { timestamps: true }
+// );
 
 
 
@@ -127,9 +127,11 @@ const staffSchema = new mongoose.Schema(
     profilePicLink: { type: String, required: false },
     joinedDate: { type: Date, required: true },
     status: { type: String, enum: ["active", "inactive"], required: true }, // Enum for status
-    branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
-    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Reference to Admin
+    //branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
+    //adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Reference to Admin
     password: { type: String, required: true }, // AWS token
+    resetPasswordToken: String,
+    resetPasswordTokenExpires: Date,
   },
   { timestamps: true }
 );
@@ -217,13 +219,10 @@ const branchSchema=new mongoose.Schema({
 
 
 module.exports={
-    Customer:mongoose.model("Customer", customerSchema),
-    Parcel:mongoose.model("Parcel", parcelSchema),
     Shipping:mongoose.model("Shipping", shippingSchema),
     Pickup:mongoose.model("Pickup", pickupSchema),
     ParcelAssignedToB2BShipment:mongoose.model("parcelAssignedToB2BShipment",parcelAssignedToB2BShipmentSchema),
     Deliver:mongoose.model("Deliver", deliverSchema),
-    Receiver:mongoose.model("Receiver", receiverSchema),
     Staff:mongoose.model("Staff", staffSchema),
     B2BShipment:mongoose.model("B2BShipment", b2bShipmentSchema),
     Payment:mongoose.model("Payment", paymentSchema),

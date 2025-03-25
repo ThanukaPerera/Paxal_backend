@@ -115,7 +115,7 @@ const staffForgotPassword = async (req, res) => {
 
     // send email
 
-    const result = await sendPasswordResetEmail(email, resetStaffToken);
+    await sendPasswordResetEmail(email, resetStaffToken);
 
     res.status(200).json({ message: "Password reset email sent" });
   } catch (error) {
