@@ -140,7 +140,7 @@ const staffSchema = new mongoose.Schema(
     nic: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     profilePicLink: { type: String, required: false },
-    joinedDate: { type: Date, required: true },
+    contactNo: { type: String, required: true }, 
     status: { type: String, enum: ["active", "inactive"], required: true }, // Enum for status
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Reference to Admin
@@ -187,9 +187,10 @@ const driverSchema = new mongoose.Schema(
     nic: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
-    contact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
+    contactNo: { type: String, required: true}, 
     licenseId: { type: String, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Reference to Admin
   },
   { timestamps: true }
 );
@@ -203,8 +204,9 @@ const adminSchema = new mongoose.Schema(
     password: { type: String, required: true }, // AWS token
     profilePicLink: { type: String, required: false },
     email: { type: String, required: true, unique: true },
-    // contactNo: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
-    contactNo:{type:String,required:true}
+    contactNo:{type:String,required:true},
+    resetCode: { type: Number },  // Store reset code
+    resetCodeExpires: { type: Date }, // Store reset code expiry  
   },
   { timestamps: true }
 );

@@ -17,7 +17,7 @@ const {
 
 
 const getCount=async(Schema,condition)=>{
-    const count= await Schema.countDocuments({status:'OrderPlaced'});
+    const count= await Schema.countDocuments(condition);
     return count;
 }
 module.exports = getCount;

@@ -2,6 +2,7 @@ const findAdminFunction = require("../../utils/findAdminFunction.js");
 
 const adminLogout = async (req, res) => {
     try {
+      console.log(req);
       res.clearCookie("AdminToken", { httpOnly: true, secure: true, sameSite: "None" }); 
       res.status(200).json({ message: "Logged out Successfully" });
         
