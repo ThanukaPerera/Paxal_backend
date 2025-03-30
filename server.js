@@ -24,8 +24,10 @@ app.use(bodyParser.json());
 app.use(routes);
 
 app.use("/admin", auth);
-
-
+app.use("/gona",async(req,res)=>{
+  console.log("Sehara");
+  res.json({name:"Thanuka"});
+})
 
 
 
