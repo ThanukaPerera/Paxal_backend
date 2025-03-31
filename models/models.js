@@ -30,6 +30,7 @@ const parcelSchema = new mongoose.Schema(
     parcelId: { type: String, required: true, unique: true },
     trackingNo: { type: String, required: true, unique: true },
     qrCodeNo: { type: String, required: true, unique: true },
+    pickupId: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup", required: true }, // Reference to Parcel
     itemType: { type: String, required: true },
     itemSize: { type: String, enum: ["small", "medium", "large"], required: true }, // Enum for size
     specialInstructions: { type: String, required: false },
@@ -79,7 +80,6 @@ const shippingSchema = new mongoose.Schema(
 const pickupSchema = new mongoose.Schema(
   {
     pickupId: { type: String, required: true, unique: true },
-    parcelId: { type: mongoose.Schema.Types.ObjectId, ref: "Parcel", required: true }, // Reference to Parcel
     driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true }, // Reference to Driver
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: true }, // Reference to Staff
     pickupAddress: { type: String, required: true },
