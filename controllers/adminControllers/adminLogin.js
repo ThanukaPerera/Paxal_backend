@@ -19,16 +19,16 @@ const adminLogin =async (req, res) => {
       }
       // Generate JWT Token
       const token = jwt.sign(
-        { adminId: admin.adminId, email: admin.email },
+        { _id:admin._id,adminId: admin.adminId, email: admin.email },
         process.env.JWT_SECRET,
         { expiresIn: "1h" }); // Use a strong secret in production
       res.cookie("AdminToken", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "Lax",
+        sameSite: "Strict",
         maxAge: 60 * 60 * 1000,
       });
-      res.status(200).json({ message: "Login successful"});
+      res.status(200).json({ message: "Login successful",admin: { name: admin.name, email: admin.email }});
       console.log(admin.adminId,admin.name,"Login Successfully");
     } catch (error) {
       console.error("Login error:", error); // Log for debugging

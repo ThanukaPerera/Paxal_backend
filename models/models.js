@@ -44,6 +44,7 @@ const parcelSchema = new mongoose.Schema(
     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
+    
 
     //New to parcel schema this is not included to PDF in the group
     status:{type:String,enum:["OrderPlaced",
@@ -202,7 +203,7 @@ const adminSchema = new mongoose.Schema(
     name: { type: String, required: true },
     nic: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
-    profilePicLink: { type: String, required: false },
+    profilePicLink: { type: String, default:'avatar_1743610267755.jpg',required: false },
     email: { type: String, required: true, unique: true },
     contactNo:{type:String,required:true},
     resetCode: { type: Number },  // Store reset code
