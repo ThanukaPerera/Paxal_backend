@@ -9,10 +9,12 @@ const customerSchema = new mongoose.Schema(
     customerFullName: { type: String, required: true },
     customerContact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
     customerEmail: { type: String, required: true, unique: true },
-    username: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // AWS token
     // profilePicLink: { type: String, required: true },
     customerAddress: { type: String, required: true },
+    province:{ type: String, required: true },
+    district:{ type: String, required: true },
+    city:{ type: String, required: true },
     
   },
   { timestamps: true }
@@ -24,7 +26,7 @@ const receiverSchema = new mongoose.Schema(
     receiverFullName: { type: String, required: true },
     receiverContact: { type: [String], required: true, max: 3 }, // Array of up to 3 contact numbers
     receiverEmail: { type: String, required: true },
-    receiverAddress: { type: String, required: true },
+    
   },
   { timestamps: true }
 );
