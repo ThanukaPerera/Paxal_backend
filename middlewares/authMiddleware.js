@@ -8,16 +8,21 @@ const authenticateAdmin = async(req, res, next) => {
     }
 
     // Verify token
-    const decoded=await jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) {
-        return res.status(403).json({ message: "Unauthorized: Invalid token" });
-      }
-      req.admin = decoded; // Store admin data in request
-      console.log(req.admin.email, "Authenticated");
-      next();
-    });
+    // const decoded=await jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    //   if (err) {
+    //     return res.status(403).json({ message: "Unauthorized: Invalid token" });
+    //   }
+    //   req.admin = decoded; // Store admin data in request
+    //   console.log(req.admin.email, "Authenticated");
+    //   next();
+    // });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.admin = decoded;
+    
+    next();
   } catch (error) {
-    res.status(500).json({ message: "Authentication error", error });
+    console.log("Authorization error",error);
+    return res.status(403).json({ message: "Forbidden/Unauthorized: Invalid token" });
   }
 };
 

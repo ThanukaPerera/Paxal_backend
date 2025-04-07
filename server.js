@@ -10,6 +10,7 @@ const cookieParser = require("cookie-parser");
 
 
 
+
 const app = express();
 const PORT =8000;
 app.use(
@@ -20,14 +21,14 @@ app.use(
   );
 app.use(cookieParser());
 
-app.use(bodyParser.json());
+// Increase the size limit for incoming JSON and URL-encoded data
+app.use(bodyParser.json({ limit: "50mb" }));  // Adjust the limit as needed
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+
 app.use(routes);
 
 app.use("/admin", auth);
-app.use("/gona",async(req,res)=>{
-  console.log("Sehara");
-  res.json({name:"Thanuka"});
-})
+
 
 
 

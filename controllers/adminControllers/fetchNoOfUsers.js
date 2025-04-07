@@ -10,7 +10,7 @@ const fetchNoOfUsers = async (req, res) => {
         const Schema = SchemaMap[userType];
 
         if (!Schema) {
-            return res.status(400).json({ error: "Invalid user type" });
+            return res.status(400).json({ message:"Bad Request",error: "Invalid user type" });
         }
 
         const count = await getCount(Schema);
@@ -20,12 +20,12 @@ const fetchNoOfUsers = async (req, res) => {
 
          const since = earliestUser ? earliestUser.createdAt : null;
  
-         console.log(userType, "count is", count, "since", since, "Sent to Frontend...");
+         
 
-        res.json({ user:userType, count:count,since:since });
+        res.status(200).json({ message:"User Count Fetched Successfully",user:userType, count:count,since:since });
     } catch (error) {
         console.error("Error fetching user count:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
