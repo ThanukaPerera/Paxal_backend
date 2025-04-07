@@ -18,11 +18,11 @@ const authenticateAdmin = async(req, res, next) => {
     // });
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.admin = decoded;
-    console.log(req.admin.adminId, "Authenticated",decoded);
+    
     next();
   } catch (error) {
     console.log("Authorization error",error);
-    return res.status(403).json({ message: "Unauthorized: Invalid token" });
+    return res.status(403).json({ message: "Forbidden/Unauthorized: Invalid token" });
   }
 };
 

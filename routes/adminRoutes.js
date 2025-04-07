@@ -52,7 +52,7 @@ router.post("/verifyOTP", verifyOTP);
 
 router.post("/reset-password", resetPassword);
 
-router.get("/user/count", fetchNoOfUsers);
+router.get("/user/count",authenticateAdmin, fetchNoOfUsers);
 
 const registerDriver = require("../controllers/adminControllers/registerDriver");
 const registerStaff = require("../controllers/adminControllers/registerStaff");
@@ -66,10 +66,13 @@ router.post("/staff/register", authenticateAdmin, registerStaff);
 router.get("/staff/all", authenticateAdmin, fetchAllStaff);
 router.get("/driver/all", authenticateAdmin, fetchAllDriver);
 router.get("/parcel/all", authenticateAdmin, fetchAllParcel);
-router.get("/bar/data", barChart);
+router.get("/bar/data", authenticateAdmin, barChart);
 
 const adminImageUpload = require("../middlewares/adminImageUpload");
 const storingDatabase = require("../controllers/adminControllers/imageUpload/adminProfileUpdate");
+const fetchBranches= require("../controllers/adminControllers/userAccounts/fetchBranches");
 router.post("/upload", authenticateAdmin, adminImageUpload, storingDatabase);
+
+router.get("/get/branches",authenticateAdmin, fetchBranches);
 
 module.exports = router;
