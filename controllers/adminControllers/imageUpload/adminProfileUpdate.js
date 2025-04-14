@@ -1,9 +1,10 @@
 // middleware/adminProfileUpdate.js
-const { Admin } = require("../../../models/models");
+const Admin = require("../../../models/AdminModel");
 
 const adminProfileUpdate = async (req, res, next) => {
   try {
     const { public_id, userId } = req.uploadData;
+    
     
     const updatedAdmin = await Admin.findByIdAndUpdate(
       userId,
@@ -11,6 +12,7 @@ const adminProfileUpdate = async (req, res, next) => {
       { new: true, runValidators: true }
     );
 
+    
     if (!updatedAdmin) {
       return res.status(404).json({
         success: false,

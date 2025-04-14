@@ -5,6 +5,7 @@ const adminImageUpload = async (req, res, next) => {
   try {
     const { image } = req.body;
     const userId = req.admin._id; 
+    
 
     if (!image) {
       return res.status(400).json({

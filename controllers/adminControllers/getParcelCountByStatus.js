@@ -143,7 +143,7 @@
 
   // module.exports = getParcelCountByStatus;
 
-  const { Parcel } = require("../../models/models");
+  const  Parcel  = require("../../models/parcelModels");
 
   // Define stage groups
   const stageGroups = {
