@@ -12,7 +12,7 @@ const fetchParcelById = async (req, res) => {
         }
 
         // Find parcel by custom ID
-        const parcel = await Parcel.findOne({ parcelId: parcelId }).select("-__v").populate("senderId","-password -__v -resetPasswordOTP -resetPasswordOTPExpires").populate("receiverId","-__v").lean().exec();
+        const parcel = await Parcel.findOne({ parcelId: parcelId }).select("-__v").populate("senderId","-password -__v -resetPasswordOTP -resetPasswordOTPExpires").populate("receiverId","-__v").populate("paymentId","-__v").lean().exec();
 
         if (!parcel) {
             return res.status(404).json({

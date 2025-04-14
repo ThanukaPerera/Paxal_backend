@@ -5,7 +5,6 @@ const fetchAllParcel = async(req,res) => {
         const parcels=await Parcel.find().lean().select("-__v -updatedAt").populate("senderId","-customerId -nic -customerFullName -password -createdAt -updatedAt -__v -province -district -city").populate("receiverId","-__v").populate("orderPlacedStaffId","-__v").populate("shipmentId","-__v");
 
        
-
 //     const filteredData = parcels.map(parcel => ({
 //         // objectId:parcel._id,
 //         parcelId:parcel.parcelId,
