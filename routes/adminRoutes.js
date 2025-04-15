@@ -93,10 +93,12 @@ const fetchVehicles = require("../controllers/adminControllers/Vehicles/fetchVeh
 const {validateBranch,addBranch}=require("../controllers/adminControllers/branches/addBranch");
 const fetchShipments = require("../controllers/adminControllers/shipments/fetchShipments");
 const fetchParcelById = require("../controllers/adminControllers/Parcel/fetchParcelById");
+const trackStatuses = require("../controllers/adminControllers/Parcel/trackStatuses");
   router.patch( "/update/profile", authenticateAdmin, ...validateProfileUpdate, updateMyData  );
   router.get("/vehicle/all",authenticateAdmin,fetchVehicles);
   router.post("/save/branch",authenticateAdmin,validateBranch,addBranch)
   router.get("/shipment/all",authenticateAdmin,fetchShipments),
   router.get("/parcel/:id",authenticateAdmin,fetchParcelById)
+  router.get("/track/statuses/:parcelId",authenticateAdmin,trackStatuses)
 
 module.exports = router;
