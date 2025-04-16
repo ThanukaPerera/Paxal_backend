@@ -26,7 +26,7 @@ app.use(cookieParser());
 app.use(bodyParser.json({ limit: "50mb" }));  // Adjust the limit as needed
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
-app.use(routes);
+// app.use(routes);
 
 app.use("/admin", auth);
 
