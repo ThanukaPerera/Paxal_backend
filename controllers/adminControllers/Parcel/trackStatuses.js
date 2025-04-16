@@ -1,4 +1,4 @@
-Parcel = require('../../../models/parcelModels');
+Parcel = require('../../../models/parcelModel');
 
 const trackStatuses = async (req, res) => {
     try {

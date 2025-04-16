@@ -1,4 +1,3 @@
-const { Customer } = require("../../../../models/models");
 const user = require("../../../../models/userModel");
 
 const fetchAllCustomers = async (req, res) => {

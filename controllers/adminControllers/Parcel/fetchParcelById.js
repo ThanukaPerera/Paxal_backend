@@ -1,4 +1,5 @@
-const Parcel = require("../../../models/parcelModels");
+const Parcel = require("../../../models/parcelModel");
+const Payment = require("../../../models/PaymentModel");
 
 const fetchParcelById = async (req, res) => {
     try {

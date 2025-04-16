@@ -1,4 +1,4 @@
-const { Driver } = require("../../models/models");
+const  Driver  = require("../../models/DriverModel");
 const bcrypt = require("bcryptjs");
 const findAdminFunction = require("../../utils/findAdminFunction");
 
