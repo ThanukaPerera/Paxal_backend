@@ -1,4 +1,7 @@
-const { Admin, Customer, Driver, Staff } = require("../../models/UserModel");
+const Customer = require("../../models/UserModel");
+const Staff = require("../../models/StaffModel");
+const Admin = require("../../models/AdminModel");
+const Driver = require("../../models/DriverModel");
 const getCount = require("../../utils/getCount");
 
 const fetchNoOfUsers = async (req, res) => {
@@ -6,7 +9,7 @@ const fetchNoOfUsers = async (req, res) => {
         
         const userType = req.query.user; // String, e.g., "Admin"
         // Mapping string to Mongoose model
-        const SchemaMap = { Admin, Customer, Driver, Staff };
+        const SchemaMap = { Customer, Staff, Admin, Driver };
         const Schema = SchemaMap[userType];
 
         if (!Schema) {

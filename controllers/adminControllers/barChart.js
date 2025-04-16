@@ -1,4 +1,4 @@
-const { Parcel } = require("../../models/ParcelModel");
+const Parcel = require("../../models/ParcelModel");
 
 const barChart = async (req, res) => {
     try {

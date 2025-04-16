@@ -119,10 +119,11 @@ const Parcel = require("../models/ParcelModel");
 // Process shipments with staff authentication
 router.post('/process/:type/:center', async (req, res) => {
     try {
+        
         const result = await processAllShipments(
             req.params.type,  // 'Express' or 'Standard'
             req.params.center,
-            req.user.staffId // Assuming authentication middleware provides user
+           // req.user.staffId // Assuming authentication middleware provides user
         );
 
         if (!result.success) {

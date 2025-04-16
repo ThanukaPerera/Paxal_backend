@@ -1,5 +1,5 @@
 
-const {Admin} = require("../../models/AdminModel");
+const Admin = require("../../models/AdminModel");
 
 const fetchAllAdmin =async (req, res) => {
     try {

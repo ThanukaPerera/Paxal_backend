@@ -548,6 +548,7 @@ async function finalizeShipment(shipment, deliveryType) {
 // Main controller function
 exports.processAllShipments = async (deliveryType, sourceCenter, staffId) => {
     try {
+        console.log('Processing shipments...');
         const parcels = await Parcel.find({
             shippingMethod: deliveryType,
             status: 'PendingPickup',
