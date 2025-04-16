@@ -1,4 +1,4 @@
-const { Staff } = require("../../models/models");
+const { Staff } = require("../../models/StaffModel");
 const bcrypt = require("bcryptjs");
 const findAdminFunction = require("../../utils/findAdminFunction");
 

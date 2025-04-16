@@ -14,7 +14,7 @@ const {
   Admin,
   Inquiry,
   Branch,
-} = require("../models/models");
+} = require("../models/ParcelModel");
 
 
 const jwt=require('jsonwebtoken');

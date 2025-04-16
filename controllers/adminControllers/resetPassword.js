@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { Admin } = require("../../models/models");
+const { Admin } = require("../../models/AdminModel");
 
 const resetPassword = async (req, res) => {
     const { email, otp, password,confirmPassword } = req.body;

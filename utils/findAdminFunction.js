@@ -1,4 +1,4 @@
-const {Admin}=require("../models/models");
+const {Admin}=require("../models/AdminModel");
 
 
 //This will only use for BACKEND

@@ -1,4 +1,4 @@
-const { Staff } = require("../../models/models");
+const { Staff } = require("../../models/StaffModel");
 
 const fetchAllStaff = async (req, res) => {
     try {

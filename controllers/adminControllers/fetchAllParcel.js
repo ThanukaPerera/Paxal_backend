@@ -1,4 +1,4 @@
-const { Parcel } = require("../../models/models");
+const { Parcel } = require("../../models/ParcelModel");
 const fetchAllParcel = async(req,res) => {
     const AdminId=req.admin.adminId;
     const AdminEmail=req.admin.email;

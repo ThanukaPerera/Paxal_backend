@@ -1,4 +1,4 @@
-const { Admin } = require("../../models/models");
+const { Admin } = require("../../models/AdminModel");
 const sendEmail = require("../../utils/sendEmail");
 
 const requestPasswordReset = async (req, res) => {

@@ -13,7 +13,7 @@ const {
     Inquiry,
     Branch,
     ParcelAssignedToB2BShipment,
-  } = require("../models/models");
+  } = require("../models/ParcelModel");
 
 
 const getCount=async(Schema,condition)=>{
