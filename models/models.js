@@ -25,43 +25,43 @@ const customerSchema = new mongoose.Schema(
 //username: { type: String, required: true, unique: true },
 
 
-const parcelSchema = new mongoose.Schema(
-  {
-    parcelId: { type: String, required: true, unique: true },
-    trackingNo: { type: String, required: true, unique: true },
-    qrCodeNo: { type: String, required: true, unique: true },
-    pickupId: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup", required: true }, // Reference to Parcel
-    itemType: { type: String, required: true },
-    itemSize: { type: String, enum: ["small", "medium", "large"], required: true }, // Enum for size
-    specialInstructions: { type: String, required: false },
-    submittingType: { type: String, enum: ["pickup", "branch"], required: true }, // Enum for submission type
-    receivingType: { type: String, enum: ["doorstep", "collection_center"], required: true }, // Enum for receiving type
-    shippingMethod: { type: String, enum: ["standard", "express"], required: true }, // Enum for shipping method
-    latestLocation: { type: String, required: true },
-    senderId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true }, // Reference to Customer
-    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Receiver", required: true }, // Reference to Receiver
-    orderPlacedTime: { type: Date, required: true },
-    orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
-    shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
-    arrivedToCollectionCenterTime: { type: Date, required: false },
+// const parcelSchema = new mongoose.Schema(
+//   {
+//     parcelId: { type: String, required: true, unique: true },
+//     trackingNo: { type: String, required: true, unique: true },
+//     qrCodeNo: { type: String, required: true, unique: true },
+//     pickupId: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup", required: true }, // Reference to Parcel
+//     itemType: { type: String, required: true },
+//     itemSize: { type: String, enum: ["small", "medium", "large"], required: true }, // Enum for size
+//     specialInstructions: { type: String, required: false },
+//     submittingType: { type: String, enum: ["pickup", "branch"], required: true }, // Enum for submission type
+//     receivingType: { type: String, enum: ["doorstep", "collection_center"], required: true }, // Enum for receiving type
+//     shippingMethod: { type: String, enum: ["standard", "express"], required: true }, // Enum for shipping method
+//     latestLocation: { type: String, required: true },
+//     senderId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true }, // Reference to Customer
+//     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "Receiver", required: true }, // Reference to Receiver
+//     orderPlacedTime: { type: Date, required: true },
+//     orderPlacedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: false }, // Reference to Staff
+//     shipmentId: { type: mongoose.Schema.Types.ObjectId, ref: "B2BShipment", required: false }, // Reference to B2B Shipment
+//     arrivedToCollectionCenterTime: { type: Date, required: false },
     
 
-    //New to parcel schema this is not included to PDF in the group
-    status:{type:String,enum:["OrderPlaced",
-        "PendingPickup",
-        "PickedUp",
-        "ArrivedAtDistributionCentre",
-        "ShipmentAssigned",
-        "InTransit",
-        "ArrivedAtCollectionCentre",
-        "DeliveryDispatched",
-        "Delivered",
-        "NotAccepted",
-        "WrongAddress",
-        "Return",],required:true}
-  },
-  { timestamps: true }
-);
+//     //New to parcel schema this is not included to PDF in the group
+//     status:{type:String,enum:["OrderPlaced",
+//         "PendingPickup",
+//         "PickedUp",
+//         "ArrivedAtDistributionCentre",
+//         "ShipmentAssigned",
+//         "InTransit",
+//         "ArrivedAtCollectionCentre",
+//         "DeliveryDispatched",
+//         "Delivered",
+//         "NotAccepted",
+//         "WrongAddress",
+//         "Return",],required:true}
+//   },
+//   { timestamps: true }
+// );
 
 
 
@@ -152,27 +152,29 @@ const staffSchema = new mongoose.Schema(
 
 
 
-const b2bShipmentSchema = new mongoose.Schema(
-  {
-    shipmentId: { type: String, required: true, unique: true },
-    shipmentType: { type: String, enum: ["B2B", "bulk"], required: true }, // Enum for shipment type
-    distributionBranchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
-    collectionBranchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
-    assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: true }, // Reference to Staff
-    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true }, // Reference to Driver
-  },
-  { timestamps: true }
-);
+// const b2bShipmentSchema = new mongoose.Schema(
+//   {
+//     shipmentId: { type: String, required: true, unique: true },
+//     shipmentType: { type: String, enum: ["B2B", "bulk"], required: true }, // Enum for shipment type
+//     distributionBranchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
+//     collectionBranchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
+//     assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff", required: true }, // Reference to Staff
+//     driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true }, // Reference to Driver
+//   },
+//   { timestamps: true }
+// );
 
 
 
 const paymentSchema = new mongoose.Schema(
+
   {
     paymentId: { type: String, required: true, unique: true },
     parcelId: { type: mongoose.Schema.Types.ObjectId, ref: "Parcel", required: true }, // Reference to Parcel
-    paymentMethod: { type: String, enum: ["online", "COD"], required: true }, // Enum for payment method
+    paymentMethod: { type: String, enum: ["online","physicalPayment", "COD"], required: true }, // Enum for payment method
+    paidBy:{type:String,enum:["sender","receiver"], default:"receiver",required:true},
     amount: { type: Number, required: true },
-    paymentStatus: { type: String, enum: ["paid", "pending"], required: true }, // Enum for payment status
+    paymentStatus: { type: String, enum: ["paid", "pending"], default:"pending",required: true }, // Enum for payment status
     paymentDate: { type: Date, required: true },
     transactionId: { type: String, required: false }, // For online payments
   },
@@ -197,20 +199,20 @@ const driverSchema = new mongoose.Schema(
 );
 
 
-const adminSchema = new mongoose.Schema(
-  {
-    adminId: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
-    nic: { type: String, required: true, unique: true },
-    password: { type: String, required: true }, // AWS token
-    profilePicLink: { type: String, default:'avatar_1743610267755.jpg',required: false },
-    email: { type: String, required: true, unique: true },
-    contactNo:{type:String,required:true},
-    resetCode: { type: Number },  // Store reset code
-    resetCodeExpires: { type: Date }, // Store reset code expiry  
-  },
-  { timestamps: true }
-);
+// const adminSchema = new mongoose.Schema(
+//   {
+//     adminId: { type: String, required: true, unique: true },
+//     name: { type: String, required: true },
+//     nic: { type: String, required: true, unique: true },
+//     password: { type: String, required: true }, // AWS token
+//     profilePicLink: { type: String, default:'avatar_1743610267755.jpg',required: false },
+//     email: { type: String, required: true, unique: true },
+//     contactNo:{type:String,required:true},
+//     resetCode: { type: Number },  // Store reset code
+//     resetCodeExpires: { type: Date }, // Store reset code expiry  
+//   },
+//   { timestamps: true }
+// );
 
 
 
@@ -228,28 +230,28 @@ const inquirySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const branchSchema=new mongoose.Schema({
-  branchId:{type:String,required:true,unique:true},
-  location:{type:String,required:true},
-  contact:{type:[String],required:true,max:3}
-})
+// const branchSchema=new mongoose.Schema({
+//   branchId:{type:String,required:true,unique:true},
+//   location:{type:String,required:true},
+//   contact:{type:[String],required:true,max:3}
+// })
 
 
 module.exports={
     Customer:mongoose.model("Customer", customerSchema),
-    Parcel:mongoose.model("Parcel", parcelSchema),
+    // Parcel:mongoose.model("Parcel", parcelSchema),
     Shipping:mongoose.model("Shipping", shippingSchema),
     Pickup:mongoose.model("Pickup", pickupSchema),
     ParcelAssignedToB2BShipment:mongoose.model("parcelAssignedToB2BShipment",parcelAssignedToB2BShipmentSchema),
     Deliver:mongoose.model("Deliver", deliverSchema),
     Receiver:mongoose.model("Receiver", receiverSchema),
     Staff:mongoose.model("Staff", staffSchema),
-    B2BShipment:mongoose.model("B2BShipment", b2bShipmentSchema),
+    // B2BShipment:mongoose.model("B2BShipment", b2bShipmentSchema),
     Payment:mongoose.model("Payment", paymentSchema),
     Driver:mongoose.model("Driver", driverSchema),
-    Admin:mongoose.model("Admin", adminSchema),
+    // Admin:mongoose.model("Admin", adminSchema),
     Inquiry:mongoose.model("Inquiry", inquirySchema),
-    Branch:mongoose.model("Branch",branchSchema)
+    // Branch:mongoose.model("Branch",branchSchema)
 }
 
 

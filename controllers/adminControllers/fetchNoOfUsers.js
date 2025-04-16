@@ -1,4 +1,5 @@
-const { Admin, Customer, Driver, Staff } = require("../../models/models");
+const {Customer, Driver, Staff } = require("../../models/models");
+const Admin = require("../../models/AdminModel");
 const getCount = require("../../utils/getCount");
 
 const fetchNoOfUsers = async (req, res) => {

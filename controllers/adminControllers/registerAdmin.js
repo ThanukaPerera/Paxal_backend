@@ -1,4 +1,4 @@
-const { Admin } = require("../../models/models");
+const Admin = require("../../models/AdminModel");
 const bcrypt = require("bcryptjs");
 // const { validationResult } = require('express-validator'); // Or use Joi/validator
 
