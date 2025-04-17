@@ -1,9 +1,13 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-const routes = require("./routes/customer");
-const staffRoutes = require("./routes/staffRoutes");
-const parcelRoutes = require("./routes/parcelRoutes");
+const staffRoutes = require("./routes/staff/staffRoutes");
+const parcelRoutes = require("./routes/staff/parcelRoutes");
+
+const pickupRoutes = require("./routes/staff/pickupRoutes");
+const dropoffRoutes = require("./routes/staff/dropOffRoutes");
+const userRoutes = require("./routes/staff/userRoutes");
+
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
@@ -19,16 +23,15 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(routes);
-
 
 app.use("/staff", staffRoutes);
-app.use("/staff/parcel", parcelRoutes);
+app.use("/staff/lodging-management", parcelRoutes);
+app.use("/staff/lodging-management", pickupRoutes);
+app.use("/staff/lodging-management", dropoffRoutes);
+app.use("/staff", userRoutes);
 
-
-
-
-// const db_URL='mongodb+srv://AlgoRhythm-PAXAL:Sehara2002@pms.5jolo.mongodb.net/?retryWrites=true&w=majority&appName=PMS';
+const db_URL =
+  "mongodb+srv://AlgoRhythm-PAXAL:Sehara2002@pms.5jolo.mongodb.net/?retryWrites=true&w=majority&appName=PMS";
 
 mongoose
   .connect(db_URL)
