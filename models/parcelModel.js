@@ -70,7 +70,7 @@ const parcelSchema = new mongoose.Schema(
     shipmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "B2BShipment",
-      required: false,
+      required: true,
     }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
     status: {
@@ -95,11 +95,11 @@ const parcelSchema = new mongoose.Schema(
     pickupInformation: pickupSchema,
     deliveryInformation: deliverySchema,
     
-    from:{type: mongoose.Schema.Types.ObjectId,
+    from:{type: mongoose.Schema.Types.String,
         ref: "Branch",
         required: false
     },
-    to:{type: mongoose.Schema.Types.ObjectId,
+    to:{type: mongoose.Schema.Types.String,
         ref: "Branch",
         required: false
     }

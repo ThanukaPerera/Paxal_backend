@@ -4,7 +4,7 @@ const router = express.Router();
 const { assignVehicle } = require("../controllers/shipmentManagementControllers/vehicleController");
 const shipmentModel = require("../models/B2BShipmentModel");
 
-router.get("/assignVehicleToShipment/:id/:deliveryType", async (req, res) => {
+router.post("/assignVehicleToShipment/:id/:deliveryType", async (req, res) => {
     try {
 
         const shipmentId = req.params.id;

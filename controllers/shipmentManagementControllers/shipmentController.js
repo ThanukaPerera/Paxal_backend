@@ -324,7 +324,7 @@ const constraints = {
         maxVolume: 5,
         maxWeight: 1000,
         buffer: 1,
-        firstBuffer: 2
+        firstBuffer: 4 // Added firstBuffer for first leg of journey
     },
     Standard: {
         maxDistance: 300,
@@ -332,7 +332,21 @@ const constraints = {
         maxVolume: 10,
         maxWeight: 2500,
         buffer: 2,
-        firstBuffer: 2
+        firstBuffer: 4 // Added firstBuffer for first leg of journey
+    }
+};
+
+// Buffer times configuration based on position in route
+const bufferTimeConfig = {
+    Express: {
+        first: 2,  // First center has 2 hours buffer
+        intermediate: 1, // Centers between first and last have 1 hour buffer
+        last: 2    // Last center has 2 hours buffer
+    },
+    Standard: {
+        first: 2,  // First center has 2 hours buffer
+        intermediate: 2, // Centers between first and last have 2 hours buffer 
+        last: 2    // Last center has 2 hours buffer
     }
 };
 
@@ -345,50 +359,74 @@ const sizeSpecs = {
 
 // Helper function to get district information
 async function getDistrictInfo(parcel) {
-    let sourceDistrict, destDistrict;
-
-    // Try to get from/to branches first
-    if (parcel.from) {
-        const branch = await Branch.findById(parcel.from).select('district').lean();
-        sourceDistrict = branch?.district;
-    }
-    if (parcel.to) {
-        const branch = await Branch.findById(parcel.to).select('district').lean();
-        destDistrict = branch?.district;
-    }
-
-    // Fallback to pickup/delivery information
-    if (!sourceDistrict && parcel.pickupInformation) {
-        sourceDistrict = parcel.pickupInformation.district;
-    }
-    if (!destDistrict && parcel.deliveryInformation) {
-        destDistrict = parcel.deliveryInformation.deliveryDistrict;
-    }
-
-    return { sourceDistrict, destDistrict };
+    return {
+        sourceDistrict: parcel.from,
+        destDistrict: parcel.to
+    };
 }
 
+/**
+ * Calculate arrival times for each center in the route with proper buffer times
+ * @param {Array} route - Array of centers in the route
+ * @param {String} deliveryType - Express or Standard
+ * @returns {Array} - Array of objects containing center and arrival time
+ */
 function calculateArrivalTimes(route, deliveryType) {
-    let arrivalTimes = [];
-    let currentTime = 0;
-    const buffer = deliveryType === 'Express' ? 1 : 2;
+    const arrivalTimes = [];
+    let cumulativeTime = 0;
 
+    // First center (source) has arrival time of 0
+    arrivalTimes.push({ center: route[0], time: 0 });
+
+    // For each subsequent center in the route, calculate the arrival time
     for (let i = 1; i < route.length; i++) {
-        const prev = route[i - 1];
-        const curr = route[i];
-        const travelTime = timeMatrix[prev][curr];
+        const previousCenter = route[i - 1];
+        const currentCenter = route[i];
 
-        currentTime += travelTime + (i === 1 ? constraints[deliveryType].firstBuffer : buffer);
-        arrivalTimes.push({ center: curr, time: currentTime });
+        // Apply buffer time for previous center based on its position
+        let bufferTime;
+        if (i === 1) {
+            // First center in the route
+            bufferTime = bufferTimeConfig[deliveryType].first;
+        } else {
+            // Intermediate center in the route
+            bufferTime = bufferTimeConfig[deliveryType].intermediate;
+        }
+
+        // Add buffer time for previous center
+        cumulativeTime += bufferTime;
+
+        // Add travel time from previous to current center
+        const travelTime = timeMatrix[previousCenter][currentCenter];
+        cumulativeTime += travelTime;
+
+        // Add arrival time for current center
+        arrivalTimes.push({
+            center: currentCenter,
+            time: cumulativeTime
+        });
     }
-    return arrivalTimes;
+
+    // Calculate shipment finish time (add buffer time for the last center)
+    const lastBufferTime = bufferTimeConfig[deliveryType].last;
+    const shipmentFinishTime = cumulativeTime + lastBufferTime;
+
+    // For logging purposes
+    console.log(`Arrival times calculated for route ${route.join(' -> ')}:`);
+    arrivalTimes.forEach(at => console.log(`  ${at.center}: ${at.time}h`));
+    console.log(`Shipment finish time: ${shipmentFinishTime}h`);
+
+    return {
+        arrivalTimes,
+        shipmentFinishTime
+    };
 }
 
 async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
     let shipments = [];
     let lastShipmentNumber = 0;
 
-    // Get existing shipment numbers
+    // Get last shipment number for the source center
     const lastShipment = await B2BShipment.findOne({ sourceCenter })
         .sort({ shipmentId: -1 })
         .select('shipmentId')
@@ -399,10 +437,14 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
         if (match) lastShipmentNumber = parseInt(match[1]);
     }
 
+
     // Process parcels and group by destination
     const processedParcels = await Promise.all(parcels.map(async parcel => {
         const { sourceDistrict, destDistrict } = await getDistrictInfo(parcel);
-        if (!sourceDistrict || !destDistrict) return null;
+        if (!sourceDistrict || !destDistrict) {
+            console.log(`Parcel ${parcel._id} missing district info`);
+            return null;
+        }
 
         return {
             ...parcel.toObject(),
@@ -413,9 +455,14 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
         };
     }));
 
-    // Filter and group valid parcels
+    // Filter valid parcels and group by destination
     const validParcels = processedParcels.filter(p => p !== null);
+
+    // Group parcels by destination, excluding the source center itself
     const destinationGroups = validParcels.reduce((groups, parcel) => {
+        // Skip parcels destined for source center
+        if (parcel.destDistrict === sourceCenter) return groups;
+
         const key = parcel.destDistrict;
         if (!groups[key]) {
             groups[key] = { parcels: [], totalWeight: 0, totalVolume: 0 };
@@ -426,61 +473,89 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
         return groups;
     }, {});
 
-    // Create optimized routes
+    console.log('Destination Groups:', JSON.stringify(destinationGroups, null, 2));
+
+    // Generate optimized route from source to all destinations
     const destinations = Object.keys(destinationGroups);
     const route = optimizeRoute(sourceCenter, destinations);
+    console.log(`Optimized Route: ${route.join(' -> ')}`);
 
-    // Process shipments with original logic
     let currentShipment = null;
     let shipmentCount = lastShipmentNumber + 1;
 
-    for (const destination of route) {
+    // Process each destination in the optimized route (excluding source center)
+    for (let i = 1; i < route.length; i++) {
+        const destination = route[i];
         const group = destinationGroups[destination];
-        if (!group) continue;
 
-        const isFirstLeg = !currentShipment;
-        const isFinalLeg = destination === route[route.length - 1];
-
-        // Create new shipment if needed
-        if (!currentShipment) {
-            currentShipment = createNewShipment(
-                deliveryType,
-                sourceCenter,
-                staffId,
-                shipmentCount++
-            );
+        if (!group) {
+            console.log(`No parcels for destination: ${destination}`);
+            continue;
         }
 
-        // Calculate additional time
-        const prevCenter = currentShipment.route.slice(-1)[0];
-        const travelTime = timeMatrix[prevCenter][destination];
-        const additionalTime = isFirstLeg ?
-            travelTime + constraints[deliveryType].firstBuffer :
-            travelTime + constraints[deliveryType].buffer;
+        console.log(`Processing destination: ${destination} with ${group.parcels.length} parcels`);
 
-        // Check constraints
-        if (!canAddToShipment(currentShipment, group, additionalTime, deliveryType)) {
+        // Create new shipment if none exists
+        if (!currentShipment) {
+            currentShipment = createNewShipment(deliveryType, sourceCenter, staffId, shipmentCount++);
+            console.log(`Created new shipment ${currentShipment.shipmentId}`);
+        }
+
+        // For a new shipment, we always go from source center to destination
+        const prevCenter = currentShipment.route.length === 1 ? sourceCenter : currentShipment.route.slice(-1)[0];
+        const travelTime = timeMatrix[prevCenter][destination];
+
+        // Apply the firstBuffer (4 hours) for the first leg from source center to first destination
+        const isFirstLeg = currentShipment.route.length === 1;
+        const bufferTime = isFirstLeg ? constraints[deliveryType].firstBuffer : constraints[deliveryType].buffer;
+        const additionalTime = travelTime + bufferTime;
+
+        console.log(`From ${prevCenter} to ${destination}: Travel time ${travelTime}h + Buffer ${bufferTime}h = ${additionalTime}h`);
+
+        // Check if current shipment can accommodate this group
+        if (!canAddToShipment(currentShipment, destination, group, additionalTime, deliveryType)) {
+            console.log(`Shipment constraints exceeded. Finalizing current shipment ${currentShipment.shipmentId}`);
             await finalizeShipment(currentShipment, deliveryType);
             shipments.push(currentShipment);
-            currentShipment = createNewShipment(
-                deliveryType,
-                sourceCenter,
-                staffId,
-                shipmentCount++
-            );
-        }
+            console.log(`===============================Shipment finished ${currentShipment.shipmentId}==============================`);
 
-        // Add to current shipment
-        currentShipment.route.push(destination);
-        currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
-        currentShipment.totalTime += additionalTime;
-        currentShipment.parcels.push(...group.parcels);
-        currentShipment.parcelCount += group.parcels.length;
-        currentShipment.totalWeight += group.totalWeight;
-        currentShipment.totalVolume += group.totalVolume;
+            // Create new shipment starting from source center
+            currentShipment = createNewShipment(deliveryType, sourceCenter, staffId, shipmentCount++);
+            console.log(`Created new shipment ${currentShipment.shipmentId} for remaining parcels`);
+
+            // Recalculate travel time from source center to destination
+            const directTravelTime = timeMatrix[sourceCenter][destination];
+            const directAdditionalTime = directTravelTime + constraints[deliveryType].firstBuffer;
+
+            // Add destination directly to new shipment (from source center)
+            console.log(`Adding ${destination} to shipment ${currentShipment.shipmentId}`);
+            currentShipment.route.push(destination);
+            currentShipment.totalDistance = distanceMatrix[sourceCenter][destination];
+            currentShipment.totalTime = directAdditionalTime;
+            currentShipment.parcels.push(...group.parcels);
+            currentShipment.parcelCount = group.parcels.length;
+            currentShipment.totalWeight = group.totalWeight;
+            currentShipment.totalVolume = group.totalVolume;
+
+            console.log(`Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`);
+        } else {
+            // Add destination to current shipment
+            console.log(`Adding ${destination} to shipment ${currentShipment.shipmentId}`);
+            currentShipment.route.push(destination);
+            currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
+            currentShipment.totalTime += additionalTime;
+            currentShipment.parcels.push(...group.parcels);
+            currentShipment.parcelCount += group.parcels.length;
+            currentShipment.totalWeight += group.totalWeight;
+            currentShipment.totalVolume += group.totalVolume;
+
+            console.log(`Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`);
+        }
     }
 
+    // Finalize the last shipment
     if (currentShipment) {
+        console.log(`Finalizing last shipment ${currentShipment.shipmentId}`);
         await finalizeShipment(currentShipment, deliveryType);
         shipments.push(currentShipment);
     }
@@ -488,28 +563,39 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
     return shipments;
 }
 
-// Helper functions
+// Optimize route using nearest neighbor algorithm
 function optimizeRoute(source, destinations) {
     let route = [source];
     let remaining = [...destinations];
 
     while (remaining.length > 0) {
         const last = route[route.length - 1];
-        const nearest = remaining.reduce((closest, current) =>
-            distanceMatrix[last][current] < distanceMatrix[last][closest] ? current : closest
-        );
+        let nearest = remaining[0];
+        let shortestDistance = distanceMatrix[last][nearest];
+
+        for (const dest of remaining) {
+            const dist = distanceMatrix[last][dest];
+            if (dist < shortestDistance) {
+                shortestDistance = dist;
+                nearest = dest;
+            }
+        }
+
         route.push(nearest);
         remaining = remaining.filter(d => d !== nearest);
     }
+
     return route;
 }
 
 function createNewShipment(deliveryType, sourceCenter, staffId, sequence) {
+    const shipmentId = `${deliveryType === 'Express' ? 'EX' : 'ST'}-S${sequence.toString().padStart(3, '0')}-${sourceCenter}`;
+    console.log(`Creating new shipment ${shipmentId}`);
     return new B2BShipment({
-        shipmentId: `${deliveryType === 'Express' ? 'EX' : 'ST'}-S${sequence.toString().padStart(3, '0')}-${sourceCenter}`,
+        shipmentId,
         deliveryType,
         sourceCenter,
-        route: [sourceCenter],
+        route: [sourceCenter], // Always start with source center
         currentLocation: sourceCenter,
         totalDistance: 0,
         totalTime: 0,
@@ -523,57 +609,78 @@ function createNewShipment(deliveryType, sourceCenter, staffId, sequence) {
     });
 }
 
-function canAddToShipment(shipment, group, additionalTime, deliveryType) {
+// Check if shipment can accommodate adding this destination's group
+function canAddToShipment(shipment, destination, group, additionalTime, deliveryType) {
     const cons = constraints[deliveryType];
-    return (shipment.totalDistance + distanceMatrix[shipment.route.slice(-1)[0]][group.destDistrict]) <= cons.maxDistance &&
-        (shipment.totalTime + additionalTime) <= cons.maxTime &&
-        (shipment.totalWeight + group.totalWeight) <= cons.maxWeight &&
-        (shipment.totalVolume + group.totalVolume) <= cons.maxVolume;
+    const prevCenter = shipment.route.slice(-1)[0];
+    const addedDistance = distanceMatrix[prevCenter][destination];
+
+    const newDistance = shipment.totalDistance + addedDistance;
+    const newTime = shipment.totalTime + additionalTime;
+    const newWeight = shipment.totalWeight + group.totalWeight;
+    const newVolume = shipment.totalVolume + group.totalVolume;
+
+    console.log(`Checking constraints for ${destination}: Distance ${newDistance}/${cons.maxDistance}km, Time ${newTime}/${cons.maxTime}h, Weight ${newWeight}/${cons.maxWeight}kg, Volume ${newVolume}/${cons.maxVolume}m³`);
+
+    // Fixed the volume constraint check
+    return newDistance <= cons.maxDistance &&
+        newTime <= cons.maxTime &&
+        newWeight <= cons.maxWeight &&
+        newVolume <= cons.maxVolume;
 }
 
+// Finalize shipment details and save
 async function finalizeShipment(shipment, deliveryType) {
-    shipment.arrivalTimes = calculateArrivalTimes(shipment.route, deliveryType);
+    // Use the new arrival times calculation method
+    const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(shipment.route, deliveryType);
 
-    // Save shipment and update parcels
+    // Update shipment with calculated arrival times and shipment finish time
+    shipment.arrivalTimes = arrivalTimes;
+    shipment.shipmentFinishTime = shipmentFinishTime;
+
+    console.log(`Finalizing shipment ${shipment.shipmentId} with route ${shipment.route.join(' -> ')}`);
+    console.log(`Shipment finish time: ${shipmentFinishTime}h`);
+
+    // Uncomment to save to database
     await shipment.save();
     await Parcel.updateMany(
         { _id: { $in: shipment.parcels } },
-        {
-            shipmentId: shipment._id,
-            status: 'ShipmentAssigned'
-        }
+        { shipmentId: shipment._id, status: 'ShipmentAssigned' }
     );
 }
 
 // Main controller function
 exports.processAllShipments = async (deliveryType, sourceCenter, staffId) => {
     try {
-        console.log('Processing shipments...');
+        console.log(`Starting shipment processing for ${deliveryType} shipments from ${sourceCenter}`);
+
         const parcels = await Parcel.find({
+            shipmentId: null,
             shippingMethod: deliveryType,
-            status: 'PendingPickup',
-            $or: [
-                { from: sourceCenter },
-                { 'pickupInformation.district': sourceCenter }
-            ]
+            from: sourceCenter
         });
 
         if (parcels.length === 0) {
+            console.log('No parcels found for processing');
             return { success: false, message: 'No parcels available for shipment' };
         }
 
+        console.log(`Found ${parcels.length} parcels to process`);
         const shipments = await processShipments(deliveryType, parcels, sourceCenter, staffId);
+
+        console.log("Shipments", shipments);
+
         return {
             success: true,
             count: shipments.length,
-            shipments: shipments.map(s => s._id)
+            shipments: shipments
         };
 
     } catch (error) {
         console.error('Shipment processing error:', error);
-        return {
-            success: false,
-            error: error.message
-        };
+        return { success: false, error: error.message };
     }
 };
+
+
+//http://localhost:8000/shipments/process/Express/Colombo
