@@ -4,11 +4,11 @@ const pickupSchema = new mongoose.Schema({
   pickupDate: { type: Date, required: true },
   pickupTime: {
     type: String,
-    enum: ["8:00 - 12:00", "1:00 - 5:00"],
+    enum: ["08:00 - 12:00", "13:00 - 17:00"],
     required: true,
   },
   address: { type: String, required: true },
-  City: { type: String, required: true },
+  city: { type: String, required: true },
   district: { type: String, required: true },
   province: { type: String, required: true },
   staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" }, // Reference to Staff
@@ -28,7 +28,7 @@ const parcelSchema = new mongoose.Schema(
     parcelId: { type: String, required: true, unique: true },
     trackingNo: { type: String, required: false, unique: true },
     qrCodeNo: { type: String, required: false, unique: true },
-    itemType: { type: String, required: true },
+    itemType: { type: String, enum:["Glass",""],required: true },
     itemSize: {
       type: String,
       enum: ["small", "medium", "large"],
@@ -50,11 +50,11 @@ const parcelSchema = new mongoose.Schema(
       enum: ["standard", "express"],
       required: true,
     }, // Enum for shipping method
-    senderId: {
+    senderId: {                                    
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: "User",
       required: true,
-    }, // Reference to Customer
+    }, // Reference to User
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Receiver",
@@ -62,7 +62,6 @@ const parcelSchema = new mongoose.Schema(
     }, // Reference to Receiver
     paymentId: { type: mongoose.Schema.Types.ObjectId,
       ref: "Payment", required: true }, // Reference to Payment
-    orderPlacedTime: { type: Date, required: true },
     orderPlacedStaffId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Staff",
@@ -90,14 +89,22 @@ const parcelSchema = new mongoose.Schema(
         "WrongAddress",
         "Return",
       ],
+      default:"OrderPlaced",
       required: true,
     },
     pickupInformation: pickupSchema,
     deliveryInformation: deliverySchema,
+    from:{type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
+        required: false
+    },
+    to:{type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
+        required: false
+    }
   },
+  
   { timestamps: true }
 );
 
-module.exports = {
-  Parcel: mongoose.model("Parcel", parcelSchema),
-};
+module.exports =mongoose.model("Parcel", parcelSchema)
