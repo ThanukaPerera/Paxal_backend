@@ -12,11 +12,13 @@ const authenticateStaff = async(req, res, next) => {
     }
 
     // Verify token
-    const decoded = await jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    const decoded =  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
         return res.status(403).json({ message: "Unauthorized: Invalid token" });
       }
+      
       req.staff = decoded; // Store staff data in request
+      
       next();
     });
   } catch (error) {
