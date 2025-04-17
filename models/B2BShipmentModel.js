@@ -21,13 +21,8 @@ const shipmentSchema = new mongoose.Schema({
     },
     route: {
         type: [String],
+        
         required: true,
-        validate: {
-            validator: function (v) {
-                return v.length >= 2;
-            },
-            message: 'Route must contain at least source and destination'
-        }
     },
     currentLocation: {
         type: String,
@@ -36,7 +31,7 @@ const shipmentSchema = new mongoose.Schema({
     totalTime: {
         type: Number,
         required: true,
-        min: [1, 'Total time must be at least 1 hour']
+       
     },
     arrivalTimes: [{
         center: {
@@ -51,32 +46,32 @@ const shipmentSchema = new mongoose.Schema({
     totalDistance: {
         type: Number,
         required: true,
-        min: [1, 'Distance must be at least 1 km']
+       
     },
     totalWeight: {
         type: Number,
         required: true,
-        min: [0.1, 'Weight must be at least 0.1 kg']
+        
     },
     totalVolume: {
         type: Number,
         required: true,
-        min: [0.01, 'Volume must be at least 0.01 m³']
+       
     },
     parcelCount: {
         type: Number,
         required: true,
-        min: [1, 'Must contain at least one parcel']
+       
     },
     assignedVehicle: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Vehicle",
-        required: true
+        ref: "Vehicle"
+       
     },
     assignedDriver: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Driver",
-        required: true
+        ref: "Driver"
+      
     },
     status: {
         type: String,
@@ -96,14 +91,12 @@ const shipmentSchema = new mongoose.Schema({
     createdByStaff: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Staff",
-        required: true
+       
     },
     createdAt: {
         type: Date,
         default: Date.now
     }
-}, {
-    versionKey: false // Disable the version key (_v)
 });
 
 module.exports = mongoose.model('B2BShipment', shipmentSchema);
