@@ -5,7 +5,6 @@ const paymentSchema = new mongoose.Schema(
 
     {
       paymentId: { type: String, required: true, unique: true },
-      parcelId: { type: mongoose.Schema.Types.ObjectId, ref: "Parcel", required: true }, // Reference to Parcel
       paymentMethod: { type: String, enum: ["online","physicalPayment", "COD"], required: true }, // Enum for payment method
       paidBy:{type:String,enum:["sender","receiver"], default:"receiver",required:true},
       amount: { type: Number, required: true },
