@@ -28,7 +28,7 @@ const authenticateAdmin = async(req, res, next) => {
   }
 };
 
-module.exports = authenticateAdmin;
+
 
 
 
@@ -56,4 +56,7 @@ const authenticateStaff = async(req, res, next) => {
   }
 };
 
-module.exports = authenticateStaff;
+module.exports = {
+  authenticateAdmin,
+  authenticateStaff,
+};

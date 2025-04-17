@@ -15,7 +15,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");
 const adminRoutes = require("./routes/adminRoutes");
 const staffRoutes = require("./routes/staff/staffRoutes");
-const parcelRoutes = require("./routes/staff/parcelRoutes");
+const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
@@ -64,7 +64,7 @@ app.use("/standard-shipments", notificationRoutes);
 app.use("/admin", adminRoutes);
 // app.use("/", customerRoutes);
 app.use("/staff", staffRoutes);
-app.use("/staff/lodging-management", parcelRoutes);
+app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
 app.use("/staff", userRoutes);

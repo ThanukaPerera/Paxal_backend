@@ -9,7 +9,7 @@ const paymentSchema = new mongoose.Schema(
       paidBy:{type:String,enum:["sender","receiver"], default:"receiver",required:true},
       amount: { type: Number, required: true },
       paymentStatus: { type: String, enum: ["paid", "pending"], default:"pending",required: true }, // Enum for payment status
-      paymentDate: { type: Date, required: true },
+      paymentDate: { type: Date, required: false },
       transactionId: { type: String, required: false }, // For online payments
     },
     { timestamps: true }

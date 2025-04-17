@@ -1,5 +1,5 @@
 const express = require("express");
-const authenticateStaff = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middlewares/authMiddleware");
 const { viewAllPickupParcels } = require("../../controllers/staff/pickupController");
 const router = express.Router();
 

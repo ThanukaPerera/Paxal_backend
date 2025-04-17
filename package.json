@@ -13,6 +13,7 @@
   "dependencies": {
     "@types/express": "^5.0.1",
     "@types/express-validator": "^2.20.33",
+    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.0",
     "cloudinary": "^2.6.0",
     "cookie-parser": "^1.4.7",
@@ -24,6 +25,7 @@
     "mongoose": "^8.10.0",
     "nodemailer": "^6.10.0",
     "nodemon": "^3.1.9",
+    "qrcode": "^1.5.4",
     "validator": "^13.15.0"
   }
 }
