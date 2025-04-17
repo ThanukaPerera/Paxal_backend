@@ -12,6 +12,8 @@ const staffSchema = new mongoose.Schema(
       branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }, // Reference to Branch
       adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: true }, // Reference to Admin
       password: { type: String, required: true }, // AWS token
+      resetPasswordToken: {type: String, required:false},
+      resetPasswordTokenExpires: {type: Date, required: false},
     },
     { timestamps: true }
   );

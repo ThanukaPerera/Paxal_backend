@@ -14,6 +14,12 @@ const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");
 const adminRoutes = require("./routes/adminRoutes");
+const staffRoutes = require("./routes/staff/staffRoutes");
+const parcelRoutes = require("./routes/staff/parcelRoutes");
+
+const pickupRoutes = require("./routes/staff/pickupRoutes");
+const dropoffRoutes = require("./routes/staff/dropOffRoutes");
+const userRoutes = require("./routes/staff/userRoutes");
 
 const app = express();
 const PORT = 8000;
@@ -57,6 +63,11 @@ app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
 app.use("/admin", adminRoutes);
 // app.use("/", customerRoutes);
+app.use("/staff", staffRoutes);
+app.use("/staff/lodging-management", parcelRoutes);
+app.use("/staff/lodging-management", pickupRoutes);
+app.use("/staff/lodging-management", dropoffRoutes);
+app.use("/staff", userRoutes);
 
 
 
