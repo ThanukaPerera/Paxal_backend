@@ -107,4 +107,4 @@ const parcelSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports =mongoose.model("Parcel", parcelSchema)
+module.exports= mongoose.models.Parcel || mongoose.model("Parcel", parcelSchema);

@@ -1,7 +1,5 @@
 // userModel.js
 const mongoose = require('mongoose');
-const validator = require("validator");
-
 const userSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true, unique: true },
@@ -13,7 +11,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      validate: [validator.isEmail, "Please provide a valid email"],
+      // validate: [validator.isEmail, "Please provide a valid email"],
     },
     password: { type: String, required: true },
     passwordconfirm: {

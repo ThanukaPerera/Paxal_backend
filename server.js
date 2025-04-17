@@ -12,7 +12,7 @@ const parcelRoutes = require("./routes/parcelRoutes");
 const driverRoutes = require("./routes/driverRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-const customerRoutes = require("./routes/customer");
+// const customerRoutes = require("./routes/customer");
 const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
@@ -56,7 +56,7 @@ app.use("/drivers", driverRoutes);
 app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
 app.use("/admin", adminRoutes);
-app.use("/", customerRoutes);
+// app.use("/", customerRoutes);
 
 
 
