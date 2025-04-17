@@ -115,11 +115,12 @@ const router = express.Router();
 const Shipment = require("../models/B2BShipmentModel");
 const { processAllShipments } = require("../controllers/shipmentManagementControllers/shipmentController");
 const Parcel = require("../models/ParcelModel");
+const Branch = require("../models/BranchesModel");
 
 // Process shipments with staff authentication
 router.post('/process/:type/:center', async (req, res) => {
     try {
-        console.log("it is working");
+        
         const result = await processAllShipments(
             req.params.type,  // 'Express' or 'Standard'
             req.params.center

@@ -291,13 +291,14 @@
 // module.exports = { processAllShipments };
 
 
+//http://localhost:8000/shipments/process/Express/67c41df8c2ca1289195def43
 
-
-// controllers/shipmentController.js
+//controllers/shipmentController.js
 const mongoose = require('mongoose');
 const Parcel = require('../../models/ParcelModel');
 const B2BShipment = require('../../models/B2BShipmentModel');
-const Branch = require('../../models/StaffModel');
+const Branch = require('../../models/BranchesModel');
+
 
 // District-based distance matrix (km)
 const distanceMatrix = {
@@ -357,11 +358,30 @@ const sizeSpecs = {
     large: { weight: 10, volume: 1 }
 };
 
+
 // Helper function to get district information
 async function getDistrictInfo(parcel) {
+    // For source district
+    let sourceDistrict;
+    if (typeof parcel.from === 'object' && parcel.from !== null) {
+        sourceDistrict = parcel.from || '';
+    } else {
+        const sourceBranch = await Branch.findById(parcel.from).select('location').lean();
+        sourceDistrict = sourceBranch ? sourceBranch : '';
+    }
+
+    // For destination district
+    let destDistrict;
+    if (typeof parcel.to === 'object' && parcel.to !== null) {
+        destDistrict = parcel.to.location || '';
+    } else {
+        const destBranch = await Branch.findById(parcel.to).select('location').lean();
+        destDistrict = destBranch ? destBranch.location : '';
+    }
+
     return {
-        sourceDistrict: parcel.from,
-        destDistrict: parcel.to
+        sourceDistrict,
+        destDistrict
     };
 }
 
@@ -423,6 +443,7 @@ function calculateArrivalTimes(route, deliveryType) {
 }
 
 async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
+    console.log(`Processing ${deliveryType} shipments from ${sourceCenter}`);
     let shipments = [];
     let lastShipmentNumber = 0;
 
@@ -431,6 +452,8 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
         .sort({ shipmentId: -1 })
         .select('shipmentId')
         .lean();
+    
+    console.log('Last Shipment:', lastShipment);
 
     if (lastShipment) {
         const match = lastShipment.shipmentId.match(/-S(\d+)-/);
@@ -440,7 +463,9 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
 
     // Process parcels and group by destination
     const processedParcels = await Promise.all(parcels.map(async parcel => {
+
         const { sourceDistrict, destDistrict } = await getDistrictInfo(parcel);
+
         if (!sourceDistrict || !destDistrict) {
             console.log(`Parcel ${parcel._id} missing district info`);
             return null;
@@ -458,12 +483,16 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
     // Filter valid parcels and group by destination
     const validParcels = processedParcels.filter(p => p !== null);
 
-    // Group parcels by destination, excluding the source center itself
+  
+    // In the processShipments function, update the destination grouping logic:
     const destinationGroups = validParcels.reduce((groups, parcel) => {
         // Skip parcels destined for source center
         if (parcel.destDistrict === sourceCenter) return groups;
 
-        const key = parcel.destDistrict;
+        // Extract just the district name, not the whole object
+        const destDistrict = parcel.destDistrict;
+        const key = typeof destDistrict === 'object' ? destDistrict.location : destDistrict;
+
         if (!groups[key]) {
             groups[key] = { parcels: [], totalWeight: 0, totalVolume: 0 };
         }
@@ -472,7 +501,6 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
         groups[key].totalVolume += parcel.volume;
         return groups;
     }, {});
-
     console.log('Destination Groups:', JSON.stringify(destinationGroups, null, 2));
 
     // Generate optimized route from source to all destinations
@@ -642,23 +670,34 @@ async function finalizeShipment(shipment, deliveryType) {
     console.log(`Shipment finish time: ${shipmentFinishTime}h`);
 
     // Uncomment to save to database
-    await shipment.save();
-    await Parcel.updateMany(
-        { _id: { $in: shipment.parcels } },
-        { shipmentId: shipment._id, status: 'ShipmentAssigned' }
-    );
+    // await shipment.save();
+    // await Parcel.updateMany(
+    //     { _id: { $in: shipment.parcels } },
+    //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
+    // );
 }
 
-// Main controller function
-exports.processAllShipments = async (deliveryType, sourceCenter, staffId) => {
-    try {
-        console.log(`Starting shipment processing for ${deliveryType} shipments from ${sourceCenter}`);
 
+
+// Main controller function
+exports.processAllShipments = async (deliveryType, sourceCenterId, staffId) => {
+    try {
+        // Fetch the branch using the source center's object ID
+        const sourceBranch = await Branch.findById(sourceCenterId).select('location').lean();
+        if (!sourceBranch) {
+            console.error(`Branch not found for source center ID: ${sourceCenterId}`);
+            return { success: false, message: 'Invalid source center ID' };
+        }
+
+        const sourceLocation = sourceBranch.location; // District name like "Colombo"
+        console.log(`Starting shipment processing for ${deliveryType} shipments from ${sourceLocation}`);
+
+        // Fetch parcels with the source center's ObjectId and populate 'to' field
         const parcels = await Parcel.find({
             shipmentId: null,
-            shippingMethod: deliveryType,
-            from: sourceCenter
-        });
+            shippingMethod: deliveryType, // Convert to lowercase to match schema
+            from: sourceCenterId
+        }).populate('to', 'location');
 
         if (parcels.length === 0) {
             console.log('No parcels found for processing');
@@ -666,9 +705,9 @@ exports.processAllShipments = async (deliveryType, sourceCenter, staffId) => {
         }
 
         console.log(`Found ${parcels.length} parcels to process`);
-        const shipments = await processShipments(deliveryType, parcels, sourceCenter, staffId);
 
-        console.log("Shipments", shipments);
+        // Pass the location name to process shipments
+        const shipments = await processShipments(deliveryType, parcels, sourceLocation, staffId);
 
         return {
             success: true,
@@ -682,5 +721,3 @@ exports.processAllShipments = async (deliveryType, sourceCenter, staffId) => {
     }
 };
 
-
-//http://localhost:8000/shipments/process/Express/Colombo

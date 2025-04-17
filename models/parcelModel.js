@@ -94,6 +94,7 @@ const parcelSchema = new mongoose.Schema(
     },
     pickupInformation: pickupSchema,
     deliveryInformation: deliverySchema,
+
     from:{type: mongoose.Schema.Types.ObjectId,
         ref: "Branch",
         required: false
