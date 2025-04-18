@@ -212,7 +212,7 @@
 
 // module.exports = { assignVehicle };
 
-
+//http://localhost:8000/vehicles/assignVehicleToShipment/6800c4d4145113a6e369c3e0/Express
 const Vehicle = require("../../models/VehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
 const Parcel = require('../../models/ParcelModel');
