@@ -177,6 +177,242 @@
 
 
 
+
+//http://localhost:8000/standard-shipments/notifyAboutShipment/6800d5c1145113a6e369c3ff
+
+// const mongoose = require('mongoose');
+// const Shipment = require('../../models/B2BShipmentModel');
+// const Parcel = require('../../models/ParcelModel');
+// const Branch = require('../../models/BranchesModel');
+
+// // Maximum weight and volume constraints for standard shipments
+// const MAX_WEIGHT = 5000; // in kg
+// const MAX_VOLUME = 20;   // in cubic meters
+
+// /**
+//  * Process a standard shipment through its route
+//  * This function simulates moving a shipment through its route, collecting parcels at each stop
+//  * @param {String} shipmentId - The MongoDB ObjectId of the shipment to process
+//  * @returns {Promise<Object|null>} - The processed shipment or null if error
+//  */
+// async function processStandardShipment(shipmentId) {
+//     try {
+//         // Find the shipment by ID and populate parcels
+//         const shipment = await Shipment.findById(shipmentId)
+//             .populate('parcels');
+
+//         if (!shipment) {
+//             console.error(`Shipment not found: ${shipmentId}`);
+//             return null;
+//         }
+
+//         // Ensure it's a standard shipment
+//         if (shipment.deliveryType !== "Standard") {
+//             console.error(`Not a standard shipment: ${shipmentId}`);
+//             return null;
+//         }
+
+//         // Get the start location and store it to return to at the end
+//         const startLocation = shipment.currentLocation;
+//         console.log(`Starting to process standard shipment ${shipment.shipmentId} from ${startLocation}`);
+
+//         // Process the full route - go through each center in order
+//         for (let i = 0; i < shipment.route.length - 1; i++) {
+//             const currentCenter = shipment.route[i];
+//             const nextCenter = shipment.route[i + 1];
+
+//             // If we're at the current location, start the process
+//             if (i >= shipment.route.indexOf(shipment.currentLocation)) {
+//                 console.log(`Processing at center: ${currentCenter}, next destination: ${nextCenter}`);
+
+//                 // 1. Process parcels at current center going to remaining centers
+//                 await processParcelsAtCenter(shipment, i);
+
+//                 // 2. Notify the next center about the shipment arrival
+//                 const nextArrival = shipment.arrivalTimes.find(at => at.center === nextCenter);
+//                 const estimatedArrival = nextArrival ? nextArrival.time : "Unknown";
+//                 console.log(`Notifying ${nextCenter} about incoming shipment. ETA: ${estimatedArrival} hours`);
+
+//                 // 3. Update shipment location to the next center for processing
+//                 shipment.currentLocation = nextCenter;
+//                 shipment.status = 'In Transit';
+//                // await shipment.save();
+
+//                 // 4. Update status of all parcels in this shipment that haven't reached their destination
+//                 await Parcel.updateMany(
+//                     {
+//                         shipmentId: shipment._id,
+//                         status: { $ne: "ArrivedAtCollectionCenter" }
+//                     },
+//                     { status: "InTransit" }
+//                 );
+//             }
+//         }
+
+//         // After processing the entire route, update parcels at the final destination
+//         const finalCenter = shipment.route[shipment.route.length - 1];
+//         console.log(`Shipment ${shipment.shipmentId} has reached final destination: ${finalCenter}`);
+
+//         // Update parcels that have reached their final destination
+//         await updateParcelsAtFinalDestination(shipment);
+
+//         // Return shipment to starting center
+//         shipment.currentLocation = startLocation;
+//         shipment.status = 'Completed';
+//         //await shipment.save();
+
+//         console.log(`Shipment processing completed and returned to ${startLocation}`);
+//         return shipment;
+//     } catch (error) {
+//         console.error('Error processing standard shipment:', error);
+//         return null;
+//     }
+// }
+
+// /**
+//  * Process parcels at a center and add them to the shipment
+//  * @param {Object} shipment - The shipment object
+//  * @param {Number} centerIndex - Index of the current center in the route
+//  * @returns {Promise<Boolean>} - Whether parcels were added
+//  */
+// async function processParcelsAtCenter(shipment, centerIndex) {
+//     try {
+//         const currentCenter = shipment.route[centerIndex];
+//         const remainingCenters = shipment.route.slice(centerIndex + 1);
+
+//         console.log(`Looking for parcels at ${currentCenter} heading to: ${remainingCenters.join(', ')}`);
+
+//         if (remainingCenters.length === 0) {
+//             return false;
+//         }
+
+//         // Find the branch documents for current and remaining centers
+//         const branches = await Branch.find({
+//             location: { $in: [currentCenter, ...remainingCenters] }
+//         });
+
+//         // Create a map of location names to branch ObjectIds
+//         const locationToBranchObjectId = {};
+//         branches.forEach(branch => {
+//             locationToBranchObjectId[branch.location] = branch._id;
+//         });
+
+//         // Verify we have the branch ObjectId for current location
+//         if (!locationToBranchObjectId[currentCenter]) {
+//             console.log(`Could not find branch for location: ${currentCenter}`);
+//             return false;
+//         }
+
+//         // Get target branch ObjectIds from the remaining centers
+//         const targetBranchIds = remainingCenters
+//             .map(center => locationToBranchObjectId[center])
+//             .filter(id => id); // Filter out any undefined values
+
+//         if (targetBranchIds.length === 0) {
+//             console.log(`No target branches found for remaining centers`);
+//             return false;
+//         }
+
+//         // Find parcels at current center's branch going to remaining centers' branches
+//         const parcelsToProcess = await Parcel.find({
+//             from: locationToBranchObjectId[currentCenter], // Reference branch by ObjectId
+//             to: { $in: targetBranchIds }, // Reference destination branches by ObjectId
+//             shipmentId: null, // Not assigned to any shipment yet
+//             shippingMethod: "Standard"
+//         });
+
+//         if (parcelsToProcess.length === 0) {
+//             console.log(`No eligible parcels found at ${currentCenter}`);
+//             return false;
+//         }
+
+//         console.log(`Found ${parcelsToProcess.length} parcels to process at ${currentCenter}`);
+
+//         // Process each parcel
+//         let addedCount = 0;
+//         for (const parcel of parcelsToProcess) {
+//             // Calculate weight and volume based on item size
+//             const weightMap = { small: 1, medium: 3, large: 8 };
+//             const volumeMap = { small: 0.1, medium: 0.3, large: 0.8 };
+
+//             const parcelWeight = weightMap[parcel.itemSize] || 1;
+//             const parcelVolume = volumeMap[parcel.itemSize] || 0.1;
+
+//             // Check if adding this parcel would exceed shipment constraints
+//             if (shipment.totalWeight + parcelWeight > MAX_WEIGHT ||
+//                 shipment.totalVolume + parcelVolume > MAX_VOLUME) {
+//                 console.log(`Cannot add parcel ${parcel._id} - would exceed capacity`);
+//                 continue;
+//             }
+
+//             // Add parcel to shipment
+//             shipment.parcels.push(parcel._id);
+//             shipment.totalWeight += parcelWeight;
+//             shipment.totalVolume += parcelVolume;
+//             shipment.parcelCount += 1;
+
+//             // Update parcel record
+//             parcel.shipmentId = shipment._id;
+//             parcel.status = "ShipmentAssigned";
+//             //await parcel.save();
+
+//             addedCount++;
+//         }
+
+//         if (addedCount > 0) {
+//             console.log(`Added ${addedCount} parcels to shipment ${shipment.shipmentId}`);
+//             //await shipment.save();
+//             return true;
+//         }
+
+//         return false;
+//     } catch (error) {
+//         console.error('Error processing parcels at center:', error);
+//         return false;
+//     }
+// }
+
+// /**
+//  * Update parcels that have reached their final destination
+//  * @param {Object} shipment - The shipment object
+//  * @returns {Promise<Boolean>} - Whether update was successful
+//  */
+// async function updateParcelsAtFinalDestination(shipment) {
+//     try {
+//         const finalCenter = shipment.route[shipment.route.length - 1];
+
+//         // Find the branch document for the final center
+//         const finalBranch = await Branch.findOne({ location: finalCenter });
+
+//         if (!finalBranch) {
+//             console.log(`Could not find branch for final location: ${finalCenter}`);
+//             return false;
+//         }
+
+//         // Update parcels that have reached their destination
+//         const updateResult = await Parcel.updateMany(
+//             {
+//                 shipmentId: shipment._id,
+//                 toBranch: finalBranch._id // Use the branch ObjectId
+//             },
+//             {
+//                 status: "ArrivedAtCollectionCenter",
+//                 arrivedToCollectionCenterTime: new Date()
+//             }
+//         );
+
+//         console.log(`Updated ${updateResult.modifiedCount} parcels at final destination ${finalCenter}`);
+//         return true;
+//     } catch (error) {
+//         console.error('Error updating parcels at final destination:', error);
+//         return false;
+//     }
+// }
+
+// // Export the main function
+// module.exports = { processStandardShipment };
+
+
 const mongoose = require('mongoose');
 const Shipment = require('../../models/B2BShipmentModel');
 const Parcel = require('../../models/ParcelModel');
@@ -194,9 +430,12 @@ const MAX_VOLUME = 20;   // in cubic meters
  */
 async function processStandardShipment(shipmentId) {
     try {
-        // Find the shipment by ID and populate parcels
+        // Find the shipment by ID and populate necessary fields
         const shipment = await Shipment.findById(shipmentId)
-            .populate('parcels');
+            .populate('parcels')
+            .populate('route')
+            .populate('currentLocation')
+            .populate('arrivalTimes.center');
 
         if (!shipment) {
             console.error(`Shipment not found: ${shipmentId}`);
@@ -210,30 +449,43 @@ async function processStandardShipment(shipmentId) {
         }
 
         // Get the start location and store it to return to at the end
-        const startLocation = shipment.currentLocation;
-        console.log(`Starting to process standard shipment ${shipment.shipmentId} from ${startLocation}`);
+        const startLocation = shipment.currentLocation._id;
+        console.log(`Starting to process standard shipment ${shipment.shipmentId} from ${shipment.currentLocation.location}`);
+
+        // Extract ObjectIds for route centers
+        const routeIds = shipment.route.map(branch => branch._id);
 
         // Process the full route - go through each center in order
-        for (let i = 0; i < shipment.route.length - 1; i++) {
-            const currentCenter = shipment.route[i];
-            const nextCenter = shipment.route[i + 1];
+        for (let i = 0; i < routeIds.length - 1; i++) {
+            const currentCenterId = routeIds[i];
+            const nextCenterId = routeIds[i + 1];
+
+            // Find the current position in the route
+            const currentIndex = routeIds.findIndex(id =>
+                id.toString() === shipment.currentLocation._id.toString()
+            );
 
             // If we're at the current location, start the process
-            if (i >= shipment.route.indexOf(shipment.currentLocation)) {
-                console.log(`Processing at center: ${currentCenter}, next destination: ${nextCenter}`);
+            if (i >= currentIndex) {
+                const currentCenter = shipment.route[i];
+                const nextCenter = shipment.route[i + 1];
+
+                console.log(`Processing at center: ${currentCenter.location}, next destination: ${nextCenter.location}`);
 
                 // 1. Process parcels at current center going to remaining centers
                 await processParcelsAtCenter(shipment, i);
 
                 // 2. Notify the next center about the shipment arrival
-                const nextArrival = shipment.arrivalTimes.find(at => at.center === nextCenter);
+                const nextArrival = shipment.arrivalTimes.find(at =>
+                    at.center._id.toString() === nextCenterId.toString()
+                );
                 const estimatedArrival = nextArrival ? nextArrival.time : "Unknown";
-                console.log(`Notifying ${nextCenter} about incoming shipment. ETA: ${estimatedArrival} hours`);
+                console.log(`Notifying ${nextCenter.location} about incoming shipment. ETA: ${estimatedArrival} hours`);
 
                 // 3. Update shipment location to the next center for processing
-                shipment.currentLocation = nextCenter;
+                shipment.currentLocation = nextCenterId;
                 shipment.status = 'In Transit';
-               // await shipment.save();
+                // await shipment.save();
 
                 // 4. Update status of all parcels in this shipment that haven't reached their destination
                 await Parcel.updateMany(
@@ -248,7 +500,7 @@ async function processStandardShipment(shipmentId) {
 
         // After processing the entire route, update parcels at the final destination
         const finalCenter = shipment.route[shipment.route.length - 1];
-        console.log(`Shipment ${shipment.shipmentId} has reached final destination: ${finalCenter}`);
+        console.log(`Shipment ${shipment.shipmentId} has reached final destination: ${finalCenter.location}`);
 
         // Update parcels that have reached their final destination
         await updateParcelsAtFinalDestination(shipment);
@@ -256,9 +508,9 @@ async function processStandardShipment(shipmentId) {
         // Return shipment to starting center
         shipment.currentLocation = startLocation;
         shipment.status = 'Completed';
-        //await shipment.save();
+        // await shipment.save();
 
-        console.log(`Shipment processing completed and returned to ${startLocation}`);
+        console.log(`Shipment processing completed and returned to ${shipment.route[0].location}`);
         return shipment;
     } catch (error) {
         console.error('Error processing standard shipment:', error);
@@ -268,7 +520,7 @@ async function processStandardShipment(shipmentId) {
 
 /**
  * Process parcels at a center and add them to the shipment
- * @param {Object} shipment - The shipment object
+ * @param {Object} shipment - The shipment object with populated fields
  * @param {Number} centerIndex - Index of the current center in the route
  * @returns {Promise<Boolean>} - Whether parcels were added
  */
@@ -277,53 +529,32 @@ async function processParcelsAtCenter(shipment, centerIndex) {
         const currentCenter = shipment.route[centerIndex];
         const remainingCenters = shipment.route.slice(centerIndex + 1);
 
-        console.log(`Looking for parcels at ${currentCenter} heading to: ${remainingCenters.join(', ')}`);
+        console.log(`Looking for parcels at ${currentCenter.location} heading to: ${remainingCenters.map(c => c.location).join(', ')}`);
 
         if (remainingCenters.length === 0) {
             return false;
         }
 
-        // Find the branch documents for current and remaining centers
-        const branches = await Branch.find({
-            location: { $in: [currentCenter, ...remainingCenters] }
-        });
-
-        // Create a map of location names to branch ObjectIds
-        const locationToBranchObjectId = {};
-        branches.forEach(branch => {
-            locationToBranchObjectId[branch.location] = branch._id;
-        });
-
-        // Verify we have the branch ObjectId for current location
-        if (!locationToBranchObjectId[currentCenter]) {
-            console.log(`Could not find branch for location: ${currentCenter}`);
-            return false;
-        }
+        // Get the current branch ObjectId
+        const currentBranchId = currentCenter._id;
 
         // Get target branch ObjectIds from the remaining centers
-        const targetBranchIds = remainingCenters
-            .map(center => locationToBranchObjectId[center])
-            .filter(id => id); // Filter out any undefined values
-
-        if (targetBranchIds.length === 0) {
-            console.log(`No target branches found for remaining centers`);
-            return false;
-        }
+        const targetBranchIds = remainingCenters.map(center => center._id);
 
         // Find parcels at current center's branch going to remaining centers' branches
         const parcelsToProcess = await Parcel.find({
-            from: locationToBranchObjectId[currentCenter], // Reference branch by ObjectId
-            to: { $in: targetBranchIds }, // Reference destination branches by ObjectId
+            from: currentBranchId,
+            to: { $in: targetBranchIds },
             shipmentId: null, // Not assigned to any shipment yet
             shippingMethod: "Standard"
         });
 
         if (parcelsToProcess.length === 0) {
-            console.log(`No eligible parcels found at ${currentCenter}`);
+            console.log(`No eligible parcels found at ${currentCenter.location}`);
             return false;
         }
 
-        console.log(`Found ${parcelsToProcess.length} parcels to process at ${currentCenter}`);
+        console.log(`Found ${parcelsToProcess.length} parcels to process at ${currentCenter.location}`);
 
         // Process each parcel
         let addedCount = 0;
@@ -351,14 +582,14 @@ async function processParcelsAtCenter(shipment, centerIndex) {
             // Update parcel record
             parcel.shipmentId = shipment._id;
             parcel.status = "ShipmentAssigned";
-            //await parcel.save();
+            // await parcel.save();
 
             addedCount++;
         }
 
         if (addedCount > 0) {
             console.log(`Added ${addedCount} parcels to shipment ${shipment.shipmentId}`);
-            //await shipment.save();
+            // await shipment.save();
             return true;
         }
 
@@ -371,26 +602,19 @@ async function processParcelsAtCenter(shipment, centerIndex) {
 
 /**
  * Update parcels that have reached their final destination
- * @param {Object} shipment - The shipment object
+ * @param {Object} shipment - The shipment object with populated fields
  * @returns {Promise<Boolean>} - Whether update was successful
  */
 async function updateParcelsAtFinalDestination(shipment) {
     try {
         const finalCenter = shipment.route[shipment.route.length - 1];
-
-        // Find the branch document for the final center
-        const finalBranch = await Branch.findOne({ location: finalCenter });
-
-        if (!finalBranch) {
-            console.log(`Could not find branch for final location: ${finalCenter}`);
-            return false;
-        }
+        const finalBranchId = finalCenter._id;
 
         // Update parcels that have reached their destination
         const updateResult = await Parcel.updateMany(
             {
                 shipmentId: shipment._id,
-                toBranch: finalBranch._id // Use the branch ObjectId
+                to: finalBranchId // Use the branch ObjectId
             },
             {
                 status: "ArrivedAtCollectionCenter",
@@ -398,13 +622,13 @@ async function updateParcelsAtFinalDestination(shipment) {
             }
         );
 
-        console.log(`Updated ${updateResult.modifiedCount} parcels at final destination ${finalCenter}`);
+        console.log(`Updated ${updateResult.modifiedCount} parcels at final destination ${finalCenter.location}`);
         return true;
     } catch (error) {
         console.error('Error updating parcels at final destination:', error);
         return false;
     }
-} 
+}
 
 // Export the main function
 module.exports = { processStandardShipment };

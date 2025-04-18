@@ -1,4 +1,4 @@
-// models/ShipmentSchema.js
+// models/B2BShipmentModel.js
 const mongoose = require('mongoose');
 
 const shipmentSchema = new mongoose.Schema({
@@ -6,8 +6,7 @@ const shipmentSchema = new mongoose.Schema({
     shipmentId: {
         type: String,
         required: true,
-        unique: true,
-        default: () => `SH-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        unique: true
     },
     deliveryType: {
         type: String,
@@ -15,27 +14,28 @@ const shipmentSchema = new mongoose.Schema({
         required: true
     },
     sourceCenter: {
-        type: String,
-        required: true,
-        enum: ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Galle', 'Jaffna']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
+        required: true
     },
-    route: {
-        type: [String],
-        
-        required: true,
-    },
+    route: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
+        required: true
+    }],
     currentLocation: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
         default: function () { return this.route[0]; }
     },
     totalTime: {
         type: Number,
-        required: true,
-       
+        required: true
     },
     arrivalTimes: [{
         center: {
-            type: String,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Branch",
             required: true
         },
         time: {
@@ -45,33 +45,27 @@ const shipmentSchema = new mongoose.Schema({
     }],
     totalDistance: {
         type: Number,
-        required: true,
-       
+        required: true
     },
     totalWeight: {
         type: Number,
-        required: true,
-        
+        required: true
     },
     totalVolume: {
         type: Number,
-        required: true,
-       
+        required: true
     },
     parcelCount: {
         type: Number,
-        required: true,
-       
+        required: true
     },
     assignedVehicle: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Vehicle"
-       
     },
     assignedDriver: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Driver"
-      
     },
     status: {
         type: String,
@@ -84,14 +78,13 @@ const shipmentSchema = new mongoose.Schema({
         required: true
     }],
     createdByCenter: {
-        type: String,
-        required: true,
-        enum: ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Galle', 'Jaffna']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch",
+        required: true
     },
     createdByStaff: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Staff",
-       
+        ref: "Staff"
     },
     createdAt: {
         type: Date,

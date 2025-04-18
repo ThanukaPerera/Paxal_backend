@@ -294,30 +294,99 @@
 //http://localhost:8000/shipments/process/Express/67c41df8c2ca1289195def43
 
 //controllers/shipmentController.js
-const mongoose = require('mongoose');
+
+//
+
+/// controllers/shipmentController.js
 const Parcel = require('../../models/ParcelModel');
 const B2BShipment = require('../../models/B2BShipmentModel');
 const Branch = require('../../models/BranchesModel');
+const mongoose = require('mongoose');
 
+// Create distance and time matrices based on branch ObjectIds
+// This function will build the matrices when needed
+async function buildMatrices() {
+    const branches = await Branch.find().lean();
 
-// District-based distance matrix (km)
-const distanceMatrix = {
-    'Colombo': { 'Gampaha': 25, 'Kalutara': 45, 'Kandy': 120, 'Galle': 115 },
-    'Gampaha': { 'Colombo': 25, 'Kalutara': 35, 'Kandy': 110, 'Galle': 130 },
-    'Kalutara': { 'Colombo': 45, 'Gampaha': 35, 'Kandy': 90, 'Galle': 100 },
-    'Kandy': { 'Colombo': 120, 'Gampaha': 110, 'Kalutara': 90, 'Galle': 150 },
-    'Galle': { 'Colombo': 115, 'Gampaha': 130, 'Kalutara': 100, 'Kandy': 150 }
-};
+    // Create maps for fast lookups
+    const branchMap = {};
+    const idToLocationMap = {};
+    const locationToIdMap = {};
 
-// District-based time matrix (hours)
-const timeMatrix = {
-    'Colombo': { 'Gampaha': 1, 'Kalutara': 1.5, 'Kandy': 3, 'Galle': 3.5 },
-    'Gampaha': { 'Colombo': 1, 'Kalutara': 1.2, 'Kandy': 2.8, 'Galle': 3.2 },
-    'Kalutara': { 'Colombo': 1.5, 'Gampaha': 1.2, 'Kandy': 2.5, 'Galle': 2.8 },
-    'Kandy': { 'Colombo': 3, 'Gampaha': 2.8, 'Kalutara': 2.5, 'Galle': 3.5 },
-    'Galle': { 'Colombo': 3.5, 'Gampaha': 3.2, 'Kalutara': 2.8, 'Kandy': 3.5 }
-};
+    branches.forEach(branch => {
+        const id = branch._id.toString();
+        branchMap[id] = branch;
+        idToLocationMap[id] = branch.location;
+        locationToIdMap[branch.location] = id;
+    });
 
+    // Existing district matrices
+    const districtDistanceMatrix = {
+        'Colombo': { 'Gampaha': 25, 'Kalutara': 45, 'Kandy': 120, 'Galle': 115, 'Hambantota': 160, 'Matale': 140, 'Batticaloa': 280, 'Nuwara Eliya': 150, 'Monaragala': 270 },
+        'Gampaha': { 'Colombo': 25, 'Kalutara': 35, 'Kandy': 110, 'Galle': 130, 'Hambantota': 180, 'Matale': 130, 'Batticaloa': 300, 'Nuwara Eliya': 140, 'Monaragala': 290 },
+        'Kalutara': { 'Colombo': 45, 'Gampaha': 35, 'Kandy': 90, 'Galle': 100, 'Hambantota': 140, 'Matale': 120, 'Batticaloa': 320, 'Nuwara Eliya': 160, 'Monaragala': 250 },
+        'Kandy': { 'Colombo': 120, 'Gampaha': 110, 'Kalutara': 90, 'Galle': 150, 'Hambantota': 200, 'Matale': 30, 'Batticaloa': 160, 'Nuwara Eliya': 35, 'Monaragala': 120 },
+        'Galle': { 'Colombo': 115, 'Gampaha': 130, 'Kalutara': 100, 'Kandy': 150, 'Hambantota': 70, 'Matale': 170, 'Batticaloa': 300, 'Nuwara Eliya': 180, 'Monaragala': 190 },
+        'Hambantota': { 'Colombo': 160, 'Gampaha': 180, 'Kalutara': 140, 'Kandy': 200, 'Galle': 70, 'Matale': 220, 'Batticaloa': 250, 'Nuwara Eliya': 230, 'Monaragala': 90 },
+        'Matale': { 'Colombo': 140, 'Gampaha': 130, 'Kalutara': 120, 'Kandy': 30, 'Galle': 170, 'Hambantota': 220, 'Batticaloa': 140, 'Nuwara Eliya': 50, 'Monaragala': 110 },
+        'Batticaloa': { 'Colombo': 280, 'Gampaha': 300, 'Kalutara': 320, 'Kandy': 160, 'Galle': 300, 'Hambantota': 250, 'Matale': 140, 'Nuwara Eliya': 190, 'Monaragala': 130 },
+        'Nuwara Eliya': { 'Colombo': 150, 'Gampaha': 140, 'Kalutara': 160, 'Kandy': 35, 'Galle': 180, 'Hambantota': 230, 'Matale': 50, 'Batticaloa': 190, 'Monaragala': 130 },
+        'Monaragala': { 'Colombo': 270, 'Gampaha': 290, 'Kalutara': 250, 'Kandy': 120, 'Galle': 190, 'Hambantota': 90, 'Matale': 110, 'Batticaloa': 130, 'Nuwara Eliya': 130 }
+    };
+
+    const districtTimeMatrix = {
+        'Colombo': { 'Gampaha': 1, 'Kalutara': 1.5, 'Kandy': 3, 'Galle': 3.5, 'Hambantota': 4.5, 'Matale': 3.5, 'Batticaloa': 7, 'Nuwara Eliya': 4, 'Monaragala': 6.5 },
+        'Gampaha': { 'Colombo': 1, 'Kalutara': 1.2, 'Kandy': 2.8, 'Galle': 3.2, 'Hambantota': 5, 'Matale': 3.2, 'Batticaloa': 7.5, 'Nuwara Eliya': 3.7, 'Monaragala': 7 },
+        'Kalutara': { 'Colombo': 1.5, 'Gampaha': 1.2, 'Kandy': 2.5, 'Galle': 2.8, 'Hambantota': 3.8, 'Matale': 3, 'Batticaloa': 8, 'Nuwara Eliya': 4.2, 'Monaragala': 6 },
+        'Kandy': { 'Colombo': 3, 'Gampaha': 2.8, 'Kalutara': 2.5, 'Galle': 3.5, 'Hambantota': 5.5, 'Matale': 0.8, 'Batticaloa': 4, 'Nuwara Eliya': 1, 'Monaragala': 3 },
+        'Galle': { 'Colombo': 3.5, 'Gampaha': 3.2, 'Kalutara': 2.8, 'Kandy': 3.5, 'Hambantota': 1.8, 'Matale': 4.5, 'Batticaloa': 7.5, 'Nuwara Eliya': 4.8, 'Monaragala': 4.5 },
+        'Hambantota': { 'Colombo': 4.5, 'Gampaha': 5, 'Kalutara': 3.8, 'Kandy': 5.5, 'Galle': 1.8, 'Matale': 6, 'Batticaloa': 6.5, 'Nuwara Eliya': 6.2, 'Monaragala': 2.2 },
+        'Matale': { 'Colombo': 3.5, 'Gampaha': 3.2, 'Kalutara': 3, 'Kandy': 0.8, 'Galle': 4.5, 'Hambantota': 6, 'Batticaloa': 3.5, 'Nuwara Eliya': 1.3, 'Monaragala': 2.8 },
+        'Batticaloa': { 'Colombo': 7, 'Gampaha': 7.5, 'Kalutara': 8, 'Kandy': 4, 'Galle': 7.5, 'Hambantota': 6.5, 'Matale': 3.5, 'Nuwara Eliya': 5, 'Monaragala': 3.2 },
+        'Nuwara Eliya': { 'Colombo': 4, 'Gampaha': 3.7, 'Kalutara': 4.2, 'Kandy': 1, 'Galle': 4.8, 'Hambantota': 6.2, 'Matale': 1.3, 'Batticaloa': 5, 'Monaragala': 3.2 },
+        'Monaragala': { 'Colombo': 6.5, 'Gampaha': 7, 'Kalutara': 6, 'Kandy': 3, 'Galle': 4.5, 'Hambantota': 2.2, 'Matale': 2.8, 'Batticaloa': 3.2, 'Nuwara Eliya': 3.2 }
+    };
+
+    // Create new matrices based on ObjectIds
+    const distanceMatrix = {};
+    const timeMatrix = {};
+
+    Object.keys(districtDistanceMatrix).forEach(source => {
+        if (locationToIdMap[source]) {
+            const sourceId = locationToIdMap[source];
+            distanceMatrix[sourceId] = {};
+            Object.keys(districtDistanceMatrix[source]).forEach(dest => {
+                if (locationToIdMap[dest]) {
+                    const destId = locationToIdMap[dest];
+                    distanceMatrix[sourceId][destId] = districtDistanceMatrix[source][dest];
+                }
+            });
+        }
+    });
+
+    Object.keys(districtTimeMatrix).forEach(source => {
+        if (locationToIdMap[source]) {
+            const sourceId = locationToIdMap[source];
+            timeMatrix[sourceId] = {};
+            Object.keys(districtTimeMatrix[source]).forEach(dest => {
+                if (locationToIdMap[dest]) {
+                    const destId = locationToIdMap[dest];
+                    timeMatrix[sourceId][destId] = districtTimeMatrix[source][dest];
+                }
+            });
+        }
+    });
+
+    return {
+        distanceMatrix,
+        timeMatrix,
+        branchMap,
+        idToLocationMap,
+        locationToIdMap
+    };
+}
+
+// Shipment constraints remain the same
 const constraints = {
     Express: {
         maxDistance: 150,
@@ -325,7 +394,7 @@ const constraints = {
         maxVolume: 5,
         maxWeight: 1000,
         buffer: 1,
-        firstBuffer: 4 // Added firstBuffer for first leg of journey
+        firstBuffer: 4
     },
     Standard: {
         maxDistance: 300,
@@ -333,21 +402,21 @@ const constraints = {
         maxVolume: 10,
         maxWeight: 2500,
         buffer: 2,
-        firstBuffer: 4 // Added firstBuffer for first leg of journey
+        firstBuffer: 4
     }
 };
 
 // Buffer times configuration based on position in route
 const bufferTimeConfig = {
     Express: {
-        first: 2,  // First center has 2 hours buffer
-        intermediate: 1, // Centers between first and last have 1 hour buffer
-        last: 2    // Last center has 2 hours buffer
+        first: 2,
+        intermediate: 1,
+        last: 2
     },
     Standard: {
-        first: 2,  // First center has 2 hours buffer
-        intermediate: 2, // Centers between first and last have 2 hours buffer 
-        last: 2    // Last center has 2 hours buffer
+        first: 2,
+        intermediate: 2,
+        last: 2
     }
 };
 
@@ -358,40 +427,14 @@ const sizeSpecs = {
     large: { weight: 10, volume: 1 }
 };
 
-
-// Helper function to get district information
-async function getDistrictInfo(parcel) {
-    // For source district
-    let sourceDistrict;
-    if (typeof parcel.from === 'object' && parcel.from !== null) {
-        sourceDistrict = parcel.from || '';
-    } else {
-        const sourceBranch = await Branch.findById(parcel.from).select('location').lean();
-        sourceDistrict = sourceBranch ? sourceBranch : '';
-    }
-
-    // For destination district
-    let destDistrict;
-    if (typeof parcel.to === 'object' && parcel.to !== null) {
-        destDistrict = parcel.to.location || '';
-    } else {
-        const destBranch = await Branch.findById(parcel.to).select('location').lean();
-        destDistrict = destBranch ? destBranch.location : '';
-    }
-
-    return {
-        sourceDistrict,
-        destDistrict
-    };
-}
-
 /**
  * Calculate arrival times for each center in the route with proper buffer times
- * @param {Array} route - Array of centers in the route
+ * @param {Array} route - Array of centers in the route (ObjectIds as strings)
  * @param {String} deliveryType - Express or Standard
- * @returns {Array} - Array of objects containing center and arrival time
+ * @param {Object} timeMatrix - Time matrix based on ObjectIds
+ * @returns {Object} - Array of objects containing center and arrival time, plus shipment finish time
  */
-function calculateArrivalTimes(route, deliveryType) {
+function calculateArrivalTimes(route, deliveryType, timeMatrix) {
     const arrivalTimes = [];
     let cumulativeTime = 0;
 
@@ -431,82 +474,75 @@ function calculateArrivalTimes(route, deliveryType) {
     const lastBufferTime = bufferTimeConfig[deliveryType].last;
     const shipmentFinishTime = cumulativeTime + lastBufferTime;
 
-    // For logging purposes
-    console.log(`Arrival times calculated for route ${route.join(' -> ')}:`);
-    arrivalTimes.forEach(at => console.log(`  ${at.center}: ${at.time}h`));
-    console.log(`Shipment finish time: ${shipmentFinishTime}h`);
-
     return {
         arrivalTimes,
         shipmentFinishTime
     };
 }
 
-async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
-    console.log(`Processing ${deliveryType} shipments from ${sourceCenter}`);
+/**
+ * Process parcels into shipments
+ * @param {String} deliveryType - Express or Standard
+ * @param {Array} parcels - Array of parcel documents
+ * @param {ObjectId} sourceCenterId - MongoDB ObjectId of source center
+ * @param {ObjectId} staffId - MongoDB ObjectId of staff member
+ * @param {Object} matrices - Object containing distance and time matrices
+ * @returns {Array} - Array of shipment documents
+ */
+async function processShipments(deliveryType, parcels, sourceCenterId, staffId, matrices) {
+    console.log(`Processing ${deliveryType} shipments from ${sourceCenterId}`);
+    const { distanceMatrix, timeMatrix, branchMap, idToLocationMap } = matrices;
+    const sourceCenterIdStr = sourceCenterId.toString();
+
     let shipments = [];
     let lastShipmentNumber = 0;
 
     // Get last shipment number for the source center
-    const lastShipment = await B2BShipment.findOne({ sourceCenter })
+    const lastShipment = await B2BShipment.findOne({ sourceCenter: sourceCenterId })
         .sort({ shipmentId: -1 })
         .select('shipmentId')
         .lean();
-    
-    console.log('Last Shipment:', lastShipment);
 
     if (lastShipment) {
         const match = lastShipment.shipmentId.match(/-S(\d+)-/);
         if (match) lastShipmentNumber = parseInt(match[1]);
     }
 
-
-    // Process parcels and group by destination
-    const processedParcels = await Promise.all(parcels.map(async parcel => {
-
-        const { sourceDistrict, destDistrict } = await getDistrictInfo(parcel);
-
-        if (!sourceDistrict || !destDistrict) {
-            console.log(`Parcel ${parcel._id} missing district info`);
-            return null;
-        }
-
+    // Process parcels and group by destination center
+    const processedParcels = parcels.map(parcel => {
         return {
             ...parcel.toObject(),
-            sourceDistrict,
-            destDistrict,
+            fromId: parcel.from.toString(),
+            toId: parcel.to._id ? parcel.to._id.toString() : parcel.to.toString(),
             weight: sizeSpecs[parcel.itemSize].weight,
             volume: sizeSpecs[parcel.itemSize].volume
         };
-    }));
+    });
 
-    // Filter valid parcels and group by destination
-    const validParcels = processedParcels.filter(p => p !== null);
-
-  
-    // In the processShipments function, update the destination grouping logic:
-    const destinationGroups = validParcels.reduce((groups, parcel) => {
+    // Group parcels by destination
+    const destinationGroups = {};
+    for (const parcel of processedParcels) {
         // Skip parcels destined for source center
-        if (parcel.destDistrict === sourceCenter) return groups;
+        if (parcel.toId === sourceCenterIdStr) continue;
 
-        // Extract just the district name, not the whole object
-        const destDistrict = parcel.destDistrict;
-        const key = typeof destDistrict === 'object' ? destDistrict.location : destDistrict;
-
-        if (!groups[key]) {
-            groups[key] = { parcels: [], totalWeight: 0, totalVolume: 0 };
+        const destId = parcel.toId;
+        if (!destinationGroups[destId]) {
+            destinationGroups[destId] = { parcels: [], totalWeight: 0, totalVolume: 0 };
         }
-        groups[key].parcels.push(parcel._id);
-        groups[key].totalWeight += parcel.weight;
-        groups[key].totalVolume += parcel.volume;
-        return groups;
-    }, {});
-    console.log('Destination Groups:', JSON.stringify(destinationGroups, null, 2));
+        destinationGroups[destId].parcels.push(parcel._id);
+        destinationGroups[destId].totalWeight += parcel.weight;
+        destinationGroups[destId].totalVolume += parcel.volume;
+    }
 
     // Generate optimized route from source to all destinations
     const destinations = Object.keys(destinationGroups);
-    const route = optimizeRoute(sourceCenter, destinations);
-    console.log(`Optimized Route: ${route.join(' -> ')}`);
+    if (destinations.length === 0) {
+        console.log("No valid destinations found");
+        return shipments;
+    }
+
+    const route = optimizeRoute(sourceCenterIdStr, destinations, distanceMatrix);
+    console.log("Optimized route:", route);
 
     let currentShipment = null;
     let shipmentCount = lastShipmentNumber + 1;
@@ -521,70 +557,75 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
             continue;
         }
 
-        console.log(`Processing destination: ${destination} with ${group.parcels.length} parcels`);
-
         // Create new shipment if none exists
         if (!currentShipment) {
-            currentShipment = createNewShipment(deliveryType, sourceCenter, staffId, shipmentCount++);
-            console.log(`Created new shipment ${currentShipment.shipmentId}`);
+            currentShipment = createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
         }
 
         // For a new shipment, we always go from source center to destination
-        const prevCenter = currentShipment.route.length === 1 ? sourceCenter : currentShipment.route.slice(-1)[0];
+        const prevCenter = currentShipment.route.length === 1 ?
+            sourceCenterIdStr :
+            currentShipment.route[currentShipment.route.length - 1].toString();
+
+        if (!timeMatrix[prevCenter] || !timeMatrix[prevCenter][destination]) {
+            console.log(`Missing time matrix data for route ${prevCenter} -> ${destination}`);
+            continue;
+        }
+
         const travelTime = timeMatrix[prevCenter][destination];
 
-        // Apply the firstBuffer (4 hours) for the first leg from source center to first destination
+        // Apply the firstBuffer for the first leg from source center to first destination
         const isFirstLeg = currentShipment.route.length === 1;
         const bufferTime = isFirstLeg ? constraints[deliveryType].firstBuffer : constraints[deliveryType].buffer;
         const additionalTime = travelTime + bufferTime;
 
-        console.log(`From ${prevCenter} to ${destination}: Travel time ${travelTime}h + Buffer ${bufferTime}h = ${additionalTime}h`);
-
         // Check if current shipment can accommodate this group
-        if (!canAddToShipment(currentShipment, destination, group, additionalTime, deliveryType)) {
-            console.log(`Shipment constraints exceeded. Finalizing current shipment ${currentShipment.shipmentId}`);
-            await finalizeShipment(currentShipment, deliveryType);
+        if (!canAddToShipment(currentShipment, destination, group, additionalTime, deliveryType, prevCenter, distanceMatrix)) {
+            await finalizeShipment(currentShipment, deliveryType, timeMatrix);
             shipments.push(currentShipment);
-            console.log(`===============================Shipment finished ${currentShipment.shipmentId}==============================`);
 
             // Create new shipment starting from source center
-            currentShipment = createNewShipment(deliveryType, sourceCenter, staffId, shipmentCount++);
-            console.log(`Created new shipment ${currentShipment.shipmentId} for remaining parcels`);
+            currentShipment = createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
 
             // Recalculate travel time from source center to destination
-            const directTravelTime = timeMatrix[sourceCenter][destination];
+            const directTravelTime = timeMatrix[sourceCenterIdStr][destination];
             const directAdditionalTime = directTravelTime + constraints[deliveryType].firstBuffer;
 
             // Add destination directly to new shipment (from source center)
-            console.log(`Adding ${destination} to shipment ${currentShipment.shipmentId}`);
-            currentShipment.route.push(destination);
-            currentShipment.totalDistance = distanceMatrix[sourceCenter][destination];
-            currentShipment.totalTime = directAdditionalTime;
-            currentShipment.parcels.push(...group.parcels);
-            currentShipment.parcelCount = group.parcels.length;
-            currentShipment.totalWeight = group.totalWeight;
-            currentShipment.totalVolume = group.totalVolume;
-
-            console.log(`Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`);
+            try {
+                const destObjectId =new mongoose.Types.ObjectId(destination);
+                currentShipment.route.push(destObjectId);
+                currentShipment.totalDistance = distanceMatrix[sourceCenterIdStr][destination];
+                currentShipment.totalTime = directAdditionalTime;
+                currentShipment.parcels.push(...group.parcels);
+                currentShipment.parcelCount = group.parcels.length;
+                currentShipment.totalWeight = group.totalWeight;
+                currentShipment.totalVolume = group.totalVolume;
+            } catch (error) {
+                console.error(`Error adding destination ${destination} to shipment:`, error);
+                continue;
+            }
         } else {
             // Add destination to current shipment
-            console.log(`Adding ${destination} to shipment ${currentShipment.shipmentId}`);
-            currentShipment.route.push(destination);
-            currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
-            currentShipment.totalTime += additionalTime;
-            currentShipment.parcels.push(...group.parcels);
-            currentShipment.parcelCount += group.parcels.length;
-            currentShipment.totalWeight += group.totalWeight;
-            currentShipment.totalVolume += group.totalVolume;
-
-            console.log(`Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`);
+            try {
+                const destObjectId =new mongoose.Types.ObjectId(destination);
+                currentShipment.route.push(destObjectId);
+                currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
+                currentShipment.totalTime += additionalTime;
+                currentShipment.parcels.push(...group.parcels);
+                currentShipment.parcelCount += group.parcels.length;
+                currentShipment.totalWeight += group.totalWeight;
+                currentShipment.totalVolume += group.totalVolume;
+            } catch (error) {
+                console.error(`Error adding destination ${destination} to shipment:`, error);
+                continue;
+            }
         }
     }
 
     // Finalize the last shipment
     if (currentShipment) {
-        console.log(`Finalizing last shipment ${currentShipment.shipmentId}`);
-        await finalizeShipment(currentShipment, deliveryType);
+        await finalizeShipment(currentShipment, deliveryType, timeMatrix);
         shipments.push(currentShipment);
     }
 
@@ -592,21 +633,37 @@ async function processShipments(deliveryType, parcels, sourceCenter, staffId) {
 }
 
 // Optimize route using nearest neighbor algorithm
-function optimizeRoute(source, destinations) {
+function optimizeRoute(source, destinations, distanceMatrix) {
     let route = [source];
     let remaining = [...destinations];
 
     while (remaining.length > 0) {
         const last = route[route.length - 1];
-        let nearest = remaining[0];
-        let shortestDistance = distanceMatrix[last][nearest];
+
+        // Check if distanceMatrix has data for the last point
+        if (!distanceMatrix[last]) {
+            console.log(`No distance data for ${last}, skipping route optimization`);
+            return [source]; // Return only source if no data
+        }
+
+        let nearest = null;
+        let shortestDistance = Infinity;
 
         for (const dest of remaining) {
-            const dist = distanceMatrix[last][dest];
-            if (dist < shortestDistance) {
-                shortestDistance = dist;
-                nearest = dest;
+            // Check if destination exists in the distance matrix
+            if (distanceMatrix[last][dest] !== undefined) {
+                const dist = distanceMatrix[last][dest];
+                if (dist < shortestDistance) {
+                    shortestDistance = dist;
+                    nearest = dest;
+                }
             }
+        }
+
+        // If no valid nearest destination was found, break the loop
+        if (nearest === null) {
+            console.log("No valid nearest destination found, ending route optimization");
+            break;
         }
 
         route.push(nearest);
@@ -616,31 +673,38 @@ function optimizeRoute(source, destinations) {
     return route;
 }
 
-function createNewShipment(deliveryType, sourceCenter, staffId, sequence) {
-    const shipmentId = `${deliveryType === 'Express' ? 'EX' : 'ST'}-S${sequence.toString().padStart(3, '0')}-${sourceCenter}`;
-    console.log(`Creating new shipment ${shipmentId}`);
+function createNewShipment(deliveryType, sourceCenterId, staffId, sequence, idToLocationMap) {
+    const sourceLocation = idToLocationMap[sourceCenterId.toString()] || 'Unknown';
+    const shipmentId = `${deliveryType === 'Express' ? 'EX' : 'ST'}-S${sequence.toString().padStart(3, '0')}-${sourceLocation}`;
+
     return new B2BShipment({
         shipmentId,
         deliveryType,
-        sourceCenter,
-        route: [sourceCenter], // Always start with source center
-        currentLocation: sourceCenter,
+        sourceCenter: sourceCenterId,
+        route: [sourceCenterId], // Always start with source center
+        currentLocation: sourceCenterId,
         totalDistance: 0,
         totalTime: 0,
         totalWeight: 0,
         totalVolume: 0,
         parcelCount: 0,
         parcels: [],
-        createdByCenter: sourceCenter,
+        createdByCenter: sourceCenterId,
         createdByStaff: staffId,
         status: 'Pending'
     });
 }
 
 // Check if shipment can accommodate adding this destination's group
-function canAddToShipment(shipment, destination, group, additionalTime, deliveryType) {
+function canAddToShipment(shipment, destination, group, additionalTime, deliveryType, prevCenter, distanceMatrix) {
     const cons = constraints[deliveryType];
-    const prevCenter = shipment.route.slice(-1)[0];
+
+    // Safety check for missing data
+    if (!distanceMatrix[prevCenter] || distanceMatrix[prevCenter][destination] === undefined) {
+        console.log(`Missing distance data for ${prevCenter} -> ${destination}`);
+        return false;
+    }
+
     const addedDistance = distanceMatrix[prevCenter][destination];
 
     const newDistance = shipment.totalDistance + addedDistance;
@@ -648,9 +712,6 @@ function canAddToShipment(shipment, destination, group, additionalTime, delivery
     const newWeight = shipment.totalWeight + group.totalWeight;
     const newVolume = shipment.totalVolume + group.totalVolume;
 
-    console.log(`Checking constraints for ${destination}: Distance ${newDistance}/${cons.maxDistance}km, Time ${newTime}/${cons.maxTime}h, Weight ${newWeight}/${cons.maxWeight}kg, Volume ${newVolume}/${cons.maxVolume}m³`);
-
-    // Fixed the volume constraint check
     return newDistance <= cons.maxDistance &&
         newTime <= cons.maxTime &&
         newWeight <= cons.maxWeight &&
@@ -658,56 +719,70 @@ function canAddToShipment(shipment, destination, group, additionalTime, delivery
 }
 
 // Finalize shipment details and save
-async function finalizeShipment(shipment, deliveryType) {
-    // Use the new arrival times calculation method
-    const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(shipment.route, deliveryType);
+async function finalizeShipment(shipment, deliveryType, timeMatrix) {
+    try {
+        // Convert ObjectIds to strings for calculation
+        const routeIds = shipment.route.map(id => id.toString());
 
-    // Update shipment with calculated arrival times and shipment finish time
-    shipment.arrivalTimes = arrivalTimes;
-    shipment.shipmentFinishTime = shipmentFinishTime;
+        // Use the arrival times calculation method
+        const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(routeIds, deliveryType, timeMatrix);
 
-    console.log(`Finalizing shipment ${shipment.shipmentId} with route ${shipment.route.join(' -> ')}`);
-    console.log(`Shipment finish time: ${shipmentFinishTime}h`);
+        // Convert arrival times back to ObjectIds
+        shipment.arrivalTimes = arrivalTimes.map(at => ({
+            center: new mongoose.Types.ObjectId(at.center), 
+            time: at.time
+        }));
 
-    // Uncomment to save to database
-    // await shipment.save();
-    // await Parcel.updateMany(
-    //     { _id: { $in: shipment.parcels } },
-    //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
-    // );
+        shipment.shipmentFinishTime = shipmentFinishTime;
+
+        // Uncomment to save to database
+         await shipment.save();
+        // await Parcel.updateMany(
+        //     { _id: { $in: shipment.parcels } },
+        //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
+        // );
+    } catch (error) {
+        console.error("Error finalizing shipment:", error);
+        // Handle error but don't throw, so processing can continue
+        shipment.arrivalTimes = [];
+        shipment.shipmentFinishTime = shipment.totalTime;
+    }
 }
-
-
 
 // Main controller function
 exports.processAllShipments = async (deliveryType, sourceCenterId, staffId) => {
     try {
-        // Fetch the branch using the source center's object ID
-        const sourceBranch = await Branch.findById(sourceCenterId).select('location').lean();
+        // Ensure we have valid ObjectIds
+        const sourceId = typeof sourceCenterId === 'string' ?
+            new mongoose.Types.ObjectId(sourceCenterId) : sourceCenterId;
+
+        const staffObjectId = typeof staffId === 'string' ?
+            new mongoose.Types.ObjectId(staffId) : staffId;
+
+        // First, build the matrices with ObjectIds
+        const matrices = await buildMatrices();
+
+        // Verify source center exists
+        const sourceBranch = await Branch.findById(sourceId).lean();
         if (!sourceBranch) {
-            console.error(`Branch not found for source center ID: ${sourceCenterId}`);
             return { success: false, message: 'Invalid source center ID' };
         }
 
-        const sourceLocation = sourceBranch.location; // District name like "Colombo"
-        console.log(`Starting shipment processing for ${deliveryType} shipments from ${sourceLocation}`);
-
-        // Fetch parcels with the source center's ObjectId and populate 'to' field
+        // Fetch parcels with the source center's ObjectId
         const parcels = await Parcel.find({
             shipmentId: null,
-            shippingMethod: deliveryType, // Convert to lowercase to match schema
-            from: sourceCenterId
-        }).populate('to', 'location');
+            shippingMethod: deliveryType,
+            from: sourceId
+        }).populate('to');
 
         if (parcels.length === 0) {
-            console.log('No parcels found for processing');
             return { success: false, message: 'No parcels available for shipment' };
         }
 
-        console.log(`Found ${parcels.length} parcels to process`);
+        console.log(`Found ${parcels.length} parcels for processing`);
 
-        // Pass the location name to process shipments
-        const shipments = await processShipments(deliveryType, parcels, sourceLocation, staffId);
+        // Process the shipments using ObjectIds
+        const shipments = await processShipments(deliveryType, parcels, sourceId, staffObjectId, matrices);
 
         return {
             success: true,
@@ -720,4 +795,3 @@ exports.processAllShipments = async (deliveryType, sourceCenterId, staffId) => {
         return { success: false, error: error.message };
     }
 };
-
