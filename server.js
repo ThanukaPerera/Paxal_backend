@@ -1,10 +1,9 @@
-const express =require("express");
-const mongoose=require('mongoose');
-const bodyParser = require('body-parser');
-require('dotenv').config();
+const express = require("express");
+const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-
 
 // Import routes
 const shipmentRoutes = require("./routes/shipmentRoutes");
@@ -20,40 +19,36 @@ const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
+const vehicleScheduleRoutes = require("./routes/staff/vehicleScheduleRoutes");
 
 const app = express();
 const PORT = 8000;
 
 // Middleware
- 
+
 app.use(
   cors({
-    origin: "http://localhost:5173",// Your frontend URL
-    credentials: true,// Allow credentials (cookies)
+    origin: "http://localhost:5173", // Your frontend URL
+    credentials: true, // Allow credentials (cookies)
   })
 );
 app.use(cookieParser());
 
 // Increase the size limit for incoming JSON and URL-encoded data (This is for image upload increasing the size of input)
-app.use(bodyParser.json({ limit: "50mb" }));  // Adjust the limit as needed
+app.use(bodyParser.json({ limit: "50mb" })); // Adjust the limit as needed
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 // app.use(routes);
 
+const db_URL = process.env.DB_URL;
 
-const db_URL=process.env.DB_URL;
-
-mongoose.connect(db_URL)
-.then(()=>{
+mongoose
+  .connect(db_URL)
+  .then(() => {
     console.log("✅ Database connected successfully");
-})
-.catch((err)=>{
-    console.log("❌ DB connection error",err)
-})
-
-
-
-
-
+  })
+  .catch((err) => {
+    console.log("❌ DB connection error", err);
+  });
 
 // Route mounting
 app.use("/shipments", shipmentRoutes);
@@ -67,16 +62,10 @@ app.use("/staff", staffRoutes);
 app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
+app.use("/staff/lodging-management", vehicleScheduleRoutes);
+
 app.use("/staff", userRoutes);
 
-
-
-
-
-
-
-
-
-app.listen(PORT,()=>{
-    console.log(`🚀 Server is running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
