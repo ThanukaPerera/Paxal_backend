@@ -28,11 +28,14 @@ const PORT = 8000;
  
 app.use(
   cors({
-    origin: "http://localhost:5173",// Your frontend URL
+    origin:[ "http://localhost:5173",// Your frontend URL
+      'http://localhost:19006',       // Expo dev server
+      'exp://192.168.43.246:19000' ],   // Your physical device
     credentials: true,// Allow credentials (cookies)
   })
 );
 app.use(cookieParser());
+app.use(express.json({ limit: '10mb' })); 
 
 // Increase the size limit for incoming JSON and URL-encoded data (This is for image upload increasing the size of input)
 app.use(bodyParser.json({ limit: "50mb" }));  // Adjust the limit as needed
@@ -68,6 +71,7 @@ app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
 app.use("/staff", userRoutes);
+app.use("/api/mobile", mobileRoutes);
 
 
 
