@@ -22,6 +22,15 @@ const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
 const mobileRoutes=require("./routes/mobile");
 
+//Deeraka
+const globalErrorHandler = require("./controllers/errorController");
+    const userRouter=require("./routes/userRoutes");
+    const paymentRouter=require("./routes/paymentRoutes");
+    const inquiryRoutes = require("./routes/inquiryRoutes"); 
+   const AppError = require("./utils/appError");
+    const parcelRoutes = require("./routes/parcelRoutes");
+    const branchRoutes = require("./routes/branchRoutes");
+
 const app = express();
 const PORT = 8000;
 
@@ -75,12 +84,19 @@ app.use("/staff", userRoutes);
 app.use("/api/mobile", mobileRoutes);
 
 
+//users api urls
+app.use("/api/auth",userRouter);
+app.use("/api/parcels", parcelRoutes); // Use parcel routes
+app.use("/api/payment",paymentRouter);
+app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/branches', branchRoutes);
 
 
 
-
-
-
+app.all("*",(req,res,next) => {
+    next(new AppError('cant find ${req.originalUrl} on this server !',404) );
+});
+app.use(globalErrorHandler);
 
 app.listen(PORT,()=>{
     console.log(`🚀 Server is running on port ${PORT}`);
