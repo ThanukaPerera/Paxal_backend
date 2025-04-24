@@ -28,7 +28,7 @@ const globalErrorHandler = require("./controllers/errorController");
     const paymentRouter=require("./routes/paymentRoutes");
     const inquiryRoutes = require("./routes/inquiryRoutes"); 
    const AppError = require("./utils/appError");
-    const parcelRoutes = require("./routes/parcelRoutes");
+    
     const branchRoutes = require("./routes/branchRoutes");
 
 const app = express();
