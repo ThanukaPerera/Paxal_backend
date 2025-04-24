@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 // Middleware
-const authenticateAdmin = require("../middlewares/authMiddleware");
+const {authenticateAdmin} = require("../middlewares/authMiddleware");
 
 // Admin Controllers
 const fetchAllAdmin = require("../controllers/adminControllers/userAccounts/Tables/fetchAllAdmin");

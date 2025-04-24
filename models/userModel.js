@@ -1,8 +1,10 @@
-// userModel.js
 const mongoose = require('mongoose');
+const validator = require("validator");
+
+
 const userSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true, unique: true },
+    userId: { type: String, required: false, unique: true },
     nic: { type: String, required: true, unique: false },
     fName: { type: String, required: false },
     lName: { type: String, required: false },
@@ -11,7 +13,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      // validate: [validator.isEmail, "Please provide a valid email"],
+      validate: [validator.isEmail, "Please provide a valid email"],
     },
     password: { type: String, required: true },
     passwordconfirm: {
@@ -40,9 +42,5 @@ const userSchema = new mongoose.Schema(
 
 
 module.exports=mongoose.model("User",userSchema);
-
-
-
-// ParcelSchema
 
 
