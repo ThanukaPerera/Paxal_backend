@@ -20,6 +20,7 @@ const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
+const mobileRoutes=require("./routes/mobile");
 
 const app = express();
 const PORT = 8000;

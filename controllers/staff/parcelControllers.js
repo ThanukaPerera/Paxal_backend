@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const QRCode = require("qrcode");
 
-const  Parcel  = require("../../models/parcelModels");
+const  Parcel  = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
 

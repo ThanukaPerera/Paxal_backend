@@ -1,41 +1,3 @@
-// const mongoose = require("mongoose");
-
-// const bookedTripSchema = new mongoose.Schema({
-//   tripId: { type: mongoose.Schema.Types.ObjectId, required: true },
-//   startTime: { type: String, required: true },
-//   endTime: { type: String, required: true },
-// });
-
-// const vehicleSchema = new mongoose.Schema({
-//   vehicleId: { type: String, required: true, unique: true },
-//   vehicleType: {
-//     type: String,
-//     enum: ["shipment", "pickupDelivery"],
-//     required: true,
-//   },
-//   assignedBranch: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Branch",
-//     required: true,
-//   },
-//   currentBranch: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Branch",
-//     required: true,
-//   },
-//   capableVolume: { type: Number, required: true },
-//   capableWeight: { type: Number, required: true },
-//   bookedTimes: {
-//     type: Map,
-//     of: new mongoose.Schema({
-//       trips: [bookedTripSchema],
-//     }),
-//   },
-// });
-
-// module.exports = mongoose.model("Vehicle", vehicleSchema);
-
-
 const mongoose = require("mongoose");
 
 const vehicleSchema = new mongoose.Schema({
@@ -61,4 +23,4 @@ const vehicleSchema = new mongoose.Schema({
   available: {type: Boolean, default:true}
 });
 
-module.exports = mongoose.model("Vehicle", vehicleSchema);
+module.exports = mongoose.models.Vehicle||mongoose.model("Vehicle", vehicleSchema);

@@ -11,4 +11,4 @@ const receiverSchema = new mongoose.Schema(
     { timestamps: true }
   );
 
-  module.exports=mongoose.model("Receiver",receiverSchema);
+  module.exports=mongoose.models.Receiver || mongoose.model("Receiver",receiverSchema);
