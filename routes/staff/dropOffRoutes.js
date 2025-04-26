@@ -1,5 +1,5 @@
 const express = require("express");
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware.js");
 const {
   viewAllDropOffupParcels,
 } = require("../../controllers/staff/dropOffControllers.js");

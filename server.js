@@ -13,7 +13,7 @@ const driverRoutes = require("./routes/driverRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");
-const adminRoutes = require("./routes/adminRoutes");
+const adminRoutes = require("./routes/adminRoutes/adminRoutes");
 const staffRoutes = require("./routes/staff/staffRoutes");
 const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 

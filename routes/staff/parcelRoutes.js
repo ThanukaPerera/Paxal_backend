@@ -3,7 +3,7 @@ const router = express.Router();
 // const { registerNewCustomer, addReceiver } = require("../controllers/customerControllers");
 const { registerParcel, getAllParcels, getOneParcel, updateTheParcel, calculatePayment } = require("../../controllers/staff/parcelControllers");
 const { savePayment } = require("../../controllers/staff/paymentController");
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
 
 // REGISTER A PARCEL - STAFF FORM
