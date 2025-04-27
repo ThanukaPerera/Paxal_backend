@@ -47,6 +47,7 @@ router.post("/driver/login", async (req, res) => {
       console.log(`Login successful for driver: ${email}`); // Success log
       
         // Generate JWT token (expires in 1 day)
+       // console.log( process.env.MOBILE_JWT_SECRET);
         const token = jwt.sign(
           { driverId: driver._id, email: driver.email },
           process.env.MOBILE_JWT_SECRET , // Use a strong secret in production
@@ -115,55 +116,52 @@ router.get('/driver_vehicle', authMiddleware, async (req, res) => {
 });
 
 
-router.get('/vehicle-parcels', async (req, res) => {
+router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
   try {
     const { vehicleId, scheduleDate } = req.query;
 
-    // Validate input
     if (!vehicleId || !scheduleDate) {
       return res.status(400).json({
         success: false,
-        message: 'vehicleId and scheduleDate are required'
+        message: 'vehicleId and scheduleDate are required',
       });
     }
 
-    // Get ALL VehicleSchedules (morning + evening) for the given vehicle and date
     const schedules = await VehicleSchedule.find({
       vehicle: vehicleId,
-      scheduleDate: new Date(scheduleDate)
+      scheduleDate: {
+        $gte: new Date(`${scheduleDate}T00:00:00`),
+        $lte: new Date(`${scheduleDate}T23:59:59`),
+      },
     }).populate({
       path: 'assignedParcels',
       populate: [
         { path: 'senderId', model: 'User', select: 'fName lName contact address' },
         { path: 'receiverId', model: 'Receiver', select: 'receiverFullName receiverContact' },
         { path: 'paymentId', model: 'Payment', select: 'paymentMethod amount paymentStatus' },
-      ]
+      ],
     });
 
     if (!schedules.length) {
-      console.log('No schedules found for:', { vehicleId, scheduleDate });
       return res.json({
         success: true,
-        data: { morningParcels: [], eveningParcels: [] }
+        data: { morningParcels: [], eveningParcels: [] },
       });
     }
 
-    let formattedParcels = [];
-
-    schedules.forEach(schedule => {
-      const parcels = schedule.assignedParcels.map(parcel => {
+    const formattedParcels = schedules.flatMap((schedule) =>
+      schedule.assignedParcels.map((parcel) => {
         const isPickup = parcel.status === 'PendingPickup';
-
         const userData = isPickup
           ? {
               name: `${parcel.senderId?.fName || ''} ${parcel.senderId?.lName || ''}`.trim(),
               phone: parcel.senderId?.contact,
-              address: parcel.pickupInformation?.address
+              address: parcel.pickupInformation?.address,
             }
           : {
               name: parcel.receiverId?.receiverFullName,
               phone: parcel.receiverId?.receiverContact,
-              address: parcel.deliveryInformation?.deliveryAddress
+              address: parcel.deliveryInformation?.deliveryAddress,
             };
 
         return {
@@ -172,7 +170,7 @@ router.get('/vehicle-parcels', async (req, res) => {
           trackingNo: parcel.trackingNo,
           status: parcel.status,
           isPickup,
-          timeSlot: schedule.timeSlot ,
+          timeSlot: schedule.timeSlot,
           scheduleDate: schedule.scheduleDate,
           customerName: userData.name || 'N/A',
           phone: userData.phone || 'Not provided',
@@ -180,35 +178,30 @@ router.get('/vehicle-parcels', async (req, res) => {
           payment: {
             method: parcel.paymentId?.paymentMethod || (isPickup ? 'Online' : 'COD'),
             amount: parcel.paymentId?.amount || 0,
-            paymentStatus: parcel.paymentStatus || parcel.paymentId?.paymentStatus || 'pending', 
-          }
+            paymentStatus: parcel.paymentId?.paymentStatus || 'pending',
+          },
         };
-      });
+      })
+    );
 
-      formattedParcels.push(...parcels);
-    });
-
-    console.log('All parcel time slots:', formattedParcels.map(p => p.timeSlot));
-
-    const morningParcels = formattedParcels.filter(p =>
+    const morningParcels = formattedParcels.filter((p) =>
       String(p.timeSlot).includes('08:00 - 12:00')
     );
 
-    const eveningParcels = formattedParcels.filter(p =>
+    const eveningParcels = formattedParcels.filter((p) =>
       String(p.timeSlot).includes('13:00 - 17:00')
     );
 
     res.json({
       success: true,
-      data: { morningParcels, eveningParcels }
+      data: { morningParcels, eveningParcels },
     });
-
   } catch (error) {
     console.error('Server error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -219,180 +212,87 @@ router.get("/parcel-counts",authMiddleware, async (req, res) => {
     try {
         const assignedCount = await Parcel.countDocuments({ status: 'PendingPickup' });
         const pickedUpCount = await Parcel.countDocuments({ status: 'PickedUp' });
-        const pendingCount = await Parcel.countDocuments( assignedCount - pickedUpCount );
+        const pendingCount = assignedCount - pickedUpCount;
 
         console.log('Assigned:', assignedCount);
         console.log('Picked Up:', pickedUpCount);
         console.log('Pending Pickup:', pendingCount);  
                 // Send the counts as a response
         res.status(200).json({
+            success: true,
             assignedCount,
             pickedUpCount,
             pendingCount
         });
     } catch (error) {
+        console.error('Error fetching parcel counts:', error);
         res.status(500).json({ message: "Error fetching parcel counts", error });
     }
 });
-
-
-// router.post("/updateParcelStatus",authMiddleware, async (req, res) => {
-//     try {
-//         const { parcelId, status } = req.body;
-
-//         // Update parcel status in MongoDB
-//         const updatedParcel = await Parcel.findOneAndUpdate(
-//             { parcelId : parcelId },
-//             { status },
-//             { new: true } // Return updated document
-//         );
-
-//         if (!updatedParcel) {
-//             return res.status(404).json({ message: "Parcel not found" });
-//         }
-
-//         console.log(`Parcel ID ${parcelId} status updated to: ${status}`);
-
-//         res.status(200).json({ message: "Parcel status updated", parcel: updatedParcel });
-
-//     } catch (error) {
-//         console.error("Error updating parcel status:", error);
-//         res.status(500).json({ message: "Server error", error });
-//     }
-// });
-
-
-
-
-// router.post ("/updateParcelStatus",authMiddleware, async (req, res) => {
-//     try {
-//         const { parcelId, status,paymentMethod,isPaid,amount } = req.body;
-//         //find the parcel by ID
-//         const parcel = await Parcel.findOne({ parcelId: parcelId });
-//         if(!parcel) {
-//             return res.status(404).json({ message: "Parcel not found" });
-//         }
-//         //validate the status
-//         if (status==='PickedUp' && Parcel.status !== 'PendingPickup'){
-//             return res.status(400).json({ 
-//               message: `Invalid status change from ${Parcel.status} to PickedUp` 
-//             });
-//         }
-//         if (status==='Delivered' && Parcel.status !== 'DeliveryDispatched') {
-//           return res.status(400).json({ 
-//             message: `Invalid status change from ${Parcel.status} to Delivered` 
-//           });
-//       }
-
-//       //for COD parcels
-//       if(status==='Delivered' && paymentMethod === 'COD' && !isPaid){
-//         return res.status(400).json({ 
-//           message: `Payment should be collected for COD parcels` 
-//         });
-//       }
-
-//       //update parcel status and payment details
-
-//       const updateData = {status};
-//       if (status==='Delivered' && paymentMethod === 'COD'){
-//         updateData.paymentStatus = 'paid';
-//         updateData.amount = amount;
-//       }
-//       const updatedParcel = await Parcel.findOneAndUpdate(
-//           { parcelId: parcelId },
-//           updateData,
-//           { new: true } // Return updated document
-//       );
-//       console.log(`Parcel ID ${parcelId} status updated from ${Parcel.status} to: ${status}`);
-
-//     } catch (error) {
-//         console.error("Error updating parcel status:", error);
-//         res.status(500).json({ message: "Server error", error });
-//     }
-//   });
-
 
 router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
   try {
     const { parcelId, status, paymentMethod, isPaid, amount } = req.body;
 
-    // Find the parcel by ID
-    const parcel = await Parcel.findOne({ parcelId: parcelId }).populate("paymentId");
+    const parcel = await Parcel.findOne({ parcelId }).populate('paymentId');
     if (!parcel) {
-      return res.status(404).json({ message: "Parcel not found" });
+      return res.status(404).json({ message: 'Parcel not found' });
     }
 
-    // Validate status transitions
     if (status === 'PickedUp' && parcel.status !== 'PendingPickup') {
-      return res.status(400).json({ 
-        message: `Invalid status change from ${parcel.status} to PickedUp` 
+      return res.status(400).json({
+        message: `Invalid status change from ${parcel.status} to PickedUp`,
       });
     }
 
     if (status === 'Delivered' && parcel.status !== 'DeliveryDispatched') {
-      return res.status(400).json({ 
-        message: `Invalid status change from ${parcel.status} to Delivered` 
+      return res.status(400).json({
+        message: `Invalid status change from ${parcel.status} to Delivered`,
       });
     }
 
-    // COD validations
-    if (status === 'Delivered' && paymentMethod === 'COD') {
-      if (!isPaid) {
-        return res.status(400).json({ message: "Payment must be collected for COD parcels" });
-      }
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ message: "Valid payment amount is required for COD parcels" });
-      }
+    if (status === 'Delivered' && paymentMethod === 'COD' && !isPaid) {
+      return res.status(400).json({
+        message: 'Payment must be collected for COD parcels',
+      });
     }
 
-    // Prepare update data
-    const updateData = {
-      status,
-      ...(status === 'Delivered' && { deliveredAt: new Date() })
-    };
+    const updateData = { status };
+    if (status === 'Delivered') {
+      updateData.deliveredAt = new Date();
+    }
 
-    // Update the parcel status
     const updatedParcel = await Parcel.findOneAndUpdate(
-      { parcelId: parcelId },
+      { parcelId },
       updateData,
       { new: true }
     );
 
-    // Update payment info if delivered
-    if (status === 'Delivered') {
+    if (status === 'Delivered' && parcel.paymentId) {
       const payment = await Payment.findById(parcel.paymentId);
       if (payment) {
         payment.paymentStatus = 'paid';
         payment.paidAt = new Date();
-        payment.paymentMethod = paymentMethod || payment.method;
+        payment.paymentMethod = paymentMethod || payment.paymentMethod;
         payment.amount = amount || payment.amount;
         await payment.save();
       }
     }
 
-    console.log('Parcel updated:', {
-      id: parcelId,
-      oldStatus: parcel.status,
-      newStatus: status,
-      paymentStatus: 'paid'
-    });
-
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: `Parcel status updated to ${status}`,
-      data: updatedParcel
+      data: updatedParcel,
     });
-
   } catch (error) {
-    console.error("Error updating parcel status:", error);
-    return res.status(500).json({
+    console.error('Error updating parcel status:', error);
+    res.status(500).json({
       success: false,
-      message: "Server error",
-      error: error.message
+      message: 'Server error',
+      error: error.message,
     });
   }
 });
-
 
 //Profile picture upload
 router.put("/drivers/:email/profilepicture",authMiddleware, async (req, res) => {
