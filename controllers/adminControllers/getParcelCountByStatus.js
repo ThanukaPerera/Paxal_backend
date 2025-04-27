@@ -154,6 +154,7 @@
   };
 
   const getParcelCountByGroup = async (req, res) => {
+    
     try {
       // Aggregate parcel counts for each status
       const counts = await Parcel.aggregate([

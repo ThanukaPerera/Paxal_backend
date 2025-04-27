@@ -85,10 +85,7 @@ router.get("/customer/all",authenticateAdmin,fetchAllCustomers);
 router.get("/get/mydata",authenticateAdmin,getMyData)
 
 
-const { 
-    validateProfileUpdate,
-    updateMyData 
-  } = require("../../controllers/adminControllers/adminProfile/updateMyData");
+const { validateProfileUpdate,updateMyData} = require("../../controllers/adminControllers/adminProfile/updateMyData");
 const fetchVehicles = require("../../controllers/adminControllers/Vehicles/fetchVehicles");
 const {validateBranch,addBranch}=require("../../controllers/adminControllers/branches/addBranch");
 const fetchShipments = require("../../controllers/adminControllers/shipments/fetchShipments");
