@@ -32,6 +32,8 @@ const branchRoutes = require("./routes/branchRoutes");
 
 const app = express();
 
+
+
 // Middleware
 app.use(
   cors({

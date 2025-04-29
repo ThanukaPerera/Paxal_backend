@@ -1,44 +1,39 @@
-
 const findAdminFunction = require("../../utils/findAdminFunction.js");
 
 const adminLogout = async (req, res) => {
+ 
   try {
     // Validate admin session first
     if (!req.admin?.adminId) {
       return res.status(401).json({
         status: "error",
         message: "Not authenticated",
-        // toast: { 
-        //   type: "error",
-        //   message: "You need to be logged in to perform this action"
-        // }
       });
     }
 
     // Clear cookie with proper security settings
-    res.clearCookie("AdminToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-      path: "/"
-    });
+    // res.clearCookie("AdminToken", {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === "production",
+    //   sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    //   path: "/"
+    // });
+    res.clearCookie("AdminToken");
+    res.clearCookie("AdminRefreshToken");
 
     // Fetch admin details for audit logging
     const reqAdmin = await findAdminFunction(req.admin.adminId);
-    
+
     // Log the logout action
-    console.log(`${reqAdmin.adminId} (${reqAdmin.name}) logged out successfully`);
+    console.log(
+      `${reqAdmin.adminId} (${reqAdmin.name}) logged out successfully`
+    );
 
     // Send success response
     res.status(200).json({
       status: "success",
       message: "Logged out successfully",
-      // toast: {
-      //   type: "success",
-      //   message: "You have been logged out successfully"
-      // }
     });
-
   } catch (error) {
     // Handle specific error types
     let statusCode = 500;
@@ -64,15 +59,14 @@ const adminLogout = async (req, res) => {
     res.status(statusCode).json({
       status: "error",
       message: errorMessage,
-      // toast: {
-      //   type: "error",
-      //   message: errorMessage
-      // },
       // Only include stack in development
-      error: process.env.NODE_ENV === "development" ? {
-        message: error.message,
-        stack: error.stack
-      } : undefined
+      error:
+        process.env.NODE_ENV === "development"
+          ? {
+              message: error.message,
+              stack: error.stack,
+            }
+          : undefined,
     });
   }
 };
@@ -83,10 +77,9 @@ module.exports = adminLogout;
 
 // const adminLogout = async (req, res) => {
 //     try {
-//       res.clearCookie("AdminToken", { httpOnly: true, secure: true, sameSite: "None" }); 
+//       res.clearCookie("AdminToken", { httpOnly: true, secure: true, sameSite: "None" });
 //       res.status(200).json({ message: "Logged out Successfully" });
-        
-      
+
 //       const reqAdmin = await findAdminFunction(req.admin.adminId);
 //       console.log(reqAdmin.adminId,reqAdmin.name,"Logged out Successfully");
 //     } catch (error) {
