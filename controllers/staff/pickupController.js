@@ -1,56 +1,43 @@
-const Parcel = require("../../models/parcelModels");
+const Parcel = require("../../models/ParcelModel");
 const Staff = require("../../models/StaffModel");
-const {
-  generateTrackingNumber,
-  generateQRCode,
-} = require("./parcelControllers");
+const User = require("../../models/userModel");
+const Receiver = require("../../models/ReceiverModel");
 
+const {generateTrackingNumber,generateQRCode} = require("./qrAndTrackingNumber");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
-// const User = require("../../models/userModel");
-// const Receiver = require("../../models/receiverModel");
 
-// GET ALL PICKUP REQUESTS
+
+// Get all new pickup requests so the staff can assign drivers to pick them up.
 const viewAllPickupParcels = async (req, res) => {
   try {
+
+    // Find the branch that requests pickup parcels using staff ID.
     const staff_id = req.staff._id.toString();
     console.log(staff_id);
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
+
     const pickupParcels = await Parcel.find({
       submittingType: "pickup",
       status: "OrderPlaced",
       from: branch_id,
     });
-    res.status(200).json(pickupParcels);
+    
+    return res.status(200).json(pickupParcels);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching parcels", error });
+    return res.status(500).json({ message: "Error fetching pickup parcels", error });
   }
 };
 
-// GET ONE PICKUP REQUEST
-const getOnePickupParcel = async (req, res) => {
-  try {
-    const pickupParcel = await Parcel.findOne({
-      parcelId: req.params.parcelId,
-    });
-
-    if (!pickupParcel) {
-      return res.status(404).json({ message: "Parcel Not found" });
-    }
-    res.status(200).json(pickupParcel);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching the parcel", error });
-  }
-};
-
-//GENERATE QR AND TRACKING NUMBER
+// Generate a QR code and tracking number for the pickup parcel
+// and update the parcel status to "PendingPickup"
 const getQRandTrackingNumberForPickup = async (req, res) => {
   try {
-    const parcelId = req.params.parcelId;
+    const {parcelId} = req.body;
 
     const pickupParcel = await Parcel.findOne({ parcelId });
 
-    // Generate a tracking number for the pickup parcel
+    // Generate a tracking number for the pickup parcel.
     let trackingNumber;
     let numberExists;
     do {
@@ -58,13 +45,19 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
       numberExists = await Parcel.findOne({ trackingNo: trackingNumber });
     } while (numberExists);
 
-    // Generate a QR code for the pickup parcel
+    // Generate a QR code for the pickup parcel.
     const qrCodeString = await generateQRCode(parcelId);
 
+    // Get the staff who register the pickup parcel.
+    const staff_id = req.staff._id;
+
+    // Update the pickup parcel.
+    // Add the staff who handled the pickup request.
     const updatedPickupParcel = {
       trackingNo: trackingNumber,
       qrCodeNo: qrCodeString,
       status: "PendingPickup",
+      pickupInformation: { staffId: staff_id },
     };
 
     const updatedParcel = await Parcel.findOneAndUpdate(
@@ -73,19 +66,26 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
       { new: true }
     );
 
-    // SEND EMAILS TO SENDER AND RECEIVER
+    // Send emails to the sender and receiver with the tracking number.
     const sender = await User.findById(pickupParcel.userId);
     const receiver = await Receiver.findById(pickupParcel.receiverId);
     const senderEmail = sender.email;
     const receiverEmail = receiver.receiverEmail;
 
-    await sendTrackingNumberEmail(senderEmail, parcelId, trackingNumber);
-    await sendTrackingNumberEmail(receiverEmail, parcelId, trackingNumber);
-
-    res.status(200).json({
+    const result1 = await sendTrackingNumberEmail(senderEmail, parcelId, trackingNumber);
+    if(!result1.success) {
+      console.log("Error in sending the email with tracking number",result1)
+    }
+    const result2 = await sendTrackingNumberEmail(receiverEmail, parcelId, trackingNumber);
+    if(!result1.success) {
+      console.log("Error in sending the email with tracking number",result2)
+    }
+    
+    return res.status(200).json({
       message: "QR and Tracking number successfully generated - pending pickup",
       updatedParcel,
     });
+    
   } catch (error) {
     res.status(500).json({
       message: "Error in generating qr and tracking number for pickup",
@@ -96,6 +96,5 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
 
 module.exports = {
   viewAllPickupParcels,
-  getOnePickupParcel,
   getQRandTrackingNumberForPickup,
 };

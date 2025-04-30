@@ -1,15 +1,13 @@
 const express = require("express");
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
-const {
-  viewAllDropOffupParcels,
-} = require("../../controllers/staff/dropOffControllers.js");
 const router = express.Router();
+const {authenticateStaff} = require("../../middlewares/authMiddleware");
+const {viewAllDropOffupParcels, getQRandTrackingNumberForDropOff,} = require("../../controllers/staff/dropOffControllers.js");
 
-// GET ALL DROP-OFF PARCELS
-router.get(
-  "/get-all-dropOff-parcels",
-  authenticateStaff,
-  viewAllDropOffupParcels
-);
+
+// get all drop-off parcels
+router.get( "/get-all-dropOff-parcels", authenticateStaff, viewAllDropOffupParcels);
+
+// update drop-off parcel when collected
+router.post( "/register-dropOff/:parcelId", authenticateStaff, getQRandTrackingNumberForDropOff);
 
 module.exports = router;
