@@ -11,22 +11,22 @@ const {
 } = require("../../controllers/staff/staffControllers");
 const {authenticateStaff} = require("../../middlewares/authMiddleware");
 
-// AUTHENTICATE STAFF
+// Authenticate staff member.
 router.get("/status", authenticateStaff, checkAuthenticity);
 
-// STAFF LOGIN
+// Staff login.
 router.post("/login", staffLogin);
 
-// STAFF LOGOUT
+// Staff logout.
 router.post("/logout", authenticateStaff, staffLogout);
 
-// STAFF FORGOT PASSWORD
+// Staff forgot password.
 router.post("/forgot-password", staffForgotPassword);
 
-// PASSWORD RESET CODE
+// Stff password reset code verification.
 router.post("/verify-reset-code", staffPasswordResetCode);
 
-// PASSWORD UPDATE
+// Staff password update.
 router.post("/reset-password", staffPasswordUpdate);
 
 router.get("/staffMainMenu", authenticateStaff, getStaffLoggedPage);
