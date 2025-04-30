@@ -16,10 +16,15 @@ const adminRoutes = require("./routes/adminRoutes");
 const staffRoutes = require("./routes/staff/staffRoutes");
 const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 
+// routes for the staff members
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
-const vehicleScheduleRoutes = require("./routes/staff/vehicleScheduleRoutes");
+const pickupScheduleRoutes = require("./routes/staff/pickupScheduleRoutes");
+const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes")
+const uiRoutes = require("./routes/staff/uiRoutes");
+const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
+const inquiryRoutes = require("./routes/staff/inquiryRoutes");
 
 const app = express();
 const PORT = 8000;
@@ -62,9 +67,14 @@ app.use("/staff", staffRoutes);
 app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
-app.use("/staff/lodging-management", vehicleScheduleRoutes);
+app.use("/staff/vehicle-schedules", pickupScheduleRoutes);
+app.use("/staff/vehicle-schedules", deliveryScheduleRoutes);
+app.use("/staff/collection-management", parcelDeliveryRoutes)
+app.use("/staff/inquiry-management", inquiryRoutes);
 
 app.use("/staff", userRoutes);
+
+app.use("/staff/ui", uiRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
