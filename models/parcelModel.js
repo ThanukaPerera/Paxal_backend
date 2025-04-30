@@ -70,7 +70,7 @@ const parcelSchema = new mongoose.Schema(
     shipmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "B2BShipment",
-      required: true,
+      required: false,
     }, // Reference to B2B Shipment
     arrivedToCollectionCenterTime: { type: Date, required: false },
     status: {
