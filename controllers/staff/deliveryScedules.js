@@ -7,27 +7,22 @@ const getParcelProperties = require("../../utils/parcelDetails");
 // get all delivery schedules created from the branch
 const getAllDeliveryScedules = async (req, res) => {
   try {
-
     // Find the branch.
     const staff_id = req.staff._id.toString();
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
 
-    // Get all vehicles that belong to the branch.
-    const branchVehicleIds = await Vehicle.find({
-      assignedBranch: branch_id,
-    }).distinct("_id");
-
-    // Find the delivery schedules created from the branch by referring to the vehicles in the branch.
+    // Find the delivery schedules created from the branch.
     const schedules = await VehicleSchedule.find({
       type: "delivery",
-      vehicle: { $in: branchVehicleIds },
+
+      branch: branch_id,
     })
-    .populate("vehicle", "vehicleId")
-    .populate({
-      path: "assignedParcels",
-      select: "deliveryInformation",
-    });
+      .populate("vehicle", "vehicleId")
+      .populate({
+        path: "assignedParcels",
+        select: "deliveryInformation",
+      });
 
     const schedulesData = schedules.map((schedule) => {
       const parcelCount = schedule.assignedParcels.length;
@@ -52,7 +47,6 @@ const getAllDeliveryScedules = async (req, res) => {
     });
 
     return res.json(schedulesData);
-
   } catch (error) {
     res.status(500).json({ message: "Error getting vehicle schedules", error });
   }
@@ -61,6 +55,10 @@ const getAllDeliveryScedules = async (req, res) => {
 // create a new delivery schedule
 const createNewDeliverySchedule = async (req, res) => {
   try {
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
 
     // Get the parcel to be assigned to the new schedule.
     const { parcelId } = req.body;
@@ -118,15 +116,17 @@ const createNewDeliverySchedule = async (req, res) => {
           assignedParcels: [parcel._id],
           totalVolume: parcelVolume,
           totalWeight: parcelWeight,
+          branch: branch_id,
         });
 
         const newDeliverySchedule = await VehicleSchedule.findById(
           newSchedule._id
         )
-        .populate("vehicle")
-        .populate("assignedParcels", "deliveryInformation");
+          .populate("vehicle")
+          .populate("assignedParcels", "deliveryInformation");
 
         return res.status(201).json({
+          success:true,
           message: "Parcel is assigned to a newly created schedule",
           newDeliverySchedule,
         });
@@ -136,9 +136,10 @@ const createNewDeliverySchedule = async (req, res) => {
 
     //If none of the slots had availability.
     return res.status(400).json({ message: "No available vehicle" });
-
   } catch (error) {
-    return res.status(500).json({ message: "Error creating new delivery schedule", error });
+    return res
+      .status(500)
+      .json({success:false,  message: "Error creating new delivery schedule", error });
   }
 };
 
@@ -153,7 +154,9 @@ const assignParcelToExistingDeliverySchedule = async (req, res) => {
     }
 
     // find the schedule
-    const schedule = await VehicleSchedule.findById(scheduleId).populate("vehicle");
+    const schedule = await VehicleSchedule.findById(scheduleId).populate(
+      "vehicle"
+    );
 
     if (!schedule) {
       return res.status(404).json({ message: "Schedule not found" });
@@ -161,7 +164,9 @@ const assignParcelToExistingDeliverySchedule = async (req, res) => {
 
     // Check if parcel is already assigned to this schedule to prevent re assigning.
     if (schedule.assignedParcels.includes(parcel._id)) {
-      return res.json({message: "Parcel is already assigned to this schedule",});
+      return res.json({
+        message: "Parcel is already assigned to this schedule",
+      });
     }
 
     // Check if the existing schedules has enough space.
@@ -178,7 +183,8 @@ const assignParcelToExistingDeliverySchedule = async (req, res) => {
 
     if (!canFit) {
       return res.json({
-        message: "There is not enough available space in the schedule to assign the parcel",
+        message:
+          "There is not enough available space in the schedule to assign the parcel",
         details: {
           requiredWeight: parcelWeight,
           availableWeight: remainingWeight,
@@ -194,10 +200,13 @@ const assignParcelToExistingDeliverySchedule = async (req, res) => {
     schedule.totalVolume += parcelVolume;
 
     await schedule.save();
-    return res.status(200).json({ message: "Parcel is assigned to a schedule", schedule });
-
+    return res
+      .status(200)
+      .json({ success:true, message: "Parcel is assigned to a schedule", schedule });
   } catch (error) {
-    res.status(500).json({ message: "Error in assigning parcel to the schedule", error });
+    res
+      .status(500)
+      .json({success:false, message: "Error in assigning parcel to the schedule", error });
   }
 };
 
@@ -241,11 +250,27 @@ const cancelDeliveryAssignment = async (req, res) => {
       console.log("Delivery Schedule updated:", deliverySchedule);
     }
 
-    return res.status(200).json({ message: "Parcel removed successfully" });
-    
+    return res.status(200).json({ success:true, message: "Parcel removed successfully" });
   } catch (error) {
     console.error("Error:", error.message);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res
+      .status(500)
+      .json({success:false,  message: "Server error", error: error.message });
+  }
+};
+
+// check if the parcel is assigned.
+const checkParcelAssignment = async (req, res) => {
+  try {
+    const { parcelId } = req.body;
+    const schedule = await VehicleSchedule.findOne({
+      assignedParcels: parcelId,
+      type: "delivery",
+    });
+
+    return res.json({ isAssigned: !!schedule, scheduleId: schedule?._id });
+  } catch (error) {
+    return res.status(500).json({ message: "Check failed", error });
   }
 };
 
@@ -254,4 +279,5 @@ module.exports = {
   createNewDeliverySchedule,
   assignParcelToExistingDeliverySchedule,
   cancelDeliveryAssignment,
+  checkParcelAssignment,
 };

@@ -10,10 +10,10 @@ const {
 const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
 // get all pickup schedules created from the branch for a given day
-router.get('/get-all-pickup-schedules', getAllPickupSchedulesForDate);
+router.get('/get-all-pickup-schedules', authenticateStaff, getAllPickupSchedulesForDate);
 
 // assign the parcel to an existing pickup schedule
-router.post('/select-pickup-schedule',  assignparcelToExsistingPickup);
+router.post('/select-pickup-schedule', authenticateStaff, assignparcelToExsistingPickup);
 
 // create a new pickup schedule and assign the pracle
 router.post('/new-pickup-schedule', authenticateStaff, createNewPickupSchedule)

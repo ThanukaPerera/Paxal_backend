@@ -8,30 +8,34 @@ const getParcelProperties = require("../../utils/parcelDetails");
 const getAllPickupSchedulesForDate = async (req, res) => {
   try {
     const { pickupDate, pickupTime } = req.query;
+    if (!pickupDate || !pickupTime) {
+      return res.status(400).json({ message: 'Missing pickupDate or pickupTime' });
+    }
+    console.log("Getting pickup schedules for: ", pickupDate, pickupTime);
+
 
     // Find the branch requesting schedules.
     const staff_id = req.staff._id.toString();
+    console.log("staff id",staff_id)
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
-
-    // Get all vehicles belong to the branch.
-    const branchVehicleIds = await Vehicle.find({
-      assignedBranch: branch_id,
-    }).distinct("_id");
-
-    // Find pickup schedules created from the branch 
-    // using the vehicles assigned to the branch
+    
+    console.log("branch id",branch_id)
+    
+    // Find pickup schedules created from the branch
     const schedules = await VehicleSchedule.find({
       scheduleDate: new Date(pickupDate),
       timeSlot: pickupTime,
       type: "pickup",
-      vehicle: { $in: branchVehicleIds },
+      branch: branch_id
     })
-    .populate("vehicle")
-    .populate({
-      path: "assignedParcels",
-      select: "pickupInformation",
-    });
+      .populate("vehicle")
+      .populate({
+        path: "assignedParcels",
+        select: "pickupInformation",
+      }).lean();
+
+      console.log(schedules)
 
     const schedulesData = schedules.map((schedule) => {
       // number of parcels assigned to the schedule
@@ -54,9 +58,12 @@ const getAllPickupSchedulesForDate = async (req, res) => {
       };
     });
 
+    console.log("Available pickup schedules", schedulesData)
     return res.json(schedulesData);
   } catch (error) {
-    return res.status(500).json({ message: "Error getting vehicle schedules", error });
+    return res
+      .status(500)
+      .json({ message: "Error getting vehicle schedules", error });
   }
 };
 
@@ -70,14 +77,18 @@ const assignparcelToExsistingPickup = async (req, res) => {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-    const schedule = await VehicleSchedule.findById(scheduleId).populate("vehicle");
+    const schedule = await VehicleSchedule.findById(scheduleId).populate(
+      "vehicle"
+    );
     if (!schedule) {
       return res.status(404).json({ message: "Schedule not found" });
     }
 
     // Check if parcel is already assigned to this schedule to prevent reassigning.
     if (schedule.assignedParcels.includes(parcel._id)) {
-      return res.json({message: "Parcel is already assigned to this schedule"});
+      return res.json({
+        message: "Parcel is already assigned to this schedule",
+      });
     }
 
     // Check if the existing schedules has enough space.
@@ -110,16 +121,26 @@ const assignparcelToExsistingPickup = async (req, res) => {
     schedule.totalVolume += parcelVolume;
 
     await schedule.save();
-    return res.status(200).json({ message: "Parcel is assigned to a pickup schedule", schedule });
-
+    return res
+      .status(200)
+      .json({ message: "Parcel is assigned to a pickup schedule", schedule });
   } catch (error) {
-    return res.status(500).json({ message: "Error in assigning parcel to the pickup schedule", error });
+    return res
+      .status(500)
+      .json({
+        message: "Error in assigning parcel to the pickup schedule",
+        error,
+      });
   }
 };
 
 // Create a new pickup schedule and assign the parcel
 const createNewPickupSchedule = async (req, res) => {
   try {
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
 
     // Find the parcel to be assigned.
     const { parcelId } = req.body;
@@ -133,14 +154,17 @@ const createNewPickupSchedule = async (req, res) => {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-    // Find the pickup date and time for the parcel 
+
+    // Find the pickup date and time for the parcel
     // it can be used as schedule date and time.
     const { pickupDate, pickupTime } = parcel.pickupInformation;
     if (!pickupDate || !pickupTime) {
-      return res.status(400).json({ message: "Parcel missing pickup information" });
+      return res
+        .status(400)
+        .json({ message: "Parcel missing pickup information" });
     }
 
-    // Find parcel volume,weight 
+    // Find parcel volume,weight
     // so it can be used to check if the vehicle has enough spacce.
     const itemSize = parcel.itemSize;
     const { parcelWeight, parcelVolume } = getParcelProperties(itemSize);
@@ -175,9 +199,12 @@ const createNewPickupSchedule = async (req, res) => {
       assignedParcels: [parcel._id],
       totalWeight: parcelWeight,
       totalVolume: parcelVolume,
+      branch: branch_id,
     });
 
     const savedSchedule = await schedule.save();
+
+    console.log("pickup schedule created", savedSchedule);
 
     const newSchedule = await VehicleSchedule.findById(savedSchedule._id)
       .populate("vehicle")
@@ -186,10 +213,16 @@ const createNewPickupSchedule = async (req, res) => {
         select: "pickupInformation",
       });
 
-    return res.status(201).json({message: "Parcel is assigned to a newly created schedule",newSchedule,});
-
+      
+    return res.status(201).json({
+        success:true,
+        message: "Parcel is assigned to a newly created schedule",
+        newSchedule,
+      });
   } catch (error) {
-    return res.status(500).json({ message: "Error creating new pickup schedule", error });
+    return res
+      .status(500)
+      .json({ success:false, message: "Error creating new pickup schedule", error });
   }
 };
 
@@ -235,9 +268,13 @@ const cancelPickupAssignment = async (req, res) => {
     }
 
     return res.status(200).json({ message: "Parcel removed successfully" });
-
   } catch (error) {
-    return res.status(500).json({ message: "Server error, please try again later", error: error.message });
+    return res
+      .status(500)
+      .json({
+        message: "Server error, please try again later",
+        error: error.message,
+      });
   }
 };
 
@@ -245,10 +282,12 @@ const cancelPickupAssignment = async (req, res) => {
 const checkParcelAssignment = async (req, res) => {
   try {
     const { parcelId } = req.body;
-    const schedule = await VehicleSchedule.findOne({assignedParcels: parcelId,});
+    const schedule = await VehicleSchedule.findOne({
+      assignedParcels: parcelId,
+      type: "pickup",
+    });
 
-    return res.json({isAssigned: !!schedule, scheduleId: schedule?._id,});
-
+    return res.json({ isAssigned: !!schedule, scheduleId: schedule?._id });
   } catch (error) {
     return res.status(500).json({ message: "Check failed", error });
   }

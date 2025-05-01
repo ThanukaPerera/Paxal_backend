@@ -1,7 +1,5 @@
 
 const Parcel = require("../../models/parcelModel");
-
-
 const Staff = require("../../models/StaffModel");
 const User = require("../../models/userModel");
 const Receiver = require("../../models/ReceiverModel");
@@ -36,6 +34,7 @@ const viewAllPickupParcels = async (req, res) => {
 // and update the parcel status to "PendingPickup"
 const getQRandTrackingNumberForPickup = async (req, res) => {
   try {
+    console.log("Updating a pickup parcel");
     const {parcelId} = req.body;
 
     const pickupParcel = await Parcel.findOne({ parcelId });
@@ -53,6 +52,7 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
 
     // Get the staff who register the pickup parcel.
     const staff_id = req.staff._id;
+    console.log(staff_id)
 
     // Update the pickup parcel.
     // Add the staff who handled the pickup request.

@@ -20,7 +20,7 @@ const generateTrackingNumber = async (regTime) => {
 const generateQRCode = async (parcelData) => {
   try {
     const qr = await QRCode.toDataURL(parcelData, {errorCorrectionLevel: "H",});
-
+    console.log("-----QR Generated-------");
     return qr;
   } catch (error) {
     console.error("Error in generating the qr code",error);

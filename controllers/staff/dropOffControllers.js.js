@@ -1,10 +1,11 @@
-
-
-
 const Parcel = require("../../models/parcelModel");
-
 const Staff = require("../../models/StaffModel");
-const {generateTrackingNumber,generateQRCode,} = require("./qrAndTrackingNumber");
+const User = require("../../models/userModel");
+const Receiver = require("../../models/receiverModel");
+const {
+  generateTrackingNumber,
+  generateQRCode,
+} = require("./qrAndTrackingNumber");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
 
 // get all drop-off parcels
@@ -20,14 +21,17 @@ const viewAllDropOffupParcels = async (req, res) => {
       submittingType: "drop-off",
       status: "OrderPlaced",
       from: branch_id,
-    }).populate({path:"senderId", select:"fName lName"})
+    })
+      .populate({ path: "senderId", select: "fName lName" })
       .sort({
         createdAt: -1,
       });
-   
+
     return res.status(200).json(dropOffParcels);
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching drop-off parcels", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching drop-off parcels", error });
   }
 };
 
@@ -35,6 +39,7 @@ const viewAllDropOffupParcels = async (req, res) => {
 const getQRandTrackingNumberForDropOff = async (req, res) => {
   try {
     const parcelId = req.params.parcelId;
+    console.log(parcelId);
     const dropOffParcel = await Parcel.findOne({ parcelId });
 
     // Generate a tracking number for the parcel.
@@ -45,8 +50,10 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       numberExists = await Parcel.findOne({ trackingNo: trackingNumber });
     } while (numberExists);
 
+   
     // Generate a QR code for the parcel.
     const qrCodeString = await generateQRCode(parcelId);
+    
 
     // Get the staff who collected the parcel.
     const staff_id = req.staff._id;
@@ -58,35 +65,57 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       orderPlacedStaffId: staff_id,
     };
 
+ 
+
     const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
       updatedDropOffParcel,
       { new: true }
     );
-
+    
     // Send emails to sender and receiver with the tracking number.
-    const sender = await Customer.findById(dropOffParcel.senderId);
-    const receiver = await Customer.findById(dropOffParcel.receiverId);
-    const senderEmail = sender.customerEmail;
+    const sender = await User.findById(dropOffParcel.senderId);
+    const receiver = await Receiver.findById(dropOffParcel.receiverId);
+    const senderEmail = sender.userEmail;
     const receiverEmail = receiver.receiverEmail;
-
-    const result1 = await sendTrackingNumberEmail(senderEmail, parcelId, trackingNumber);
-    if(!result1.success) {
-      console.log("Error in sending the email with tracking number",result1)
+    console.log(senderEmail, receiverEmail);
+    const result1 = await sendTrackingNumberEmail(
+      senderEmail,
+      parcelId,
+      trackingNumber
+    );
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result1);
+      return res.status(500).json({
+        success: false,
+        message: "Drop-off parcel collected.Error in sending the email with tracking number",
+        error: result1?.error.message || "Email service error",
+      });
     }
-        
-    const result2 = await sendTrackingNumberEmail(receiverEmail, parcelId, trackingNumber);
-    if(!result1.success) {
-      console.log("Error in sending the email with tracking number",result2)
+
+    const result2 = await sendTrackingNumberEmail(
+      receiverEmail,
+      parcelId,
+      trackingNumber
+    );
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result2);
+      return res.status(500).json({
+        success: false,
+        message: "Drop-off parcel collected.Error in sending the email with tracking number",
+        error:  result2?.error.message || "Email service error",
+      });
     }
 
     return res.status(200).json({
-      message:"QR and Tracking number successfully generated - arrived at distribution center",
+      success: true,
+      message:
+        "QR and Tracking number successfully generated - arrived at distribution center",
       updatedParcel,
     });
-
   } catch (error) {
     return res.status(500).json({
+      success: false,
       message: "Error in generating qr and tracking number for drop-off parcel",
       error,
     });

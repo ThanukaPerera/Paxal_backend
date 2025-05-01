@@ -1,9 +1,5 @@
-
 const mongoose = require("mongoose");
 const  Parcel  = require("../../models/parcelModel");
-
-
-
 const Staff = require("../../models/StaffModel");
 
 const { sendTrackingNumberEmail } = require("../../emails/emails");
@@ -49,6 +45,7 @@ const registerParcel = async (req, res) => {
       numberExists = await Parcel.findOne({ trackingNo: trackingNumber }).session(session);
     } while (numberExists);
 
+    
     // Generate a QR code for the new parcel.
     const qrCodeString = await generateQRCode(nextParcelId);
 
@@ -65,7 +62,6 @@ const registerParcel = async (req, res) => {
       status: "ArrivedAtDistributionCenter",
       orderPlacedStaffId: staff_id,
     };
-    
     const parcel = new Parcel(parcelData);
     const savedParcel = await parcel.save({ session });
     console.log("------A new parcel registered------");

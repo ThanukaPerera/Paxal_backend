@@ -78,7 +78,7 @@ app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
 app.use("/staff/vehicle-schedules", pickupScheduleRoutes);
-app.use("/staff/vehicle-schedules", deliveryScheduleRoutes);
+app.use("/staff/delivery-schedules", deliveryScheduleRoutes);
 app.use("/staff/collection-management", parcelDeliveryRoutes)
 app.use("/staff/inquiry-management", staffInquiryRoutes);
 app.use("/staff/ui", uiRoutes);
