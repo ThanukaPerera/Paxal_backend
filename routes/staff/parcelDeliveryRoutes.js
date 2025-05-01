@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { authenticateStaff } = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 const { getAllDoorstepDeliveryParcels, getAllCollectionCenterDeliveryParcels, updateParcelStatusToDeliveryDispatched, updateParcelAsDelivered } = require("../../controllers/staff/parcelDeliveryController");
 const { getOneParcel } = require("../../controllers/staff/parcelControllers");
 

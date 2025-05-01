@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -23,12 +22,11 @@ const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
-
 const pickupScheduleRoutes = require("./routes/staff/pickupScheduleRoutes");
 const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes")
 const uiRoutes = require("./routes/staff/uiRoutes");
 const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
-const inquiryRoutes = require("./routes/staff/inquiryRoutes");
+const staffInquiryRoutes = require("./routes/staff/inquiryRoutes");
 
 const mobileRoutes = require("./routes/mobile");
 
@@ -43,9 +41,6 @@ const branchRoutes = require("./routes/branchRoutes");
 const app = express();
 
 // Middleware
-
-
-
 app.use(
   cors({
     origin: [
@@ -64,18 +59,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.json({ limit: "50mb" })); // Adjust the limit as needed
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 // app.use(routes);
-
-
-const db_URL = process.env.DB_URL;
-
-mongoose
-  .connect(db_URL)
-  .then(() => {
-    console.log("✅ Database connected successfully");
-  })
-  .catch((err) => {
-    console.log("❌ DB connection error", err);
-  });
 
 
 
@@ -97,7 +80,8 @@ app.use("/staff/lodging-management", dropoffRoutes);
 app.use("/staff/vehicle-schedules", pickupScheduleRoutes);
 app.use("/staff/vehicle-schedules", deliveryScheduleRoutes);
 app.use("/staff/collection-management", parcelDeliveryRoutes)
-app.use("/staff/inquiry-management", inquiryRoutes);
+app.use("/staff/inquiry-management", staffInquiryRoutes);
+app.use("/staff/ui", uiRoutes);
 
 app.use("/staff", userRoutes);
 app.use("/api/mobile", mobileRoutes);
@@ -110,15 +94,12 @@ app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/branches", branchRoutes);
 
 
-app.use("/staff/ui", uiRoutes);
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server !`, 404));
-});
+})
+
 app.use(globalErrorHandler);
+
 
 startServer(app);

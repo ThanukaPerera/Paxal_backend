@@ -7,7 +7,7 @@ const {
     cancelPickupAssignment, 
     checkParcelAssignment 
 } = require("../../controllers/staff/pickupScheduleController");
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
 // get all pickup schedules created from the branch for a given day
 router.get('/get-all-pickup-schedules', getAllPickupSchedulesForDate);

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { getAllBranches, getStaffInformation } = require("../../controllers/staff/uiControllers");
-const { authenticateStaff } = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
 // get branches for the brnach selector in parcel registartion form
 router.get("/branches", getAllBranches);
