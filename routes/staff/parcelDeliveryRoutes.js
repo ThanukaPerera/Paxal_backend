@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authenticateStaff } = require("../../middlewares/authMiddleware");
-const { getAllDoorstepDeliveryParcels, getAllCollectionCenterDeliveryParcels, updateParcelStatusToDeliveryDispatched } = require("../../controllers/staff/parcelDeliveryController");
+const { getAllDoorstepDeliveryParcels, getAllCollectionCenterDeliveryParcels, updateParcelStatusToDeliveryDispatched, updateParcelAsDelivered } = require("../../controllers/staff/parcelDeliveryController");
 const { getOneParcel } = require("../../controllers/staff/parcelControllers");
 
 // get all "doorstep" delivery parcels
@@ -14,7 +14,10 @@ router.get("/view-one-doorstep-delivery-parcel/:parcelId", authenticateStaff, ge
 router.get("/get-all-collection-center-delivery-parcels", authenticateStaff, getAllCollectionCenterDeliveryParcels);
 
 // update parcel when assigned to a delivery schedule
-router.post("/update-delivery-parcel/:parcelId", authenticateStaff, updateParcelStatusToDeliveryDispatched)
+router.post("/update-delivery-parcel/:parcelId", authenticateStaff, updateParcelStatusToDeliveryDispatched);
+
+// update parcel as delivered when the receiver collected them at branch
+router.post("/update-parcel-as-delivered", authenticateStaff, updateParcelAsDelivered);
 
 module.exports = router;
 

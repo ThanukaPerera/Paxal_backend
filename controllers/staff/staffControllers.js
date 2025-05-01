@@ -57,8 +57,18 @@ const staffLogin = async (req, res) => {
 
 // staff logout
 const staffLogout = (req, res) => {
-  res.clearCookie("StaffToken");
-  return res.status(200).json({ message: "Logged out successfully" });
+  try {
+    res.clearCookie("StaffToken", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: false
+    });
+    return res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.log("Logout error: ", error);
+    return res.status(500).json({success: false, message: "Error in loggin out, Please try again"})
+  }
 };
 
 
@@ -84,9 +94,12 @@ const staffForgotPassword = async (req, res) => {
     await staff.save();
 
     // Send the email with the reset token.
-    await sendPasswordResetEmail(email, resetStaffToken);
+    const result = await sendPasswordResetEmail(email, resetStaffToken);
+    if (!result.success) {
+      return res.status(500).json({message: result.messageId})
+    }
 
-    return res.status(200).json({ message: "Password reset code has been sent successfully" });
+    return res.status(200).json({ message: "Password reset code has been sent to your email" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error, please try again later" });
@@ -116,8 +129,8 @@ const staffPasswordResetCode = async (req, res) => {
     if (new Date(staff.resetPasswordTokenExpires).getTime() < Date.now()) {
       return res.status(400).json({ message: "Password reset code has expired" });
     }
-
-    return res.status(200).json({ message: "Password reset code is valid" });
+   
+    return res.status(200).json({ success:true, message: "Password reset code is valid" });
   } catch (error) {
 
     res.status(500).json({ success: false, message: "Server error, please try again later" });
@@ -150,8 +163,10 @@ const staffPasswordUpdate = async (req, res) => {
 
     await staff.save();
 
-    res.status(200).json({ message: "Password updated successfully!" });
-  } catch (error) {}
+    res.status(200).json({ success: true, message: "Password updated successfully!" });
+  } catch (error) {
+    res.status(500).json({success:false, message:"Failed to update the password"})
+  }
 };
 
 // STAFF LOGGED PAGE

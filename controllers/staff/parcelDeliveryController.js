@@ -70,20 +70,45 @@ const updateParcelStatusToDeliveryDispatched = async (req, res) => {
     );
 
     return res.status(200).json({
+      success:true,
       message: "Parcel status updated - delivery dispatched",
       updatedParcel,
     });
     
   } catch (error) {
+    console.log("Error in updating parcel to delivery dispatched status", error);
     return res.status(500).json({
+      success:false,
       message: "Error in updating parcel status to delivery dispatched",
       error,
     });
   }
 }
 
+// update parcel status when receiver collected the parcel from the branch
+const updateParcelAsDelivered = async(req, res) => {
+  try {
+    const {parcelId} = req.body;
+
+    const parcelData = {
+      status: "Delivered"
+    }
+
+    //Find the parcel and update the status.
+    const filter = { parcelId: parcelId };
+    await Parcel.findOneAndUpdate(filter, parcelData, {new: true,});
+
+    return res.status(200).json({success:true, message: `Parcel ${parcelId} has been delivered successfully`})
+    
+  } catch (error) {
+    console.log("Error in parcel delivery: ", error);
+    return res.status(500).json({success:false, message:"Error in updating parcel status to delivered"});
+  }
+}
+
 module.exports = {
   getAllDoorstepDeliveryParcels,
   getAllCollectionCenterDeliveryParcels,
-  updateParcelStatusToDeliveryDispatched
+  updateParcelStatusToDeliveryDispatched,
+  updateParcelAsDelivered,
 }
