@@ -12,7 +12,9 @@ const getRepliedInquiries = async (req, res) => {
     const branch_id = staff.branchId;
 
     // Find all parcels registered to the branch and get the tracking number.
-    const parcels = await Parcel.find({ from: branch_id }).select("trackingNo").lean();
+    const parcels = await Parcel.find({ from: branch_id })
+      .select("trackingNo")
+      .lean();
     const trackingNumbers = parcels.map((parcel) => parcel.trackingNo);
 
     // Find inquiries that belong to the branch (matching those tracking numbers).
@@ -34,9 +36,11 @@ const getAllNewInquiries = async (req, res) => {
     const staff_id = req.staff._id.toString();
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
-   
+
     // Find all parcels registered to the branch and get the tracking number.
-    const parcels = await Parcel.find({ from: branch_id }).select("trackingNo").lean();    
+    const parcels = await Parcel.find({ from: branch_id })
+      .select("trackingNo")
+      .lean();
     const trackingNumbers = parcels.map((parcel) => parcel.trackingNo);
 
     // Find inquiries that belong to the branch (matching those tracking numbers).
@@ -46,7 +50,6 @@ const getAllNewInquiries = async (req, res) => {
     });
 
     return res.status(200).json(inquiries);
-    
   } catch (error) {
     return res.status(500).json({ message: "Error fetching inquiries", error });
   }
@@ -63,14 +66,18 @@ const getOneInquiry = async (req, res) => {
 
     return res.status(200).json(inquiry);
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching the inquiry", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching the inquiry", error });
   }
 };
 
 // get one replied inquiry details by inquiryId
 const getOneRepliedInquiry = async (req, res) => {
   try {
-    const inquiry = await Inquiry.findOne({ inquiryId: req.params.inquiryId }).populate("staffId", "name staffId");
+    const inquiry = await Inquiry.findOne({
+      inquiryId: req.params.inquiryId,
+    }).populate("staffId", "name staffId");
 
     if (!inquiry) {
       return res.status(404).json({ message: "Inquiry not found" });
@@ -78,15 +85,15 @@ const getOneRepliedInquiry = async (req, res) => {
 
     return res.status(200).json(inquiry);
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching the inquiry", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching the inquiry", error });
   }
 };
-
 
 // send a reply to an inquiry
 const replyToInquiry = async (req, res) => {
   try {
-
     // Find the staff who replied to the inquiry.
     const staff_id = req.staff._id.toString();
 
@@ -100,23 +107,40 @@ const replyToInquiry = async (req, res) => {
 
     // Update the inquiry.
     const filter = { inquiryId: inquiryId };
-    const inquiry = await Inquiry.findOneAndUpdate(filter, replyData, {new: true,});
+    const inquiry = await Inquiry.findOneAndUpdate(filter, replyData, {
+      new: true,
+    });
 
     // Find the details of the inquiry to be sent in the email.
-    const updatedInquiry = await Inquiry.findOne({ inquiryId: inquiryId }).populate("staffId", "name");;
-    const { parcelTrackingNo, name, email, createdAt, message, reply} = updatedInquiry;
+    const updatedInquiry = await Inquiry.findOne({
+      inquiryId: inquiryId,
+    }).populate("staffId", "name");
+    const { parcelTrackingNo, name, email, createdAt, message, reply } =
+      updatedInquiry;
     const staffName = updatedInquiry.staffId.name;
 
     // Send the email.
-    const result = await sendInquiryReplyEmail(email, parcelTrackingNo, name, reply,createdAt, message, staffName);
-    if(!result.success) {
-      console.log("Error in sending the inquiry reply email",result)
+    const result = await sendInquiryReplyEmail(
+      email,
+      parcelTrackingNo,
+      name,
+      reply,
+      createdAt,
+      message,
+      staffName
+    );
+    if (!result.success) {
+      console.log("Error in sending the inquiry reply email", result);
     }
-      
-    return res.status(200).json({ message: "Inquiry reply sent successfully"});
 
+    console.log("Inquiry reply sent");
+    return res
+      .status(200)
+      .json({ success: true, message: "Inquiry reply sent successfully" });
   } catch (error) {
-    return res.status(500).json({ message: "Error sending reply", error });
+    return res
+      .status(500)
+      .json({ success: false, message: "Error sending reply", error });
   }
 };
 
@@ -125,5 +149,5 @@ module.exports = {
   getAllNewInquiries,
   getOneInquiry,
   getOneRepliedInquiry,
-  replyToInquiry
+  replyToInquiry,
 };
