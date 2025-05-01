@@ -1,6 +1,6 @@
-const  Staff  = require("../../models/StaffModel");
+const  Staff  = require("../../../../models/StaffModel");
 const bcrypt = require("bcryptjs");
-const findAdminFunction = require("../../utils/findAdminFunction");
+const findAdminFunction = require("../../../../utils/findAdminFunction");
 
 const registerStaff = async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-const  Parcel  = require("../../models/parcelModel");
+const  Parcel  = require("../../../models/parcelModel");
 
 const barChart = async (req, res) => {
     try {
@@ -7,7 +7,6 @@ const barChart = async (req, res) => {
         const chartData = Object.values(
             parcels.reduce((acc, parcel) => {
                 if (!parcel.createdAt) return acc; // Skip if createdAt is missing
-
                 const date = new Date(parcel.createdAt).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
 
                 if (!acc[date]) {

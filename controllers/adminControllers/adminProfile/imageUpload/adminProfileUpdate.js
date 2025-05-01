@@ -1,5 +1,5 @@
 // middleware/adminProfileUpdate.js
-const Admin = require("../../../models/AdminModel");
+const Admin = require("../../../../models/AdminModel");
 
 const adminProfileUpdate = async (req, res, next) => {
   try {

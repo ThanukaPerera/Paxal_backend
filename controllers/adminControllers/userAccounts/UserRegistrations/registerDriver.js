@@ -1,6 +1,6 @@
-const  Driver  = require("../../models/DriverModel");
+const  Driver  = require("../../../../models/DriverModel");
 const bcrypt = require("bcryptjs");
-const findAdminFunction = require("../../utils/findAdminFunction");
+const findAdminFunction = require("../../../../utils/findAdminFunction");
 
 const registerDriver = async (req, res) => {
     try {

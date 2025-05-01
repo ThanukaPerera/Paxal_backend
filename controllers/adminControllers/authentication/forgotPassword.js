@@ -1,5 +1,5 @@
-const Admin = require("../../models/AdminModel");
-const sendEmail = require("../../utils/sendEmail");
+const Admin = require("../../../models/AdminModel");
+const sendEmail = require("../../../utils/sendEmail");
 
 const requestPasswordReset = async (req, res) => {
     const email = req.body.email;

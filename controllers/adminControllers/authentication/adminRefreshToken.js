@@ -35,7 +35,7 @@ const adminRefreshToken = (req, res) => {
     // Get expiration timestamp for client-side refresh scheduling
     const decodedAccessToken = jwt.decode(newAccessToken);
     const expiresAt = decodedAccessToken.exp * 1000; // Convert to milliseconds
-    console.log(decodedAccessToken);
+   
   
     // Set the new access token as a cookie
     res.cookie('AdminToken', newAccessToken, {

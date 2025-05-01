@@ -1,4 +1,4 @@
-const findAdminFunction = require("../../utils/findAdminFunction.js");
+const findAdminFunction = require("../../../utils/findAdminFunction.js");
 
 const adminLogout = async (req, res) => {
  
