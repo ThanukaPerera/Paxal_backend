@@ -1,5 +1,5 @@
 // middleware/adminImageUpload.js
-const cloudinary = require("../cloudinary/cloudinaryConfig");
+const cloudinary = require("../../cloudinary/cloudinaryConfig");
 
 const adminImageUpload = async (req, res, next) => {
   try {

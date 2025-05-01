@@ -28,7 +28,7 @@ const parcelSchema = new mongoose.Schema(
     parcelId: { type: String, required: true, unique: true },
     trackingNo: { type: String, required: false, unique: true },
     qrCodeNo: { type: String, required: false, unique: true },
-    itemType: { type: String, enum:["Glass",""],required: true },
+    itemType: { type: String, enum:["Glass","Flowers",'Document', 'Clothing', 'Electronics', 'Food', 'Other'],required: true },
     itemSize: {
       type: String,
       enum: ["small", "medium", "large"],
@@ -107,4 +107,4 @@ const parcelSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports= mongoose.models.Parcel || mongoose.model("Parcel", parcelSchema);
+module.exports =mongoose.models.Parcel ||mongoose.model("Parcel", parcelSchema)

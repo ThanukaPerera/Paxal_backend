@@ -1,5 +1,9 @@
+
 const mongoose = require("mongoose");
-const  Parcel  = require("../../models/ParcelModel");
+const  Parcel  = require("../../models/parcelModel");
+
+
+
 const Staff = require("../../models/StaffModel");
 
 const { sendTrackingNumberEmail } = require("../../emails/emails");

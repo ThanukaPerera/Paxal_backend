@@ -1,9 +1,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+
+require("dotenv").config();
+
+const startServer = require("./config/startServer");
 
 // Import routes
 const shipmentRoutes = require("./routes/shipmentRoutes");
@@ -12,7 +15,7 @@ const driverRoutes = require("./routes/driverRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");
-const adminRoutes = require("./routes/adminRoutes");
+const adminRoutes = require("./routes/adminRoutes/adminRoutes");
 const staffRoutes = require("./routes/staff/staffRoutes");
 const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 
@@ -20,29 +23,48 @@ const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
+
 const pickupScheduleRoutes = require("./routes/staff/pickupScheduleRoutes");
 const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes")
 const uiRoutes = require("./routes/staff/uiRoutes");
 const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
 const inquiryRoutes = require("./routes/staff/inquiryRoutes");
 
+const mobileRoutes = require("./routes/mobile");
+
+//Deeraka
+const globalErrorHandler = require("./controllers/errorController");
+const userRouter = require("./routes/userRoutes");
+const paymentRouter = require("./routes/paymentRoutes");
+const inquiryRoutes = require("./routes/inquiryRoutes");
+const AppError = require("./utils/appError");
+const branchRoutes = require("./routes/branchRoutes");
+
 const app = express();
-const PORT = 8000;
 
 // Middleware
 
+
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // Your frontend URL
+    origin: [
+      "http://localhost:5173", // Your frontend URL
+      "http://localhost:19006", // Expo dev server
+      "exp://192.168.43.246:19000",
+    ], // Your physical device
     credentials: true, // Allow credentials (cookies)
   })
 );
+
 app.use(cookieParser());
+app.use(express.json({ limit: "10mb" }));
 
 // Increase the size limit for incoming JSON and URL-encoded data (This is for image upload increasing the size of input)
 app.use(bodyParser.json({ limit: "50mb" })); // Adjust the limit as needed
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 // app.use(routes);
+
 
 const db_URL = process.env.DB_URL;
 
@@ -55,14 +77,19 @@ mongoose
     console.log("❌ DB connection error", err);
   });
 
+
+
 // Route mounting
 app.use("/shipments", shipmentRoutes);
 app.use("/parcels", parcelRoutes);
 app.use("/drivers", driverRoutes);
 app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
+
+//Admin Routes
 app.use("/admin", adminRoutes);
-// app.use("/", customerRoutes);
+
+//Staff routes
 app.use("/staff", staffRoutes);
 app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
@@ -73,9 +100,25 @@ app.use("/staff/collection-management", parcelDeliveryRoutes)
 app.use("/staff/inquiry-management", inquiryRoutes);
 
 app.use("/staff", userRoutes);
+app.use("/api/mobile", mobileRoutes);
+
+//users api urls
+app.use("/api/auth", userRouter);
+app.use("/api/parcels", parcelRoutes); // Use parcel routes
+app.use("/api/payment", paymentRouter);
+app.use("/api/inquiries", inquiryRoutes);
+app.use("/api/branches", branchRoutes);
+
 
 app.use("/staff/ui", uiRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
+
+
+app.all("*", (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server !`, 404));
 });
+app.use(globalErrorHandler);
+
+startServer(app);

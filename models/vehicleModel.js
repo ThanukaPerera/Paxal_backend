@@ -1,6 +1,3 @@
-
-
-
 const mongoose = require("mongoose");
 
 const vehicleSchema = new mongoose.Schema({
@@ -26,4 +23,4 @@ const vehicleSchema = new mongoose.Schema({
   available: {type: Boolean, default:true}
 });
 
-module.exports = mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);
+module.exports = mongoose.models.Vehicle||mongoose.model("Vehicle", vehicleSchema);

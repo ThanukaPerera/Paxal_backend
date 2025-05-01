@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 const { viewAllPickupParcels, getQRandTrackingNumberForPickup } = require("../../controllers/staff/pickupController");
 
 // get all pickup requests 

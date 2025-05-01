@@ -1,4 +1,7 @@
-const Parcel = require("../../models/ParcelModel");
+
+const Parcel = require("../../models/parcelModel");
+
+
 const Staff = require("../../models/StaffModel");
 const User = require("../../models/userModel");
 const Receiver = require("../../models/ReceiverModel");

@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
+
 const { registerParcel, getAllParcels, calculatePayment, getOneParcel } = require("../../controllers/staff/parcelControllers");
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
 
 // register a new parcel by staff

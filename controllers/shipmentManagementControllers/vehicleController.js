@@ -213,7 +213,7 @@
 // module.exports = { assignVehicle };
 
 
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
 const Parcel = require('../../models/ParcelModel');
 const Branch = require('../../models/BranchesModel');

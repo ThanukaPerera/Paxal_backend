@@ -1,6 +1,11 @@
 const express = require("express");
+
+
+const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware.js");
+
+
 const router = express.Router();
-const {authenticateStaff} = require("../../middlewares/authMiddleware");
+
 const {viewAllDropOffupParcels, getQRandTrackingNumberForDropOff,} = require("../../controllers/staff/dropOffControllers.js");
 
 

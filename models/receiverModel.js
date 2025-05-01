@@ -3,7 +3,7 @@ const mongoose =require("mongoose");
 
 const receiverSchema = new mongoose.Schema(
     {
-      receiverId: { type: String, required: true, unique: true },
+      receiverId: { type: String, required: false, unique: true },
       receiverFullName: { type: String, required: true },
       receiverContact: { type: String, required: true },
       receiverEmail: { type: String, required: true },
@@ -11,4 +11,4 @@ const receiverSchema = new mongoose.Schema(
     { timestamps: true }
   );
 
-  module.exports=mongoose.model("Receiver",receiverSchema);
+  module.exports=mongoose.models.Receiver || mongoose.model("Receiver",receiverSchema);
