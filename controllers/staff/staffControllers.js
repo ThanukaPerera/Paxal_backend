@@ -1,4 +1,4 @@
-const  Staff  = require("../../models/StaffModel")
+const Staff = require("../../models/StaffModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -50,11 +50,10 @@ const checkAuthenticity = (req, res) => {
 // STAFF LOGIN
 const staffLogin = async (req, res) => {
   try {
-
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(500).json('All fields must be filled');
+      res.status(500).json("All fields must be filled");
     }
 
     // Find staff by email
@@ -74,20 +73,20 @@ const staffLogin = async (req, res) => {
     const token = jwt.sign(
       { _id: staff._id, email: staff.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     ); // Use a strong secret in production
 
     res.cookie("StaffToken", token, {
       httpOnly: true, // cookie cannot be accessed by client side js
       //secure: process.env.NODE_ENV === "production",
-      secure:false,
+      secure: false,
       sameSite: "Lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({ message: "Login successful", email, token });
   } catch (error) {
-    res.status(500).json(error) 
+    res.status(500).json(error);
   }
 };
 
@@ -100,10 +99,9 @@ const staffLogout = (req, res) => {
 // STAFF FORGOT PASSWORD REQUEST
 const staffForgotPassword = async (req, res) => {
   try {
-    
     const { email } = req.body;
     const staff = await Staff.findOne({ email });
-    
+
     if (!staff) {
       return res
         .status(400)
@@ -114,7 +112,7 @@ const staffForgotPassword = async (req, res) => {
     const resetStaffToken = crypto.randomInt(100000, 999999).toString();
 
     staff.resetPasswordToken = resetStaffToken;
-    console.log(resetStaffToken)
+    console.log(resetStaffToken);
     staff.resetPasswordTokenExpires = Date.now() + 1 * 60 * 60 * 1000; //1 hour
 
     await staff.save();
@@ -133,17 +131,12 @@ const staffForgotPassword = async (req, res) => {
 //FORGOT PASSWORD - RESET CODE
 const staffPasswordResetCode = async (req, res) => {
   try {
-    
-    
-    const {email, resetCode } = req.body;
-    
-    const staff = await Staff.findOne({ email});
-    
-    
+    const { email, resetCode } = req.body;
+
+    const staff = await Staff.findOne({ email });
+
     if (!staff) {
-      return res
-        .status(400)
-        .json({message: "Staff not found" });
+      return res.status(400).json({ message: "Staff not found" });
     }
 
     // Check if the reset code matches
@@ -169,9 +162,7 @@ const staffPasswordResetCode = async (req, res) => {
 //FORGOT PASSWORD - PASSWORD UPDATE
 const staffPasswordUpdate = async (req, res) => {
   try {
-    
-    const { newPassword , resetCode , email} = req.body;
-    
+    const { newPassword, resetCode, email } = req.body;
 
     const staff = await Staff.findOne({ email });
 
@@ -180,12 +171,14 @@ const staffPasswordUpdate = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Staff not found" });
     }
-    
-    if (staff.resetPasswordToken !== String(resetCode) || Date.now() > staff.resetPasswordTokenExpires) {
+
+    if (
+      staff.resetPasswordToken !== String(resetCode) ||
+      Date.now() > staff.resetPasswordTokenExpires
+    ) {
       console.log("Invalid or expired reset code");
       return res.status(400).json({ message: "Invalid or expired reset code" });
     }
-
 
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -216,5 +209,4 @@ module.exports = {
   staffPasswordResetCode,
   staffPasswordUpdate,
   getStaffLoggedPage,
-  
 };

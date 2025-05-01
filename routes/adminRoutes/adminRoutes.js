@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 // Middleware
-const {authenticateAdmin} = require("../../middleware/adminMiddleware/authMiddleware");
+const {
+  authenticateAdmin,
+} = require("../../middleware/adminMiddleware/authMiddleware");
 
 // Admin Controllers
 const fetchAllAdmin = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllAdmin");
@@ -26,11 +28,9 @@ const fetchAllParcel = require("../../controllers/adminControllers/fetchAllParce
 const barChart = require("../../controllers/adminControllers/barChart");
 const adminImageUpload = require("../../middleware/adminMiddleware/adminImageUpload");
 const storingDatabase = require("../../controllers/adminControllers/imageUpload/adminProfileUpdate");
-const fetchBranches= require("../../controllers/adminControllers/branches/fetchBranches");
+const fetchBranches = require("../../controllers/adminControllers/branches/fetchBranches");
 const fetchAllCustomers = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllCustomers");
 const getMyData = require("../../controllers/adminControllers/adminProfile/getMyData");
-
-
 
 // Server route (add this to your backend)
 router.get("/status", authenticateAdmin, checkAuthenticity);
@@ -65,9 +65,7 @@ router.post("/verifyOTP", verifyOTP);
 
 router.post("/reset-password", resetPassword);
 
-router.get("/user/count",authenticateAdmin, fetchNoOfUsers);
-
-
+router.get("/user/count", authenticateAdmin, fetchNoOfUsers);
 
 router.post("/driver/register", authenticateAdmin, registerDriver);
 router.post("/staff/register", authenticateAdmin, registerStaff);
@@ -76,26 +74,35 @@ router.get("/driver/all", authenticateAdmin, fetchAllDriver);
 router.get("/parcel/all", authenticateAdmin, fetchAllParcel);
 router.get("/bar/data", authenticateAdmin, barChart);
 
-
 router.post("/upload", authenticateAdmin, adminImageUpload, storingDatabase);
 
-router.get("/branch/all",authenticateAdmin, fetchBranches);
+router.get("/branch/all", authenticateAdmin, fetchBranches);
 
-router.get("/customer/all",authenticateAdmin,fetchAllCustomers);
-router.get("/get/mydata",authenticateAdmin,getMyData)
+router.get("/customer/all", authenticateAdmin, fetchAllCustomers);
+router.get("/get/mydata", authenticateAdmin, getMyData);
 
-
-const { validateProfileUpdate,updateMyData} = require("../../controllers/adminControllers/adminProfile/updateMyData");
+const {
+  validateProfileUpdate,
+  updateMyData,
+} = require("../../controllers/adminControllers/adminProfile/updateMyData");
 const fetchVehicles = require("../../controllers/adminControllers/Vehicles/fetchVehicles");
-const {validateBranch,addBranch}=require("../../controllers/adminControllers/branches/addBranch");
+const {
+  validateBranch,
+  addBranch,
+} = require("../../controllers/adminControllers/branches/addBranch");
 const fetchShipments = require("../../controllers/adminControllers/shipments/fetchShipments");
 const fetchParcelById = require("../../controllers/adminControllers/Parcel/fetchParcelById");
 const trackStatuses = require("../../controllers/adminControllers/Parcel/trackStatuses");
-  router.patch( "/update/profile", authenticateAdmin, ...validateProfileUpdate, updateMyData  );
-  router.get("/vehicle/all",authenticateAdmin,fetchVehicles);
-  router.post("/save/branch",authenticateAdmin,validateBranch,addBranch)
-  router.get("/shipment/all",authenticateAdmin,fetchShipments),
-  router.get("/parcel/:id",authenticateAdmin,fetchParcelById)
-  router.get("/track/statuses/:parcelId",authenticateAdmin,trackStatuses)
+router.patch(
+  "/update/profile",
+  authenticateAdmin,
+  ...validateProfileUpdate,
+  updateMyData,
+);
+router.get("/vehicle/all", authenticateAdmin, fetchVehicles);
+router.post("/save/branch", authenticateAdmin, validateBranch, addBranch);
+router.get("/shipment/all", authenticateAdmin, fetchShipments),
+  router.get("/parcel/:id", authenticateAdmin, fetchParcelById);
+router.get("/track/statuses/:parcelId", authenticateAdmin, trackStatuses);
 
 module.exports = router;

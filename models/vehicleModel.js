@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const vehicleSchema = new mongoose.Schema({
   vehicleId: { type: String, required: true, unique: true },
-  registrationNo:{type:String,required:true,unique:true},
+  registrationNo: { type: String, required: true, unique: true },
   vehicleType: {
     type: String,
-    enum: ["shipment", "pickupDelivery"], 
+    enum: ["shipment", "pickupDelivery"],
     required: true,
   },
   assignedBranch: {
@@ -20,7 +20,8 @@ const vehicleSchema = new mongoose.Schema({
   },
   capableVolume: { type: Number, required: true }, // Maximum volume capacity of the vehicle
   capableWeight: { type: Number, required: true }, // Maximum weight capacity of the vehicle
-  available: {type: Boolean, default:true}
+  available: { type: Boolean, default: true },
 });
 
-module.exports = mongoose.models.Vehicle||mongoose.model("Vehicle", vehicleSchema);
+module.exports =
+  mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);

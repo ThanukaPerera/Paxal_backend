@@ -56,7 +56,6 @@
 //     }
 // });
 
-
 // // Update shipment details
 // router.put("/:id", async (req, res) => {
 //     try {
@@ -94,7 +93,6 @@
 //     }
 // });
 
-
 // // Delete a shipment
 // router.delete("/:id", async (req, res) => {
 //     try {
@@ -113,175 +111,171 @@
 const express = require("express");
 const router = express.Router();
 const Shipment = require("../models/B2BShipmentModel");
-const { processAllShipments } = require("../controllers/shipmentManagementControllers/shipmentController");
+const {
+  processAllShipments,
+} = require("../controllers/shipmentManagementControllers/shipmentController");
 const Parcel = require("../models/ParcelModel");
 
 // Process shipments with staff authentication
-router.post('/process/:type/:center', async (req, res) => {
-    try {
-        console.log("it is working");
-        const result = await processAllShipments(
-            req.params.type,  // 'Express' or 'Standard'
-            req.params.center
-           // req.user.staffId // Assuming authentication middleware provides user
-        );
+router.post("/process/:type/:center", async (req, res) => {
+  try {
+    console.log("it is working");
+    const result = await processAllShipments(
+      req.params.type, // 'Express' or 'Standard'
+      req.params.center,
+      // req.user.staffId // Assuming authentication middleware provides user
+    );
 
-        if (!result.success) {
-            return res.status(400).json(result);
-        }
-
-        res.status(201).json({
-            message: `${req.params.type} shipments processed successfully`,
-            ...result
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+    if (!result.success) {
+      return res.status(400).json(result);
     }
+
+    res.status(201).json({
+      message: `${req.params.type} shipments processed successfully`,
+      ...result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // Get all shipments with pagination
 router.get("/", async (req, res) => {
-    try {
-        const { page = 1, limit = 10 } = req.query;
-        const shipments = await Shipment.find()
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
-            .populate('parcels', 'parcelId status')
-            .populate('createdByStaff', 'name email');
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const shipments = await Shipment.find()
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate("parcels", "parcelId status")
+      .populate("createdByStaff", "name email");
 
-        const count = await Shipment.countDocuments();
+    const count = await Shipment.countDocuments();
 
-        res.status(200).json({
-            totalPages: Math.ceil(count / limit),
-            currentPage: page,
-            shipments
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+    res.status(200).json({
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      shipments,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // Get shipments by center and type
 router.get("/:center/:type", async (req, res) => {
-    try {
-        const shipments = await Shipment.find({
-            createdByCenter: req.params.center,
-            deliveryType: req.params.type
-        }).populate('assignedVehicle assignedDriver', 'vehicleNumber name');
+  try {
+    const shipments = await Shipment.find({
+      createdByCenter: req.params.center,
+      deliveryType: req.params.type,
+    }).populate("assignedVehicle assignedDriver", "vehicleNumber name");
 
-        res.status(200).json({
-            success: true,
-            count: shipments.length,
-            shipments
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+    res.status(200).json({
+      success: true,
+      count: shipments.length,
+      shipments,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // Update shipment status
 router.patch("/:shipmentId/status", async (req, res) => {
-    try {
-        const updated = await Shipment.findOneAndUpdate(
-            { shipmentId: req.params.shipmentId },
-            { status: req.body.status },
-            { new: true, runValidators: true }
-        );
+  try {
+    const updated = await Shipment.findOneAndUpdate(
+      { shipmentId: req.params.shipmentId },
+      { status: req.body.status },
+      { new: true, runValidators: true },
+    );
 
-        if (!updated) {
-            return res.status(404).json({
-                success: false,
-                error: "Shipment not found"
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Shipment status updated",
-            shipment: updated
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        error: "Shipment not found",
+      });
     }
+
+    res.status(200).json({
+      success: true,
+      message: "Shipment status updated",
+      shipment: updated,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // Reset parcels in shipment
 router.patch("/:shipmentId/reset-parcels", async (req, res) => {
-    try {
-        const shipment = await Shipment.findOne({
-            shipmentId: req.params.shipmentId
-        });
+  try {
+    const shipment = await Shipment.findOne({
+      shipmentId: req.params.shipmentId,
+    });
 
-        if (!shipment) {
-            return res.status(404).json({
-                success: false,
-                error: "Shipment not found"
-            });
-        }
-
-        await Parcel.updateMany(
-            { _id: { $in: shipment.parcels } },
-            { $set: { shipmentId: null, status: "PendingPickup" } }
-        );
-
-        await Shipment.deleteOne({ shipmentId: req.params.shipmentId });
-
-        res.status(200).json({
-            success: true,
-            message: "Parcels reset and shipment deleted"
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        error: "Shipment not found",
+      });
     }
+
+    await Parcel.updateMany(
+      { _id: { $in: shipment.parcels } },
+      { $set: { shipmentId: null, status: "PendingPickup" } },
+    );
+
+    await Shipment.deleteOne({ shipmentId: req.params.shipmentId });
+
+    res.status(200).json({
+      success: true,
+      message: "Parcels reset and shipment deleted",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 // Get shipment details
 router.get("/:shipmentId", async (req, res) => {
-    try {
-        const shipment = await Shipment.findOne({
-            shipmentId: req.params.shipmentId
-        })
-            .populate('parcels')
-            .populate('assignedVehicle assignedDriver');
+  try {
+    const shipment = await Shipment.findOne({
+      shipmentId: req.params.shipmentId,
+    })
+      .populate("parcels")
+      .populate("assignedVehicle assignedDriver");
 
-        if (!shipment) {
-            return res.status(404).json({
-                success: false,
-                error: "Shipment not found"
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            shipment
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        error: "Shipment not found",
+      });
     }
+
+    res.status(200).json({
+      success: true,
+      shipment,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 module.exports = router;

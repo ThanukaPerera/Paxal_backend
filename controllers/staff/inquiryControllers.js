@@ -1,6 +1,5 @@
 const Inquiry = require("../../models/InquiryModel");
 
-
 // //SEND INQUIRY BY CUSTOMER
 // const sendInquiry = async(req,res) => {
 //     try {
@@ -37,56 +36,54 @@ const Inquiry = require("../../models/InquiryModel");
 // }
 
 // GET ALL INQUIRIES
-const getAllInquiries = async(req, res) => {
-
-    try {
-        const inquiries = await Inquiry.find().sort({createdAt: -1})
-        res.status(200).json(inquiries);
-    } catch (error) {
-        res.status(500).json({message:"Error fetching inquiries", error});
-    }
-
-}
+const getAllInquiries = async (req, res) => {
+  try {
+    const inquiries = await Inquiry.find().sort({ createdAt: -1 });
+    res.status(200).json(inquiries);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching inquiries", error });
+  }
+};
 
 // GET ONE INQUIRY
-const getOneInquiry = async(req,res) => {
-    try {
-        const inquiry = await Inquiry.findOne({inquiryId: req.params.inquiryId});
-        if (!inquiry) {
-            return res.status(404).json({message: "Inquiry not found"});
-        }
-        res.status(200).json(inquiry);
-    } catch (error) {
-        res.status(500).json({message:"Error fetching the inquiry", error});
-        
+const getOneInquiry = async (req, res) => {
+  try {
+    const inquiry = await Inquiry.findOne({ inquiryId: req.params.inquiryId });
+    if (!inquiry) {
+      return res.status(404).json({ message: "Inquiry not found" });
     }
-}
+    res.status(200).json(inquiry);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching the inquiry", error });
+  }
+};
 
 // SEND REPLY BY STAFF
-const sendReply = async(req,res) => {
-    try {
-        const replyData = {
-            ...req.body,
-            status: "solved"
-        }
+const sendReply = async (req, res) => {
+  try {
+    const replyData = {
+      ...req.body,
+      status: "solved",
+    };
 
-        const filter = {inquiryId: req.params.inquiryId}
-        const inquiry = await Inquiry.findOneAndUpdate(filter, replyData, {new:true});
+    const filter = { inquiryId: req.params.inquiryId };
+    const inquiry = await Inquiry.findOneAndUpdate(filter, replyData, {
+      new: true,
+    });
 
-        // send the email
-        const {name, email, parcelTrackingNo} = await Inquiry.findOne({inquiryId});
+    // send the email
+    const { name, email, parcelTrackingNo } = await Inquiry.findOne({
+      inquiryId,
+    });
 
-        res.status(200).json("Reply is sent", inquiry);
-    } catch (error) {
-        res.status(500).json({message:"Error sending reply", error});
-    }
-}
-
+    res.status(200).json("Reply is sent", inquiry);
+  } catch (error) {
+    res.status(500).json({ message: "Error sending reply", error });
+  }
+};
 
 module.exports = {
-
-    getAllInquiries,
-    getOneInquiry,
-    sendReply,
-
-}
+  getAllInquiries,
+  getOneInquiry,
+  sendReply,
+};

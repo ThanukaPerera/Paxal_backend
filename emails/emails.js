@@ -23,7 +23,7 @@ const getResetEmail = (resetCode) => {
   const resetEmailPath = path.join(
     "emails",
     "templates",
-    "passwordResetEmail.html"
+    "passwordResetEmail.html",
   );
   let htmlContent = fs.readFileSync(resetEmailPath, "utf8");
   return htmlContent.replace("{RESET_CODE}", resetCode);
@@ -55,7 +55,7 @@ const getTrackingNumberEmail = (parcelId, trackingNumber) => {
   const trackingNumberEmailPath = path.join(
     "emails",
     "templates",
-    "trackingNumberEmail.html"
+    "trackingNumberEmail.html",
   );
   let htmlContent = fs.readFileSync(trackingNumberEmailPath, "utf8");
   return htmlContent
@@ -84,5 +84,5 @@ const sendTrackingNumberEmail = async (email, parcelId, trackingNumber) => {
 module.exports = {
   transporter,
   sendPasswordResetEmail,
-  sendTrackingNumberEmail
+  sendTrackingNumberEmail,
 };

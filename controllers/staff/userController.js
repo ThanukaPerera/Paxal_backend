@@ -21,7 +21,7 @@ const registerNewUser = async (req, res, next) => {
       if (lastUser) {
         const lastIdNumber = parseInt(
           lastUser.customerId.replace("USER", ""),
-          10
+          10,
         );
         nextUserId = `USER${String(lastIdNumber + 1).padStart(3, "0")}`;
       }
@@ -58,10 +58,10 @@ const registerNewUser = async (req, res, next) => {
 //GET USER INFROMATION
 const getOneUser = async (req, res) => {
   try {
-    const  user_id  = req.body;
-    console.log(user_id)
-    const user = await User.findById(user_id );
-    console.log("user" , user)
+    const user_id = req.body;
+    console.log(user_id);
+    const user = await User.findById(user_id);
+    console.log("user", user);
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: "Error fetching user information", error });

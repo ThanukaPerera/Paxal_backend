@@ -20,7 +20,6 @@
 //     Center05: { Center01: 3, Center02: 5, Center03: 5, Center04: 5 }
 // };
 
-
 // async function findNearestVehicle(sourceCenter, weightRequired, volumeRequired) {
 //     let visitedCenters = new Set([sourceCenter]); // Start with the source center marked as visited
 //     let nearestCenter = null;
@@ -62,7 +61,6 @@
 //         nearestCenter = nextCenter;
 //     }
 // }
-
 
 // // Assign a vehicle for the shipment
 // async function assignVehicle(shipmentId, shipmentType) {
@@ -192,7 +190,6 @@
 //                 throw error; // Optionally rethrow the error
 //             }
 
-
 //             return {
 //                 message: `Vehicle from ${nearestCenter} assigned and parcels processed.`,
 //                 vehicle: nearestVehicle
@@ -200,9 +197,6 @@
 //         } else {
 //             return false;
 //         }
-
-
-
 
 //     } catch (error) {
 //         console.error(error);
@@ -212,42 +206,41 @@
 
 // module.exports = { assignVehicle };
 
-
 const Vehicle = require("../../models/VehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
-const Parcel = require('../../models/ParcelModel');
-const Branch = require('../../models/BranchesModel');
+const Parcel = require("../../models/ParcelModel");
+const Branch = require("../../models/BranchesModel");
 
 // District-based distance matrix (km) - same as previous shipmentController.js
 const distanceMatrix = {
-    'Colombo': { 'Gampaha': 25, 'Kalutara': 45, 'Kandy': 120, 'Galle': 115 },
-    'Gampaha': { 'Colombo': 25, 'Kalutara': 35, 'Kandy': 110, 'Galle': 130 },
-    'Kalutara': { 'Colombo': 45, 'Gampaha': 35, 'Kandy': 90, 'Galle': 100 },
-    'Kandy': { 'Colombo': 120, 'Gampaha': 110, 'Kalutara': 90, 'Galle': 150 },
-    'Galle': { 'Colombo': 115, 'Gampaha': 130, 'Kalutara': 100, 'Kandy': 150 }
+  Colombo: { Gampaha: 25, Kalutara: 45, Kandy: 120, Galle: 115 },
+  Gampaha: { Colombo: 25, Kalutara: 35, Kandy: 110, Galle: 130 },
+  Kalutara: { Colombo: 45, Gampaha: 35, Kandy: 90, Galle: 100 },
+  Kandy: { Colombo: 120, Gampaha: 110, Kalutara: 90, Galle: 150 },
+  Galle: { Colombo: 115, Gampaha: 130, Kalutara: 100, Kandy: 150 },
 };
 
 // District-based time matrix (hours) - same as previous shipmentController.js
 const timeMatrix = {
-    'Colombo': { 'Gampaha': 1, 'Kalutara': 1.5, 'Kandy': 3, 'Galle': 3.5 },
-    'Gampaha': { 'Colombo': 1, 'Kalutara': 1.2, 'Kandy': 2.8, 'Galle': 3.2 },
-    'Kalutara': { 'Colombo': 1.5, 'Gampaha': 1.2, 'Kandy': 2.5, 'Galle': 2.8 },
-    'Kandy': { 'Colombo': 3, 'Gampaha': 2.8, 'Kalutara': 2.5, 'Galle': 3.5 },
-    'Galle': { 'Colombo': 3.5, 'Gampaha': 3.2, 'Kalutara': 2.8, 'Kandy': 3.5 }
+  Colombo: { Gampaha: 1, Kalutara: 1.5, Kandy: 3, Galle: 3.5 },
+  Gampaha: { Colombo: 1, Kalutara: 1.2, Kandy: 2.8, Galle: 3.2 },
+  Kalutara: { Colombo: 1.5, Gampaha: 1.2, Kandy: 2.5, Galle: 2.8 },
+  Kandy: { Colombo: 3, Gampaha: 2.8, Kalutara: 2.5, Galle: 3.5 },
+  Galle: { Colombo: 3.5, Gampaha: 3.2, Kalutara: 2.8, Kandy: 3.5 },
 };
 
 // Buffer times configuration based on position in route
 const bufferTimeConfig = {
-    Express: {
-        first: 2,  // First center has 2 hours buffer
-        intermediate: 1, // Centers between first and last have 1 hour buffer
-        last: 2    // Last center has 2 hours buffer
-    },
-    Standard: {
-        first: 2,  // First center has 2 hours buffer
-        intermediate: 2, // Centers between first and last have 2 hours buffer 
-        last: 2    // Last center has 2 hours buffer
-    }
+  Express: {
+    first: 2, // First center has 2 hours buffer
+    intermediate: 1, // Centers between first and last have 1 hour buffer
+    last: 2, // Last center has 2 hours buffer
+  },
+  Standard: {
+    first: 2, // First center has 2 hours buffer
+    intermediate: 2, // Centers between first and last have 2 hours buffer
+    last: 2, // Last center has 2 hours buffer
+  },
 };
 
 /**
@@ -257,54 +250,54 @@ const bufferTimeConfig = {
  * @returns {Object} - Object containing arrival times array and shipment finish time
  */
 function calculateArrivalTimes(route, deliveryType) {
-    const arrivalTimes = [];
-    let cumulativeTime = 0;
+  const arrivalTimes = [];
+  let cumulativeTime = 0;
 
-    // First center (source) has arrival time of 0
-    arrivalTimes.push({ center: route[0], time: 0 });
+  // First center (source) has arrival time of 0
+  arrivalTimes.push({ center: route[0], time: 0 });
 
-    // For each subsequent center in the route, calculate the arrival time
-    for (let i = 1; i < route.length; i++) {
-        const previousCenter = route[i - 1];
-        const currentCenter = route[i];
+  // For each subsequent center in the route, calculate the arrival time
+  for (let i = 1; i < route.length; i++) {
+    const previousCenter = route[i - 1];
+    const currentCenter = route[i];
 
-        // Apply buffer time for previous center based on its position
-        let bufferTime;
-        if (i === 1) {
-            // First center in the route
-            bufferTime = bufferTimeConfig[deliveryType].first;
-        } else {
-            // Intermediate center in the route
-            bufferTime = bufferTimeConfig[deliveryType].intermediate;
-        }
-
-        // Add buffer time for previous center
-        cumulativeTime += bufferTime;
-
-        // Add travel time from previous to current center
-        const travelTime = timeMatrix[previousCenter][currentCenter];
-        cumulativeTime += travelTime;
-
-        // Add arrival time for current center
-        arrivalTimes.push({
-            center: currentCenter,
-            time: cumulativeTime
-        });
+    // Apply buffer time for previous center based on its position
+    let bufferTime;
+    if (i === 1) {
+      // First center in the route
+      bufferTime = bufferTimeConfig[deliveryType].first;
+    } else {
+      // Intermediate center in the route
+      bufferTime = bufferTimeConfig[deliveryType].intermediate;
     }
 
-    // Calculate shipment finish time (add buffer time for the last center)
-    const lastBufferTime = bufferTimeConfig[deliveryType].last;
-    const shipmentFinishTime = cumulativeTime + lastBufferTime;
+    // Add buffer time for previous center
+    cumulativeTime += bufferTime;
 
-    // For logging purposes
-    console.log(`Arrival times calculated for route ${route.join(' -> ')}:`);
-    arrivalTimes.forEach(at => console.log(`  ${at.center}: ${at.time}h`));
-    console.log(`Shipment finish time: ${shipmentFinishTime}h`);
+    // Add travel time from previous to current center
+    const travelTime = timeMatrix[previousCenter][currentCenter];
+    cumulativeTime += travelTime;
 
-    return {
-        arrivalTimes,
-        shipmentFinishTime
-    };
+    // Add arrival time for current center
+    arrivalTimes.push({
+      center: currentCenter,
+      time: cumulativeTime,
+    });
+  }
+
+  // Calculate shipment finish time (add buffer time for the last center)
+  const lastBufferTime = bufferTimeConfig[deliveryType].last;
+  const shipmentFinishTime = cumulativeTime + lastBufferTime;
+
+  // For logging purposes
+  console.log(`Arrival times calculated for route ${route.join(" -> ")}:`);
+  arrivalTimes.forEach((at) => console.log(`  ${at.center}: ${at.time}h`));
+  console.log(`Shipment finish time: ${shipmentFinishTime}h`);
+
+  return {
+    arrivalTimes,
+    shipmentFinishTime,
+  };
 }
 
 /**
@@ -314,67 +307,79 @@ function calculateArrivalTimes(route, deliveryType) {
  * @param {Number} volumeRequired - Required volume capacity
  * @returns {Object|false} - The nearest vehicle or false if none found
  */
-async function findNearestVehicle(sourceCenter, weightRequired, volumeRequired) {
-    try {
-        // First try to find a branch ID for the source center
-        const sourceBranch = await Branch.findOne({ name: sourceCenter });
+async function findNearestVehicle(
+  sourceCenter,
+  weightRequired,
+  volumeRequired,
+) {
+  try {
+    // First try to find a branch ID for the source center
+    const sourceBranch = await Branch.findOne({ name: sourceCenter });
 
-        if (!sourceBranch) {
-            console.error(`Branch not found for center: ${sourceCenter}`);
-            return false;
-        }
-
-        // First, check for available vehicle in the source center
-        const localVehicle = await Vehicle.findOne({
-            currentBranch: sourceBranch._id,
-            vehicleType: "shipment",
-            available: true,
-            capableWeight: { $gte: weightRequired },
-            capableVolume: { $gte: volumeRequired }
-        });
-
-        if (localVehicle) {
-            console.log(`Found available vehicle at ${sourceCenter}: ${localVehicle.vehicleId}`);
-            return localVehicle;
-        }
-
-        // If no vehicle available at source, find nearest centers
-        let visitedCenters = new Set([sourceCenter]);
-        let centersToCheck = Object.keys(distanceMatrix[sourceCenter])
-            .sort((a, b) => distanceMatrix[sourceCenter][a] - distanceMatrix[sourceCenter][b]);
-
-        for (const centerName of centersToCheck) {
-            if (visitedCenters.has(centerName)) continue;
-            visitedCenters.add(centerName);
-
-            // Find the branch for this center
-            const branch = await Branch.findOne({ name: centerName });
-            if (!branch) {
-                console.log(`Branch not found for center: ${centerName}`);
-                continue;
-            }
-
-            // Look for available vehicle in this center
-            const vehicle = await Vehicle.findOne({
-                currentBranch: branch._id,
-                vehicleType: "shipment",
-                available: true,
-                capableWeight: { $gte: weightRequired },
-                capableVolume: { $gte: volumeRequired }
-            });
-
-            if (vehicle) {
-                console.log(`Found available vehicle at ${centerName}: ${vehicle.vehicleId}`);
-                return vehicle;
-            }
-        }
-
-        console.log(`No suitable vehicle found for shipment requirements: weight=${weightRequired}kg, volume=${volumeRequired}m³`);
-        return false;
-    } catch (error) {
-        console.error("Error finding nearest vehicle:", error);
-        return false;
+    if (!sourceBranch) {
+      console.error(`Branch not found for center: ${sourceCenter}`);
+      return false;
     }
+
+    // First, check for available vehicle in the source center
+    const localVehicle = await Vehicle.findOne({
+      currentBranch: sourceBranch._id,
+      vehicleType: "shipment",
+      available: true,
+      capableWeight: { $gte: weightRequired },
+      capableVolume: { $gte: volumeRequired },
+    });
+
+    if (localVehicle) {
+      console.log(
+        `Found available vehicle at ${sourceCenter}: ${localVehicle.vehicleId}`,
+      );
+      return localVehicle;
+    }
+
+    // If no vehicle available at source, find nearest centers
+    let visitedCenters = new Set([sourceCenter]);
+    let centersToCheck = Object.keys(distanceMatrix[sourceCenter]).sort(
+      (a, b) =>
+        distanceMatrix[sourceCenter][a] - distanceMatrix[sourceCenter][b],
+    );
+
+    for (const centerName of centersToCheck) {
+      if (visitedCenters.has(centerName)) continue;
+      visitedCenters.add(centerName);
+
+      // Find the branch for this center
+      const branch = await Branch.findOne({ name: centerName });
+      if (!branch) {
+        console.log(`Branch not found for center: ${centerName}`);
+        continue;
+      }
+
+      // Look for available vehicle in this center
+      const vehicle = await Vehicle.findOne({
+        currentBranch: branch._id,
+        vehicleType: "shipment",
+        available: true,
+        capableWeight: { $gte: weightRequired },
+        capableVolume: { $gte: volumeRequired },
+      });
+
+      if (vehicle) {
+        console.log(
+          `Found available vehicle at ${centerName}: ${vehicle.vehicleId}`,
+        );
+        return vehicle;
+      }
+    }
+
+    console.log(
+      `No suitable vehicle found for shipment requirements: weight=${weightRequired}kg, volume=${volumeRequired}m³`,
+    );
+    return false;
+  } catch (error) {
+    console.error("Error finding nearest vehicle:", error);
+    return false;
+  }
 }
 
 /**
@@ -384,83 +389,101 @@ async function findNearestVehicle(sourceCenter, weightRequired, volumeRequired) 
  * @returns {Object} - Result of the assignment operation
  */
 async function assignVehicle(shipmentId, shipmentType) {
-    try {
-        console.log(`Assigning vehicle for shipment ${shipmentId} of type ${shipmentType}`);
+  try {
+    console.log(
+      `Assigning vehicle for shipment ${shipmentId} of type ${shipmentType}`,
+    );
 
-        // Find the shipment by ID
-        const shipment = await B2BShipment.findById(shipmentId);
+    // Find the shipment by ID
+    const shipment = await B2BShipment.findById(shipmentId);
 
-        if (!shipment) {
-            console.error(`Shipment not found with ID: ${shipmentId}`);
-            throw new Error("Shipment not found");
-        }
-
-        // Verify the shipment type matches
-        if (shipment.deliveryType !== shipmentType) {
-            console.error(`Shipment type mismatch. Expected: ${shipmentType}, Found: ${shipment.deliveryType}`);
-            throw new Error("Shipment type mismatch");
-        }
-
-        // Get the source center and requirements
-        const sourceCenter = shipment.sourceCenter;
-        const weightRequired = shipment.totalWeight;
-        const volumeRequired = shipment.totalVolume;
-
-        console.log(`Requirements: sourceCenter=${sourceCenter}, weight=${weightRequired}kg, volume=${volumeRequired}m³`);
-
-        // Find the nearest available vehicle
-        const vehicle = await findNearestVehicle(sourceCenter, weightRequired, volumeRequired);
-
-        if (!vehicle) {
-            console.log("No suitable vehicle found for assignment");
-            return {
-                success: false,
-                message: "No suitable vehicle available for this shipment"
-            };
-        }
-
-        // Get the branch information for the vehicle's current location
-        const vehicleBranch = await Branch.findById(vehicle.currentBranch);
-        const vehicleCenter = vehicleBranch ? vehicleBranch.name : "Unknown";
-
-        // Update the vehicle status
-        vehicle.available = false;
-       // await vehicle.save();
-        console.log(`Vehicle ${vehicle.vehicleId} marked as unavailable`);
-
-        // Update the shipment with vehicle assignment
-        shipment.assignedVehicle = vehicle._id;
-
-        // Update status based on shipment type and vehicle location
-        if (vehicleCenter === sourceCenter) {
-            // If vehicle is at the source center, update status based on delivery type
-            shipment.status = shipmentType === "Express" ? "Verified" : "In Transit";
-        } else {
-            // If vehicle is coming from another center, status is pending until it arrives
-            shipment.status = "Pending";
-
-            // Create a reverse shipment to bring the vehicle to the source center
-            await createReverseShipment(vehicle, vehicleCenter, sourceCenter, shipmentType);
-        }
-
-        // Save the updated shipment
-       // await shipment.save();
-        console.log(`Shipment ${shipmentId} updated with vehicle ${vehicle.vehicleId}`);
-
-        return {
-            success: true,
-            message: vehicleCenter === sourceCenter ?
-                `Vehicle ${vehicle.vehicleId} assigned to shipment` :
-                `Vehicle ${vehicle.vehicleId} from ${vehicleCenter} assigned and will be dispatched to ${sourceCenter}`,
-            vehicle: vehicle
-        };
-    } catch (error) {
-        console.error("Error assigning vehicle:", error);
-        return {
-            success: false,
-            error: error.message
-        };
+    if (!shipment) {
+      console.error(`Shipment not found with ID: ${shipmentId}`);
+      throw new Error("Shipment not found");
     }
+
+    // Verify the shipment type matches
+    if (shipment.deliveryType !== shipmentType) {
+      console.error(
+        `Shipment type mismatch. Expected: ${shipmentType}, Found: ${shipment.deliveryType}`,
+      );
+      throw new Error("Shipment type mismatch");
+    }
+
+    // Get the source center and requirements
+    const sourceCenter = shipment.sourceCenter;
+    const weightRequired = shipment.totalWeight;
+    const volumeRequired = shipment.totalVolume;
+
+    console.log(
+      `Requirements: sourceCenter=${sourceCenter}, weight=${weightRequired}kg, volume=${volumeRequired}m³`,
+    );
+
+    // Find the nearest available vehicle
+    const vehicle = await findNearestVehicle(
+      sourceCenter,
+      weightRequired,
+      volumeRequired,
+    );
+
+    if (!vehicle) {
+      console.log("No suitable vehicle found for assignment");
+      return {
+        success: false,
+        message: "No suitable vehicle available for this shipment",
+      };
+    }
+
+    // Get the branch information for the vehicle's current location
+    const vehicleBranch = await Branch.findById(vehicle.currentBranch);
+    const vehicleCenter = vehicleBranch ? vehicleBranch.name : "Unknown";
+
+    // Update the vehicle status
+    vehicle.available = false;
+    // await vehicle.save();
+    console.log(`Vehicle ${vehicle.vehicleId} marked as unavailable`);
+
+    // Update the shipment with vehicle assignment
+    shipment.assignedVehicle = vehicle._id;
+
+    // Update status based on shipment type and vehicle location
+    if (vehicleCenter === sourceCenter) {
+      // If vehicle is at the source center, update status based on delivery type
+      shipment.status = shipmentType === "Express" ? "Verified" : "In Transit";
+    } else {
+      // If vehicle is coming from another center, status is pending until it arrives
+      shipment.status = "Pending";
+
+      // Create a reverse shipment to bring the vehicle to the source center
+      await createReverseShipment(
+        vehicle,
+        vehicleCenter,
+        sourceCenter,
+        shipmentType,
+      );
+    }
+
+    // Save the updated shipment
+    // await shipment.save();
+    console.log(
+      `Shipment ${shipmentId} updated with vehicle ${vehicle.vehicleId}`,
+    );
+
+    return {
+      success: true,
+      message:
+        vehicleCenter === sourceCenter
+          ? `Vehicle ${vehicle.vehicleId} assigned to shipment`
+          : `Vehicle ${vehicle.vehicleId} from ${vehicleCenter} assigned and will be dispatched to ${sourceCenter}`,
+      vehicle: vehicle,
+    };
+  } catch (error) {
+    console.error("Error assigning vehicle:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -470,62 +493,74 @@ async function assignVehicle(shipmentId, shipmentType) {
  * @param {String} toCenter - The destination center where the vehicle needs to go
  * @param {String} shipmentType - Type of the shipment (Express or Standard)
  */
-async function createReverseShipment(vehicle, fromCenter, toCenter, shipmentType) {
-    try {
-        console.log(`Creating reverse shipment for vehicle ${vehicle.vehicleId} from ${fromCenter} to ${toCenter}`);
+async function createReverseShipment(
+  vehicle,
+  fromCenter,
+  toCenter,
+  shipmentType,
+) {
+  try {
+    console.log(
+      `Creating reverse shipment for vehicle ${vehicle.vehicleId} from ${fromCenter} to ${toCenter}`,
+    );
 
-        // Generate a unique shipment ID for the reverse shipment
-        const lastShipment = await B2BShipment.findOne({ sourceCenter: fromCenter })
-            .sort({ shipmentId: -1 })
-            .select('shipmentId')
-            .lean();
+    // Generate a unique shipment ID for the reverse shipment
+    const lastShipment = await B2BShipment.findOne({ sourceCenter: fromCenter })
+      .sort({ shipmentId: -1 })
+      .select("shipmentId")
+      .lean();
 
-        let shipmentCount = 1;
-        if (lastShipment) {
-            const match = lastShipment.shipmentId.match(/\d+/);
-            if (match) {
-                shipmentCount = parseInt(match[0], 10) + 1;
-            }
-        }
-
-        const reverseShipmentId = `${shipmentType === "Express" ? "EX" : "ST"}-S${shipmentCount.toString().padStart(3, '0')}-${fromCenter}`;
-
-        // Calculate the route details
-        const route = [fromCenter, toCenter];
-        const totalDistance = distanceMatrix[fromCenter][toCenter];
-
-        // Calculate arrival times and total time
-        const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(route, shipmentType);
-
-        // Create the reverse shipment
-        const reverseShipment = new B2BShipment({
-            shipmentId: reverseShipmentId,
-            deliveryType: shipmentType,
-            sourceCenter: fromCenter,
-            route: route,
-            currentLocation: fromCenter,
-            totalDistance: totalDistance,
-            totalTime: shipmentFinishTime,
-            arrivalTimes: arrivalTimes,
-            shipmentFinishTime: shipmentFinishTime,
-            totalWeight: 0, // No actual parcels being transported
-            totalVolume: 0, // No actual parcels being transported
-            parcelCount: 0,
-            assignedVehicle: vehicle._id,
-            status: 'In Transit',
-            parcels: [], // No parcels for vehicle transfer
-            createdByCenter: fromCenter,
-            createdAt: new Date()
-        });
-
-        //await reverseShipment.save();
-        console.log(`Reverse shipment ${reverseShipmentId} created for vehicle transfer`);
-
-        return reverseShipment;
-    } catch (error) {
-        console.error("Error creating reverse shipment:", error);
-        throw error;
+    let shipmentCount = 1;
+    if (lastShipment) {
+      const match = lastShipment.shipmentId.match(/\d+/);
+      if (match) {
+        shipmentCount = parseInt(match[0], 10) + 1;
+      }
     }
+
+    const reverseShipmentId = `${shipmentType === "Express" ? "EX" : "ST"}-S${shipmentCount.toString().padStart(3, "0")}-${fromCenter}`;
+
+    // Calculate the route details
+    const route = [fromCenter, toCenter];
+    const totalDistance = distanceMatrix[fromCenter][toCenter];
+
+    // Calculate arrival times and total time
+    const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(
+      route,
+      shipmentType,
+    );
+
+    // Create the reverse shipment
+    const reverseShipment = new B2BShipment({
+      shipmentId: reverseShipmentId,
+      deliveryType: shipmentType,
+      sourceCenter: fromCenter,
+      route: route,
+      currentLocation: fromCenter,
+      totalDistance: totalDistance,
+      totalTime: shipmentFinishTime,
+      arrivalTimes: arrivalTimes,
+      shipmentFinishTime: shipmentFinishTime,
+      totalWeight: 0, // No actual parcels being transported
+      totalVolume: 0, // No actual parcels being transported
+      parcelCount: 0,
+      assignedVehicle: vehicle._id,
+      status: "In Transit",
+      parcels: [], // No parcels for vehicle transfer
+      createdByCenter: fromCenter,
+      createdAt: new Date(),
+    });
+
+    //await reverseShipment.save();
+    console.log(
+      `Reverse shipment ${reverseShipmentId} created for vehicle transfer`,
+    );
+
+    return reverseShipment;
+  } catch (error) {
+    console.error("Error creating reverse shipment:", error);
+    throw error;
+  }
 }
 
 module.exports = { assignVehicle };

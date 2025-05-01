@@ -9,7 +9,9 @@ const {
   getStaffLoggedPage,
   checkAuthenticity,
 } = require("../../controllers/staff/staffControllers");
-const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
+const {
+  authenticateStaff,
+} = require("../../middleware/adminMiddleware/authMiddleware");
 
 // AUTHENTICATE STAFF
 router.get("/status", authenticateStaff, checkAuthenticity);

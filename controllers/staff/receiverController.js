@@ -20,7 +20,7 @@ const addReceiver = async (req, res, next) => {
       if (lastreceiver) {
         const lastIdNumber = parseInt(
           lastreceiver.receiverId.replace("RECEIVER", ""),
-          10
+          10,
         );
         nextReceiverId = `RECEIVER${String(lastIdNumber + 1).padStart(3, "0")}`;
       }

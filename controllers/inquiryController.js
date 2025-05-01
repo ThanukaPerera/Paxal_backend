@@ -1,6 +1,5 @@
-const Inquiry=require("../models/InquiryModel");
-const { v4: uuidv4 } = require('uuid');
-
+const Inquiry = require("../models/InquiryModel");
+const { v4: uuidv4 } = require("uuid");
 
 const createInquiry = async (req, res) => {
   try {
@@ -8,9 +7,9 @@ const createInquiry = async (req, res) => {
 
     // Validate required fields
     if (!name || !email || !message) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Name, email, and message are required fields'
+        message: "Name, email, and message are required fields",
       });
     }
 
@@ -21,7 +20,7 @@ const createInquiry = async (req, res) => {
       email,
       parcelTrackingNo,
       message,
-      status: 'new'
+      status: "new",
     });
 
     // Save to database
@@ -29,23 +28,22 @@ const createInquiry = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Your inquiry has been submitted successfully',
+      message: "Your inquiry has been submitted successfully",
       data: {
         inquiryId: newInquiry.inquiryId,
-        status: newInquiry.status
-      }
+        status: newInquiry.status,
+      },
     });
-
   } catch (error) {
-    console.error('Error creating inquiry:', error);
+    console.error("Error creating inquiry:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to submit inquiry',
-      error: error.message
+      message: "Failed to submit inquiry",
+      error: error.message,
     });
   }
 };
 
 module.exports = {
-  createInquiry
+  createInquiry,
 };

@@ -1,9 +1,13 @@
 const express = require("express");
-const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
-const { viewAllPickupParcels } = require("../../controllers/staff/pickupController");
+const {
+  authenticateStaff,
+} = require("../../middleware/adminMiddleware/authMiddleware");
+const {
+  viewAllPickupParcels,
+} = require("../../controllers/staff/pickupController");
 const router = express.Router();
 
-// GET ALL PICKUP PARCELS 
-router.get('/get-all-pickup-parcels', authenticateStaff, viewAllPickupParcels)
+// GET ALL PICKUP PARCELS
+router.get("/get-all-pickup-parcels", authenticateStaff, viewAllPickupParcels);
 
-module.exports  = router;
+module.exports = router;

@@ -8,8 +8,6 @@ const validateBranch = [
     .isLength({ min: 2 })
     .withMessage("Branch location must be at least 2 characters long."),
 
-  
-
   body("contact")
     .notEmpty()
     .withMessage("Contact number is required.")
@@ -27,13 +25,11 @@ const addBranch = async (req, res) => {
     console.log(branchData);
     const newBranch = new Branch(branchData);
     const savedBranch = await newBranch.save();
-    res
-      .status(201)
-      .json({
-        status: "success",
-        message: "Branch added successfully",
-        branch: savedBranch,
-      });
+    res.status(201).json({
+      status: "success",
+      message: "Branch added successfully",
+      branch: savedBranch,
+    });
     console.log(req.data);
   } catch (error) {
     console.error("Error adding branch:", error);
@@ -42,33 +38,28 @@ const addBranch = async (req, res) => {
       .json({ message: "Server error. Could not add branch.", error });
   }
 
+  //BULK BRANCHES ADDING
+  // try {
+  //     const branchDataArray = req.body;
 
-//BULK BRANCHES ADDING
-// try {
-//     const branchDataArray = req.body;
+  //     // Validate input is an array
+  //     if (!Array.isArray(branchDataArray)) {
+  //       return res.status(400).json({ message: "Input should be an array of branches." });
+  //     }
 
-//     // Validate input is an array
-//     if (!Array.isArray(branchDataArray)) {
-//       return res.status(400).json({ message: "Input should be an array of branches." });
-//     }
+  //     // Insert all branches
+  //     const savedBranches = await Branch.insertMany(branchDataArray);
 
-//     // Insert all branches
-//     const savedBranches = await Branch.insertMany(branchDataArray);
+  //     res.status(201).json({
+  //       status: "success",
+  //       message: `${savedBranches.length} branches added successfully`,
+  //       branches: savedBranches,
+  //     });
 
-//     res.status(201).json({
-//       status: "success",
-//       message: `${savedBranches.length} branches added successfully`,
-//       branches: savedBranches,
-//     });
-
-//   } catch (error) {
-//     console.error("Error adding branches:", error);
-//     res.status(500).json({ message: "Server error. Could not add branches.", error });
-//   }
-
-
-
-
+  //   } catch (error) {
+  //     console.error("Error adding branches:", error);
+  //     res.status(500).json({ message: "Server error. Could not add branches.", error });
+  //   }
 };
 
 module.exports = {

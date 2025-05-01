@@ -8,7 +8,7 @@ const fetchAllParcel = async (req, res) => {
       .select("-__v -updatedAt")
       .populate(
         "senderId",
-        "-customerId -nic -customerFullName -password -createdAt -updatedAt -__v -province -district -city"
+        "-customerId -nic -customerFullName -password -createdAt -updatedAt -__v -province -district -city",
       )
       .populate("receiverId", "-__v")
       .populate("orderPlacedStaffId", "-__v")

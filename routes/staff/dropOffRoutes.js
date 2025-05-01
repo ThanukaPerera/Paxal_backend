@@ -1,5 +1,7 @@
 const express = require("express");
-const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware.js");
+const {
+  authenticateStaff,
+} = require("../../middleware/adminMiddleware/authMiddleware.js");
 const {
   viewAllDropOffupParcels,
 } = require("../../controllers/staff/dropOffControllers.js");
@@ -9,7 +11,7 @@ const router = express.Router();
 router.get(
   "/get-all-dropOff-parcels",
   authenticateStaff,
-  viewAllDropOffupParcels
+  viewAllDropOffupParcels,
 );
 
 module.exports = router;

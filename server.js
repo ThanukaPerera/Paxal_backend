@@ -41,7 +41,7 @@ app.use(
       "exp://192.168.43.246:19000",
     ], // Your physical device
     credentials: true, // Allow credentials (cookies)
-  })
+  }),
 );
 
 app.use(cookieParser());

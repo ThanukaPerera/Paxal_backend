@@ -70,7 +70,7 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
     const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
       updatedPickupParcel,
-      { new: true }
+      { new: true },
     );
 
     // SEND EMAILS TO SENDER AND RECEIVER

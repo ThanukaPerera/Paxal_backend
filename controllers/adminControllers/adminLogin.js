@@ -35,7 +35,7 @@ const adminLogin = async (req, res) => {
           email: admin.email,
         },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1h" },
       );
 
       // Use a strong secret in production

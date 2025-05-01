@@ -1,14 +1,12 @@
 const crypto = require("crypto");
 const QRCode = require("qrcode");
 
-const  Parcel  = require("../../models/parcelModel");
+const Parcel = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
 
-
 //GENERATE TRACKING NUMBER
 const generateTrackingNumber = async (regTime) => {
- 
   const randomCode = crypto.randomBytes(4).toString("hex").toUpperCase();
   const timestamp = Math.floor(regTime / 1000).toString();
   console.log("------Tracking number generated------");
@@ -33,11 +31,10 @@ const generateQRCode = async (parcelData) => {
 // ADD NEW PARCEL - PARCEL REGISTRATION FORM
 const registerParcel = async (req, res) => {
   try {
-
-     // get the staff who register the parcel
-     const staff_id = req.staff._id;
-     const staff = await Staff.findById(staff_id);
-     const branch_id = staff.branchId;
+    // get the staff who register the parcel
+    const staff_id = req.staff._id;
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
 
     // Find last parcel ID and generate the next one
     const lastParcel = await Parcel.findOne().sort({ parcelId: -1 }).lean();
@@ -46,7 +43,7 @@ const registerParcel = async (req, res) => {
     if (lastParcel) {
       const lastIdNumber = parseInt(
         lastParcel.parcelId.replace("PARCEL", ""),
-        10
+        10,
       );
       nextParcelId = `PARCEL${String(lastIdNumber + 1).padStart(3, "0")}`;
     }
@@ -77,87 +74,77 @@ const registerParcel = async (req, res) => {
     const qrCodeString = await generateQRCode(parcelData.parcelId);
     parcelData.qrCodeNo = qrCodeString;
 
-
     const parcel = new Parcel(parcelData);
-    
+
     const savedParcel = await parcel.save();
     console.log("------Parcel registered------");
-
-    
-
-
-    
 
     req.updatedData = {
       ...req.updatedData,
       parcelRef: savedParcel.parcelId,
       orderTime: Date.now(),
-      
-     
-  }
-   // SEND EMAILS TO SENDER AND RECEIVER
-   const senderEmail = parcelData.email;
-   const receiverEmail = parcelData.receiverEmail;
- 
-   await sendTrackingNumberEmail(
-     senderEmail,
-     parcelData.parcelId,
-     parcelData.trackingNo
-   );
-   await sendTrackingNumberEmail(
-     receiverEmail,
-     parcelData.parcelId,
-     parcelData.trackingNo
-   );
-  
-   res.status(201).json({ message: "Parcel registered successfully", savedParcel});
+    };
+    // SEND EMAILS TO SENDER AND RECEIVER
+    const senderEmail = parcelData.email;
+    const receiverEmail = parcelData.receiverEmail;
 
-    
+    await sendTrackingNumberEmail(
+      senderEmail,
+      parcelData.parcelId,
+      parcelData.trackingNo,
+    );
+    await sendTrackingNumberEmail(
+      receiverEmail,
+      parcelData.parcelId,
+      parcelData.trackingNo,
+    );
+
+    res
+      .status(201)
+      .json({ message: "Parcel registered successfully", savedParcel });
   } catch (error) {
-    
-        res.status(500).json({ message: "Error registering parcel", error });
+    res.status(500).json({ message: "Error registering parcel", error });
   }
 };
 
-
 // GET ALL PARCELS
-const getAllParcels = async(req, res) => {
+const getAllParcels = async (req, res) => {
   try {
-   
     const staff_id = req.staff._id.toString();
-    console.log(staff_id)
+    console.log(staff_id);
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
-    const parcels = await Parcel.find({from:branch_id}).sort({createdAt: -1});
+    const parcels = await Parcel.find({ from: branch_id }).sort({
+      createdAt: -1,
+    });
     res.status(200).json(parcels);
-    
   } catch (error) {
-    res.status(500).json({message:"Error fetching parcels", error});
+    res.status(500).json({ message: "Error fetching parcels", error });
   }
-}
+};
 
 // GET ONE PARCEL
-const getOneParcel = async(req, res) => {
+const getOneParcel = async (req, res) => {
   try {
-    const parcel = await Parcel.findOne({parcelId: req.params.parcelId});
+    const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
     if (!parcel) {
-      return res.status(404).json({message: "Parcel Not found"});
+      return res.status(404).json({ message: "Parcel Not found" });
     }
-    res.status(200).json({success:true, existingPosts: parcel});
+    res.status(200).json({ success: true, existingPosts: parcel });
   } catch (error) {
-    res.status(500).json({message:"Error fetching the parcel", error});
+    res.status(500).json({ message: "Error fetching the parcel", error });
   }
-}
+};
 
 // UPDATE THE PARCEL
-const updateTheParcel = async(req, res) => {
+const updateTheParcel = async (req, res) => {
   try {
     const parcel = await Parcel.findOneAndUpdate(req.params.parcelId, req.body);
-    res.status(200).json(parcel)
+    res.status(200).json(parcel);
   } catch (error) {
-    res.status(500).json({message: "Error updating the parcel", error});
+    res.status(500).json({ message: "Error updating the parcel", error });
   }
-}
+};
 
 // DELETE PARCEL
 const deleteParcel = async (parcelId) => {
@@ -170,11 +157,11 @@ const deleteParcel = async (parcelId) => {
 };
 
 //Calculate the Payment
-const calculatePayment = async(req, res) => {
+const calculatePayment = async (req, res) => {
   console.log(req.query);
   const paymentAmount = 1000;
   res.json({ paymentAmount });
-}
+};
 
 module.exports = {
   registerParcel,

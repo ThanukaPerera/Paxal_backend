@@ -73,7 +73,7 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
     const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
       updatedDropOffParcel,
-      { new: true }
+      { new: true },
     );
 
     // SEND EMAILS TO SENDER AND RECEIVER

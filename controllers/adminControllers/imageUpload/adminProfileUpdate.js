@@ -4,15 +4,13 @@ const Admin = require("../../../models/AdminModel");
 const adminProfileUpdate = async (req, res, next) => {
   try {
     const { public_id, userId } = req.uploadData;
-    
-    
+
     const updatedAdmin = await Admin.findByIdAndUpdate(
       userId,
       { profilePicLink: public_id },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
-    
     if (!updatedAdmin) {
       return res.status(404).json({
         success: false,
@@ -33,7 +31,9 @@ const adminProfileUpdate = async (req, res, next) => {
     //   message: "Failed to update profile",
     //   error: error.message,
     // });
-    res.status(500).json({message: "Failed to update profile",error: error.message,})
+    res
+      .status(500)
+      .json({ message: "Failed to update profile", error: error.message });
   }
 };
 
