@@ -85,6 +85,7 @@ router.get("/pieChart/data", authenticateAdmin, getParcelCountByStatus);
 //Bar Chart Data
 router.get("/bar/data", authenticateAdmin, barChart);
 
+
 {/*Dashboard Page Routes*/}
 
 

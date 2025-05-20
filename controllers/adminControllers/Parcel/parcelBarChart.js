@@ -21,7 +21,7 @@ const barChart = async (req, res) => {
 
         
 
-        res.status(200).json({status:"success",message:"Chart data fetched successfully",chartData});
+        res.status(200).json({status:"success",message:"Chart data fetched successfully",chartData,Sehara:"Deiia"});
     } catch (error) {
         console.error("Error fetching bar chart data:", error);
         res.status(500).json({ message: "Internal server error" });
