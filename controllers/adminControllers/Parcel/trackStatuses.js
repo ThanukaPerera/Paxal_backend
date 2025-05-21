@@ -27,13 +27,14 @@ const fetchOrderPlacedTime = async (parcelId) => {
 
 const findSchedulesWithParcel = async (parcelId) => {
   const parcelObj = await Parcel.findOne({ parcelId }).select("_id").lean();
+  
   if (!parcelObj) return [];
 
   const schedules = await VehicleSchedule.find({
     assignedParcels: parcelObj._id
-  }).populate('vehicle', 'vehicleNumber') // optional: populate vehicle with specific fields
+  })
+  .populate('vehicle', 'vehicleNumber') 
     .lean();
-
   return schedules;
 };
 

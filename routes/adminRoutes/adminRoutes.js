@@ -45,6 +45,7 @@ const fetchParcelById = require("../../controllers/adminControllers/Parcel/fetch
 const trackStatuses = require("../../controllers/adminControllers/Parcel/trackStatuses");
 const { adminRefreshToken } = require("../../controllers/adminControllers/authentication/adminRefreshToken");
 const registerVehicle = require("../../controllers/adminControllers/Vehicles/registerVehicle");
+const deleteBranch = require('../../controllers/adminControllers/branches/deleteBranch');
 
 //Admin Routes
 
@@ -157,6 +158,7 @@ router.patch("/update/profile",authenticateAdmin,...validateProfileUpdate,update
 
 router.get("/branch/all", authenticateAdmin, fetchBranches);
 router.post("/save/branch", authenticateAdmin, validateBranch, addBranch);
+router.delete("/delete/branch/:id",authenticateAdmin,deleteBranch)
 
 {/*Branch*/}
 

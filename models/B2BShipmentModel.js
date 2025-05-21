@@ -97,6 +97,6 @@ const shipmentSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-});
+},{timestamp:true});
 
 module.exports = mongoose.model('B2BShipment', shipmentSchema);
