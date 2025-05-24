@@ -20,12 +20,14 @@ const fetchVehicles = async (req, res) => {
     try {
       const data = await Vehicle.find().select("-__v").populate("assignedBranch", "-__v -branchId").populate("currentBranch", "-__v -branchId").lean().exec();
       
+      
       const filteredData=data.map(vehicle=>({
         ...vehicle,
-      assignedBranch:vehicle.assignedBranch.location,
-      currentBranch:vehicle.currentBranch.location
-
+      assignedBranch:vehicle.assignedBranch?.location,
+      currentBranch:vehicle.currentBranch?.location
+        
       }))
+     
       userData=filteredData;
       
       res.status(200).json({status: "success",message: "Vehicles fetched successfully",userData});

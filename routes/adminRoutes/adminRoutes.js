@@ -46,6 +46,9 @@ const trackStatuses = require("../../controllers/adminControllers/Parcel/trackSt
 const { adminRefreshToken } = require("../../controllers/adminControllers/authentication/adminRefreshToken");
 const registerVehicle = require("../../controllers/adminControllers/Vehicles/registerVehicle");
 const deleteBranch = require('../../controllers/adminControllers/branches/deleteBranch');
+const updateBranch = require('../../controllers/adminControllers/branches/updateBranch')
+const deleteVehicle = require('../../controllers/adminControllers/Vehicles/deleteVehicle');
+const updateVehicle = require('../../controllers/adminControllers/Vehicles/updateVehicle')
 
 //Admin Routes
 
@@ -159,6 +162,7 @@ router.patch("/update/profile",authenticateAdmin,...validateProfileUpdate,update
 router.get("/branch/all", authenticateAdmin, fetchBranches);
 router.post("/save/branch", authenticateAdmin, validateBranch, addBranch);
 router.delete("/delete/branch/:id",authenticateAdmin,deleteBranch)
+router.put("/branch/update/:id",authenticateAdmin,updateBranch)
 
 {/*Branch*/}
 
@@ -168,6 +172,8 @@ router.delete("/delete/branch/:id",authenticateAdmin,deleteBranch)
 
 router.get("/vehicle/all", authenticateAdmin, fetchVehicles);
 router.post("/vehicle/register",authenticateAdmin,registerVehicle)
+router.delete("/delete/vehicle/:id",authenticateAdmin,deleteVehicle)
+router.put("/vehicle/update/:id",authenticateAdmin,updateVehicle)
 
 {/*Vehicle*/}
 
