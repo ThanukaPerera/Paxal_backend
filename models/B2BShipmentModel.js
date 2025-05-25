@@ -15,9 +15,9 @@ const shipmentSchema = new mongoose.Schema({
         required: true
     },
     sourceCenter: {
-        type: String,
         required: true,
-        enum: ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Galle', 'Jaffna']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch"
     },
     route: {
         type: [String],
@@ -84,9 +84,9 @@ const shipmentSchema = new mongoose.Schema({
         required: true
     }],
     createdByCenter: {
-        type: String,
         required: true,
-        enum: ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Galle', 'Jaffna']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Branch"
     },
     createdByStaff: {
         type: mongoose.Schema.Types.ObjectId,

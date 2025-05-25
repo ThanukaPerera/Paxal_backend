@@ -49,6 +49,11 @@ const deleteBranch = require('../../controllers/adminControllers/branches/delete
 const updateBranch = require('../../controllers/adminControllers/branches/updateBranch')
 const deleteVehicle = require('../../controllers/adminControllers/Vehicles/deleteVehicle');
 const updateVehicle = require('../../controllers/adminControllers/Vehicles/updateVehicle')
+const updateShipment = require('../../controllers/adminControllers/shipments/updateShipment')
+const deleteShipment = require('../../controllers/adminControllers/shipments/deleteShipment');
+const sendOTPLogged = require('../../controllers/adminControllers/authentication/LoggedIn/sendOTPLogged')
+const verifyOTPLogged = require('../../controllers/adminControllers/authentication/LoggedIn/verifyOTPLogged')
+const resetPasswordLogged = require('../../controllers/adminControllers/authentication/LoggedIn/resetPasswordLogged')
 
 //Admin Routes
 
@@ -71,6 +76,10 @@ router.post("/logout", authenticateAdmin, adminLogout);
 
 //Forgot password
 router.post("/forgotPassword", forgotPassword);
+//Reset password as a logged Admin
+router.post("/sendOTP",authenticateAdmin,sendOTPLogged);
+router.post('/verifyOTPLogged',authenticateAdmin,verifyOTPLogged)
+router.patch("/resetPasswordLogged",authenticateAdmin, resetPasswordLogged);
 
 //VerifyOTP
 router.post("/verifyOTP", verifyOTP);
@@ -131,7 +140,9 @@ router.get("/track/statuses/:parcelId", authenticateAdmin, trackStatuses);
 {/*Shipments*/}
 
 
-router.get("/shipment/all", authenticateAdmin, fetchShipments),
+router.get("/shipment/all", authenticateAdmin, fetchShipments)
+router.delete("/delete/shipment/:id",authenticateAdmin,deleteShipment)
+router.put("/shipment/update/:id",authenticateAdmin,updateShipment)
 
 
 {/*Shipments*/}
