@@ -26,7 +26,6 @@ const updateVehicle = async (req, res) => {
       _id: { $ne: new mongoose.Types.ObjectId(id) },
     });
 
-    console.log(existingVehicle)
 
     if (existingVehicle) {
       return res.status(400).json({

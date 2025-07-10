@@ -13,7 +13,7 @@ const driverRoutes = require("./routes/driverRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");
-const adminRoutes = require("./routes/adminRoutes/adminRoutes");
+const adminRoutes = require("./routes/adminRoutes/index");
 const staffRoutes = require("./routes/staff/staffRoutes");
 const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 
@@ -62,7 +62,7 @@ app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
 
 //Admin Routes
-app.use("/admin", adminRoutes);
+app.use("/api/admin", adminRoutes);
 
 //Staff routes
 app.use("/staff", staffRoutes);
