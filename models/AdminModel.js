@@ -5,7 +5,7 @@ const adminSchema = new mongoose.Schema(
     adminId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     nic: { type: String, required: true, unique: true },
-    password: { type: String, required: true }, // AWS token
+    password: { type: String, required: true }, 
     profilePicLink: { type: String, default:'avatar_1743610267755.jpg',required: false },
     email: { type: String, required: true, unique: true },
     contactNo:{type:String,required:true},

@@ -35,7 +35,9 @@ const {
   validateProfileUpdate,
   updateMyData,
 } = require("../../controllers/adminControllers/adminProfile/updateMyData");
-const fetchVehicles = require("../../controllers/adminControllers/Vehicles/fetchVehicles");
+const fetchVehicles= require("../../controllers/adminControllers/Vehicles/fetchVehicles");
+const fetchVehiclesOfBranch= require("../../controllers/adminControllers/Vehicles/fetchVehiclesOfBranch");
+
 const {
   validateBranch,
   addBranch,
@@ -182,6 +184,7 @@ router.put("/branch/update/:id",authenticateAdmin,updateBranch)
 {/*Vehicle*/}
 
 router.get("/vehicle/all", authenticateAdmin, fetchVehicles);
+router.get("/vehicle/:branchId", authenticateAdmin, fetchVehiclesOfBranch);
 router.post("/vehicle/register",authenticateAdmin,registerVehicle)
 router.delete("/delete/vehicle/:id",authenticateAdmin,deleteVehicle)
 router.put("/vehicle/update/:id",authenticateAdmin,updateVehicle)

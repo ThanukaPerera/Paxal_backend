@@ -4,6 +4,7 @@ const findAdminFunction = require("../../../../utils/findAdminFunction");
 
 const registerDriver = async (req, res) => {
     try {
+        console.log(req.params)
         const adminId = req.admin.adminId;
         const response = await findAdminFunction(adminId);
         
