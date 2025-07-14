@@ -66,19 +66,20 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
     };
 
  
-
-    const updatedParcel = await Parcel.findOneAndUpdate(
-      { parcelId },
-      updatedDropOffParcel,
-      { new: true }
-    );
+    // Uncomment to update the database
+    // const updatedParcel = await Parcel.findOneAndUpdate(
+    //   { parcelId },
+    //   updatedDropOffParcel,
+    //   { new: true }
+    // );
+    
     
     // Send emails to sender and receiver with the tracking number.
     const sender = await User.findById(dropOffParcel.senderId);
     const receiver = await Receiver.findById(dropOffParcel.receiverId);
-    const senderEmail = sender.userEmail;
+    const senderEmail = sender.email;
     const receiverEmail = receiver.receiverEmail;
-    console.log(senderEmail, receiverEmail);
+    console.log("Drop-offs collected and updated.Sending emails....",senderEmail, receiverEmail);
     const result1 = await sendTrackingNumberEmail(
       senderEmail,
       parcelId,
@@ -107,12 +108,14 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       });
     }
 
+    console.log("Drop-off parcel collected and emails sent successfully");
+    
     return res.status(200).json({
       success: true,
       message:
         "QR and Tracking number successfully generated - arrived at distribution center",
-      updatedParcel,
-    });
+      
+    });//add updatedParcel to the response when uncomment db saving
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -122,7 +125,46 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
   }
 };
 
+// Get drop-offs stats
+const getDropOffsStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    console.log(staff_id);
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+
+    // Count the number of drop-offs made today.
+    const dropOffsToday = await Parcel.countDocuments({
+      submittingType: "drop-off",
+      status: "OrderPlaced",
+      from: branch_id,
+      createdAt: { $gte: startOfToday, $lt: endOfToday },
+    });
+
+     // Count the number of pending pickup requests.
+    const pendingDropOffs= await Parcel.countDocuments({
+      submittingType: "drop-off",
+      status: "OrderPlaced",
+      from: branch_id,
+    });
+
+    return res.status(200).json({ dropOffsToday: dropOffsToday, pendingDropOffs: pendingDropOffs });
+  } catch (error) {
+    console.error("Error fetching drop-offs stats:", error);
+    return res.status(500).json({ message: "Error fetching drop-offs stats", error });
+  }
+};
+
 module.exports = {
   viewAllDropOffupParcels,
   getQRandTrackingNumberForDropOff,
+  getDropOffsStats
 };

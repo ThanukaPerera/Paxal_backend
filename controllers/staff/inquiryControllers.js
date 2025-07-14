@@ -144,10 +144,54 @@ const replyToInquiry = async (req, res) => {
   }
 };
 
+// Get inquiry stats
+const getInquiryStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    console.log(staff_id);
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // Find all parcels registered to the branch and get the tracking number.
+    const parcels = await Parcel.find({ from: branch_id })
+      .select("trackingNo")
+      .lean();
+    const trackingNumbers = parcels.map((parcel) => parcel.trackingNo);
+
+
+    // Count the number of new inquiries made today.
+    const inquiriesToday = await Inquiry.countDocuments({
+      parcelTrackingNo: { $in: trackingNumbers },
+      status: "new",
+      createdAt: { $gte: startOfToday, $lt: endOfToday },
+    });
+
+     // Count the number of pending inquiries.
+    const pendingInquiries= await Inquiry.countDocuments({
+      parcelTrackingNo: { $in: trackingNumbers },
+      status: "new",
+    });
+
+    
+    return res.status(200).json({ inquiriesToday: inquiriesToday, pendingInquiries: pendingInquiries });
+  } catch (error) {
+    console.error("Error fetching inquiry stats:", error);
+    return res.status(500).json({ message: "Error fetching inquiry stats", error });
+  }
+};
+
 module.exports = {
   getRepliedInquiries,
   getAllNewInquiries,
   getOneInquiry,
   getOneRepliedInquiry,
   replyToInquiry,
+  getInquiryStats
 };

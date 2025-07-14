@@ -7,6 +7,7 @@ const {
   assignParcelToExistingDeliverySchedule,
   cancelDeliveryAssignment,
   checkParcelAssignment,
+  createExpressDeliverySchedule,
 
 } = require("../../controllers/staff/deliveryScedules");
 
@@ -24,5 +25,8 @@ router.post("/cancel-delivery-schdeule", authenticateStaff, cancelDeliveryAssign
 
 // check the parcel assignment to a delivery schedule
 router.get('/check-parcel-assignment', authenticateStaff, checkParcelAssignment)
+
+// create a new express delivery schedule
+router.post("/new-express-delivery-schedule", authenticateStaff, createExpressDeliverySchedule);
 
 module.exports = router;

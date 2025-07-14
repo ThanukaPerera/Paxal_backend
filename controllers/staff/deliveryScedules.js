@@ -55,6 +55,7 @@ const getAllDeliveryScedules = async (req, res) => {
 // create a new delivery schedule
 const createNewDeliverySchedule = async (req, res) => {
   try {
+    console.log("Creating a new delivery schedule...");
     // Find the branch.
     const staff_id = req.staff._id.toString();
     const staff = await Staff.findById(staff_id);
@@ -73,6 +74,7 @@ const createNewDeliverySchedule = async (req, res) => {
     }
 
     // Get parcel weight and volume to check if the vehicle has enough space.
+    console.log("Getting parcel information...");
     const itemSize = parcel.itemSize;
     const { parcelWeight, parcelVolume } = getParcelProperties(itemSize);
 
@@ -88,6 +90,7 @@ const createNewDeliverySchedule = async (req, res) => {
     const endOfDay = new Date(deliveryDate);
     endOfDay.setHours(23, 59, 59, 999);
 
+    console.log("Searching for an available vehicle...");
     // First check for morning availablity then evening availability.
     for (const timeSlot of ["08:00 - 12:00", "13:00 - 17:00"]) {
       // Find vehicles already booked in that slot
@@ -107,6 +110,10 @@ const createNewDeliverySchedule = async (req, res) => {
       });
 
       if (vehicle) {
+        console.log(
+          "Creating a new delivery schedule for the found vehicle..."
+        );
+
         //Create  and save the schedule
         const newSchedule = await VehicleSchedule.create({
           vehicle: vehicle._id,
@@ -125,8 +132,11 @@ const createNewDeliverySchedule = async (req, res) => {
           .populate("vehicle")
           .populate("assignedParcels", "deliveryInformation");
 
+        console.log(
+          "New delivery schedule has been created and parcels was assigned"
+        );
         return res.status(201).json({
-          success:true,
+          success: true,
           message: "Parcel is assigned to a newly created schedule",
           newDeliverySchedule,
         });
@@ -135,11 +145,16 @@ const createNewDeliverySchedule = async (req, res) => {
     }
 
     //If none of the slots had availability.
+    console.log("No available vehicle for a delivery schedule");
     return res.status(400).json({ message: "No available vehicle" });
   } catch (error) {
     return res
       .status(500)
-      .json({success:false,  message: "Error creating new delivery schedule", error });
+      .json({
+        success: false,
+        message: "Error creating new delivery schedule",
+        error,
+      });
   }
 };
 
@@ -202,11 +217,19 @@ const assignParcelToExistingDeliverySchedule = async (req, res) => {
     await schedule.save();
     return res
       .status(200)
-      .json({ success:true, message: "Parcel is assigned to a schedule", schedule });
+      .json({
+        success: true,
+        message: "Parcel is assigned to a schedule",
+        schedule,
+      });
   } catch (error) {
     res
       .status(500)
-      .json({success:false, message: "Error in assigning parcel to the schedule", error });
+      .json({
+        success: false,
+        message: "Error in assigning parcel to the schedule",
+        error,
+      });
   }
 };
 
@@ -250,21 +273,26 @@ const cancelDeliveryAssignment = async (req, res) => {
       console.log("Delivery Schedule updated:", deliverySchedule);
     }
 
-    return res.status(200).json({ success:true, message: "Parcel removed successfully" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Parcel removed successfully" });
   } catch (error) {
     console.error("Error:", error.message);
     return res
       .status(500)
-      .json({success:false,  message: "Server error", error: error.message });
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 // check if the parcel is assigned.
 const checkParcelAssignment = async (req, res) => {
   try {
-    const { parcelId } = req.body;
+    console.log("Checking parcel assignment to a delivery schedule...");
+    const { parcelId } = req.query;
+    const parcel = await Parcel.findOne({ parcelId });
+
     const schedule = await VehicleSchedule.findOne({
-      assignedParcels: parcelId,
+      assignedParcels: parcel._id,
       type: "delivery",
     });
 
@@ -274,10 +302,125 @@ const checkParcelAssignment = async (req, res) => {
   }
 };
 
+// Create an express delivery schedule
+const createExpressDeliverySchedule = async (req, res) => {
+  try {
+    console.log("Creating a new express delivery schedule...");
+
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+    // Get the parcel to be assigned to the new schedule.
+    const { parcelId, deliveryDate, timeSlot } = req.body;
+
+    if (!parcelId || !deliveryDate || !timeSlot) {
+      return res
+        .status(400)
+        .json({
+          message: "Parcel ID, delivery date, and time slot are required",
+        });
+    }
+
+    // Validate delivery date.
+    const deliveryDateObj = new Date(deliveryDate);
+    if (isNaN(deliveryDateObj.getTime())) {
+      return res.status(400).json({ message: "Invalid delivery date format" });
+    }
+    deliveryDateObj.setHours(0, 0, 0, 0);
+
+    // Get the parcel.
+    const parcel = await Parcel.findOne({ parcelId });
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+
+    // Get parcel weight and volume to check if the vehicle has enough space.
+    console.log("Getting parcel information...");
+    const itemSize = parcel.itemSize;
+    const { parcelWeight, parcelVolume } = getParcelProperties(itemSize);
+
+    // Day bound for querying schedules.
+    // Search from the time day start and to the time day ends.
+    const startOfDay = new Date(deliveryDateObj);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(deliveryDateObj);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log(
+      `Searching for an available vehicle on ${deliveryDate} in slot: ${timeSlot}`
+    );
+
+    // Find vehicles already booked in that date and time slot.
+    const busyIds = await VehicleSchedule.find({
+      scheduleDate: { $gte: startOfDay, $lte: endOfDay },
+      timeSlot,
+    }).distinct("vehicle");
+
+    // Pick the first free vehicle
+    const vehicle = await Vehicle.findOne({
+      _id: { $nin: busyIds },
+      vehicleType: "pickupDelivery",
+      // assignedBranch: parcel.to,
+      capableWeight: { $gte: parcelWeight },
+      capableVolume: { $gte: parcelVolume },
+      // available: true
+    });
+
+    if (vehicle) {
+      console.log("Creating a new delivery schedule for the found vehicle...");
+
+      //Create  and save the schedule
+      const newSchedule = await VehicleSchedule.create({
+        vehicle: vehicle._id,
+        scheduleDate: deliveryDate,
+        timeSlot,
+        type: "delivery",
+        assignedParcels: [parcel._id],
+        totalVolume: parcelVolume,
+        totalWeight: parcelWeight,
+        branch: branch_id,
+      });
+
+      const newDeliverySchedule = await VehicleSchedule.findById(
+        newSchedule._id
+      )
+        .populate("vehicle")
+        .populate("assignedParcels", "deliveryInformation");
+
+      console.log(
+        "New delivery schedule has been created and parcels was assigned"
+      );
+      return res.status(201).json({
+        success: true,
+        message: "Parcel is assigned to a newly created schedule",
+        newSchedule: newDeliverySchedule,
+      });
+    }
+
+    //If no vehicle is availble
+    console.log("No available vehicle for the selected delivery slot");
+    return res
+      .status(400)
+      .json({ message: "No available vehicle for this date/time slot" });
+  } catch (error) {
+    console.error("Error creating express delivery schedule:", error);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error creating express delivery schedule",
+        error,
+      });
+  }
+};
+
 module.exports = {
   getAllDeliveryScedules,
   createNewDeliverySchedule,
   assignParcelToExistingDeliverySchedule,
   cancelDeliveryAssignment,
   checkParcelAssignment,
+  createExpressDeliverySchedule,
 };

@@ -27,6 +27,7 @@ const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes")
 const uiRoutes = require("./routes/staff/uiRoutes");
 const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
 const staffInquiryRoutes = require("./routes/staff/inquiryRoutes");
+const qrCodeRoutes = require("./routes/staff/qrCodeRoutes");
 
 const mobileRoutes = require("./routes/mobile");
 
@@ -81,6 +82,7 @@ app.use("/staff/vehicle-schedules", pickupScheduleRoutes);
 app.use("/staff/delivery-schedules", deliveryScheduleRoutes);
 app.use("/staff/collection-management", parcelDeliveryRoutes)
 app.use("/staff/inquiry-management", staffInquiryRoutes);
+app.use("/staff/collection-management/qr-code", qrCodeRoutes);
 app.use("/staff/ui", uiRoutes);
 
 app.use("/staff", userRoutes);

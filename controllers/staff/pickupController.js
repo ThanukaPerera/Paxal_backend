@@ -38,7 +38,7 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
     const {parcelId} = req.body;
 
     const pickupParcel = await Parcel.findOne({ parcelId });
-
+  
     // Generate a tracking number for the pickup parcel.
     let trackingNumber;
     let numberExists;
@@ -63,17 +63,21 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
       pickupInformation: { staffId: staff_id },
     };
 
-    const updatedParcel = await Parcel.findOneAndUpdate(
-      { parcelId },
-      updatedPickupParcel,
-      { new: true }
-    );
+    // comment for now, to check the function without updating the database.
+    // const updatedParcel = await Parcel.findOneAndUpdate(
+    //   { parcelId },
+    //   updatedPickupParcel,
+    //   { new: true }
+    // );
 
+    console.log("Pickup updated. Sending emails..");
     // Send emails to the sender and receiver with the tracking number.
-    const sender = await User.findById(pickupParcel.userId);
+    const sender = await User.findById(pickupParcel.senderId);
     const receiver = await Receiver.findById(pickupParcel.receiverId);
     const senderEmail = sender.email;
     const receiverEmail = receiver.receiverEmail;
+
+    console.log("Email Info: ", senderEmail, receiverEmail);
 
     const result1 = await sendTrackingNumberEmail(senderEmail, parcelId, trackingNumber);
     if(!result1.success) {
@@ -83,10 +87,11 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
     if(!result1.success) {
       console.log("Error in sending the email with tracking number",result2)
     }
-    
+    console.log("completed picup register")
+    //add updatedParcel to the response when uncomment db saving
     return res.status(200).json({
       message: "QR and Tracking number successfully generated - pending pickup",
-      updatedParcel,
+     
     });
     
   } catch (error) {
@@ -97,7 +102,47 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
   }
 };
 
+// Get pickup requests stats
+const getPickupStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    console.log(staff_id);
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+
+    // Count the number of pickup requests for today.
+    const pickupsToday = await Parcel.countDocuments({
+      submittingType: "pickup",
+      status: "OrderPlaced",
+      from: branch_id,
+      createdAt: { $gte: startOfToday, $lt: endOfToday },
+    });
+
+     // Count the number of pending pickup requests.
+    const pendingPickups = await Parcel.countDocuments({
+      submittingType: "pickup",
+      status: "OrderPlaced",
+      from: branch_id,
+    });
+
+    return res.status(200).json({ pickupsToday: pickupsToday, pendingPickups: pendingPickups });
+  } catch (error) {
+    console.error("Error fetching pickup stats:", error);
+    return res.status(500).json({ message: "Error fetching pickup stats", error });
+  }
+};
+
+
 module.exports = {
   viewAllPickupParcels,
   getQRandTrackingNumberForPickup,
+  getPickupStats
 };

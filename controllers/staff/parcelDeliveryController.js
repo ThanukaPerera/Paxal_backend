@@ -42,8 +42,8 @@ const getAllCollectionCenterDeliveryParcels = async (req, res) => {
     .populate({path:"receiverId", select:"receiverFullName receiverContact"})
     .populate({path:"paymentId", select:"paymentStatus amount"})
     .sort({ createdAt: -1 });
-
-    return res.status(200).json(parcels);
+c
+    return res.status(200).json({message:"test1", parcels});
   } catch (error) {
     return res.status(500).json({ message: "Error fetching parcels", error });
   }
@@ -52,6 +52,8 @@ const getAllCollectionCenterDeliveryParcels = async (req, res) => {
 // update "doorstep" deivery parcels when assigned to a delivery schedule
 const updateParcelStatusToDeliveryDispatched = async (req, res) => {
   try {
+
+    console.log("Updating parcel status to delivery dispatched...");
     const {parcelId} = req.body;
 
     // Get the staff who handle the delivery assignment.
@@ -63,16 +65,19 @@ const updateParcelStatusToDeliveryDispatched = async (req, res) => {
           deliveryInformation: { staffId: staff_id },
     };
     
-    const updatedParcel = await Parcel.findOneAndUpdate(
-      { parcelId },
-      updatedDeliveryParcel,
-      { new: true }
-    );
+    //Uncomment to update in DB
+    // const updatedParcel = await Parcel.findOneAndUpdate(
+    //   { parcelId },
+    //   updatedDeliveryParcel,
+    //   { new: true }
+    // );
 
+    console.log("Updated parcel status to delivery dispatched");  
+    // add updatedParcel to response
     return res.status(200).json({
       success:true,
       message: "Parcel status updated - delivery dispatched",
-      updatedParcel,
+      
     });
     
   } catch (error) {
@@ -106,9 +111,57 @@ const updateParcelAsDelivered = async(req, res) => {
   }
 }
 
+// get "doorstep delivery" parcels stats
+const getDoorstepDeliveryStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    console.log(staff_id);
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+     // Count the number of pending door-step deliveries.
+    const pendingDoorstepDeliveries = await Parcel.countDocuments({
+      status: "ArrivedAtCollectionCenter",
+      receivingType: "doorstep",
+      to: branch_id,
+    });
+
+    return res.status(200).json({ pendingDoorstepDeliveries: pendingDoorstepDeliveries});
+  } catch (error) {
+    console.error("Error fetching door-step delivery stats:", error);
+    return res.status(500).json({ message: "Error fetching door-step delivery  stats", error });
+  }
+};
+
+// get "collection center delivery" parcels stats
+const getCollectionCenterDeliveryStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+     // Count the number of pending collection center deliveries.
+    const pendingCollectionCenterDeliveries = await Parcel.countDocuments({
+      status: "ArrivedAtCollectionCenter",
+      receivingType: "collection_center",
+      to: branch_id,
+    });
+
+    return res.status(200).json({ pendingCollectionCenterDeliveries: pendingCollectionCenterDeliveries});
+  } catch (error) {
+    console.error("Error fetching collection center delivery stats:", error);
+    return res.status(500).json({ message: "Error fetching collection center delivery stats", error });
+  }
+}
+
+
 module.exports = {
   getAllDoorstepDeliveryParcels,
   getAllCollectionCenterDeliveryParcels,
   updateParcelStatusToDeliveryDispatched,
   updateParcelAsDelivered,
+  getDoorstepDeliveryStats,
+  getCollectionCenterDeliveryStats,
 }

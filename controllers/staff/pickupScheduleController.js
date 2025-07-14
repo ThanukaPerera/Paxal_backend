@@ -11,7 +11,6 @@ const getAllPickupSchedulesForDate = async (req, res) => {
     if (!pickupDate || !pickupTime) {
       return res.status(400).json({ message: 'Missing pickupDate or pickupTime' });
     }
-    console.log("Getting pickup schedules for: ", pickupDate, pickupTime);
 
 
     // Find the branch requesting schedules.
@@ -35,7 +34,6 @@ const getAllPickupSchedulesForDate = async (req, res) => {
         select: "pickupInformation",
       }).lean();
 
-      console.log(schedules)
 
     const schedulesData = schedules.map((schedule) => {
       // number of parcels assigned to the schedule
@@ -58,7 +56,6 @@ const getAllPickupSchedulesForDate = async (req, res) => {
       };
     });
 
-    console.log("Available pickup schedules", schedulesData)
     return res.json(schedulesData);
   } catch (error) {
     return res

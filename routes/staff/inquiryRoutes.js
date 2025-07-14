@@ -6,7 +6,8 @@ const {
     getAllNewInquiries, 
     getOneInquiry, 
     getOneRepliedInquiry, 
-    replyToInquiry 
+    replyToInquiry, 
+    getInquiryStats
 } = require('../../controllers/staff/inquiryControllers');
 
 // get all replied inquiries
@@ -23,5 +24,8 @@ router.get("/get-one-replied-inquiry/:inquiryId", authenticateStaff, getOneRepli
 
 // send a reply to and inquiry
 router.post("/reply-to-inquiry/:inquiryId", authenticateStaff, replyToInquiry);
+
+// get inquiry stats
+router.get("/get-inquiry-stats", authenticateStaff, getInquiryStats);
 
 module.exports = router;
