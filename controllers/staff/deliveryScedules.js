@@ -15,7 +15,6 @@ const getAllDeliveryScedules = async (req, res) => {
     // Find the delivery schedules created from the branch.
     const schedules = await VehicleSchedule.find({
       type: "delivery",
-
       branch: branch_id,
     })
       .populate("vehicle", "vehicleId")
@@ -106,7 +105,7 @@ const createNewDeliverySchedule = async (req, res) => {
         assignedBranch: parcel.to,
         capableWeight: { $gte: parcelWeight },
         capableVolume: { $gte: parcelVolume },
-        // available: true
+        available: true
       });
 
       if (vehicle) {
@@ -362,10 +361,10 @@ const createExpressDeliverySchedule = async (req, res) => {
     const vehicle = await Vehicle.findOne({
       _id: { $nin: busyIds },
       vehicleType: "pickupDelivery",
-      // assignedBranch: parcel.to,
+      assignedBranch: parcel.to,
       capableWeight: { $gte: parcelWeight },
       capableVolume: { $gte: parcelVolume },
-      // available: true
+      available: true
     });
 
     if (vehicle) {

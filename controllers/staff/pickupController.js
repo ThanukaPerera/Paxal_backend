@@ -63,12 +63,11 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
       pickupInformation: { staffId: staff_id },
     };
 
-    // comment for now, to check the function without updating the database.
-    // const updatedParcel = await Parcel.findOneAndUpdate(
-    //   { parcelId },
-    //   updatedPickupParcel,
-    //   { new: true }
-    // );
+    const updatedParcel = await Parcel.findOneAndUpdate(
+      { parcelId },
+      updatedPickupParcel,
+      { new: true }
+    );
 
     console.log("Pickup updated. Sending emails..");
     // Send emails to the sender and receiver with the tracking number.
@@ -88,10 +87,9 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
       console.log("Error in sending the email with tracking number",result2)
     }
     console.log("completed picup register")
-    //add updatedParcel to the response when uncomment db saving
     return res.status(200).json({
       message: "QR and Tracking number successfully generated - pending pickup",
-     
+     updatedParcel
     });
     
   } catch (error) {

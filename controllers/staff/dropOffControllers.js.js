@@ -65,13 +65,11 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       orderPlacedStaffId: staff_id,
     };
 
- 
-    // Uncomment to update the database
-    // const updatedParcel = await Parcel.findOneAndUpdate(
-    //   { parcelId },
-    //   updatedDropOffParcel,
-    //   { new: true }
-    // );
+     const updatedParcel = await Parcel.findOneAndUpdate(
+      { parcelId },
+      updatedDropOffParcel,
+      { new: true }
+    );
     
     
     // Send emails to sender and receiver with the tracking number.
@@ -114,8 +112,8 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       success: true,
       message:
         "QR and Tracking number successfully generated - arrived at distribution center",
-      
-    });//add updatedParcel to the response when uncomment db saving
+      updatedParcel
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,

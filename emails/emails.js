@@ -92,6 +92,45 @@ const sendTrackingNumberEmail = async (email, parcelId, trackingNumber) => {
   }
 };
 
+
+// get collection center arrived email template
+const getCollectionCenterArrivedEmail = (decodedText, branchName) => {
+
+  // ath to access the email template.
+  const arrivedEmailPath = path.join(
+    "emails",
+    "templates",
+    "parcelArrivedEmail.html"
+  );
+
+  let htmlContent = fs.readFileSync(arrivedEmailPath, "utf8");
+  return htmlContent
+    .replace("{PARCEL_ID}", decodedText)
+    .replace("{BRANCH}", branchName);
+};
+
+// send tracking number emails when parcel is registered
+const sendCollectionCenterArrivedEmail = async (email, decodedText, branchName) => {
+  try {
+    const htmlContent = getCollectionCenterArrivedEmail(decodedText, branchName);
+
+    const mailInfo = {
+      from: `PAXAL Support ${sender}`,
+      to: email,
+      subject: "Your Parcel Is Now At Collection Center",
+      html: htmlContent,
+    };
+    
+    const sentResult = await transporter.sendMail(mailInfo);
+    console.log("Parcel Arrived at Collection Center email sent");
+    return { success: true, messageId: sentResult.messageId };
+
+  } catch (error) {
+    console.error("Parcel Arrived at Collection Center email failed ",error);
+    return { success: false, error: error.message,};
+  }
+};
+
 // get inquiry reply email template
 const getInquiryReplyEmail = (
   trackingNo, 
@@ -153,5 +192,6 @@ const sendInquiryReplyEmail = async (
 module.exports = { 
   sendPasswordResetEmail,
   sendTrackingNumberEmail,
-  sendInquiryReplyEmail
+  sendInquiryReplyEmail,
+  sendCollectionCenterArrivedEmail
 };

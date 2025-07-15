@@ -178,9 +178,9 @@ const createNewPickupSchedule = async (req, res) => {
       vehicleType: "pickupDelivery",
       capableWeight: { $gte: parcelWeight },
       capableVolume: { $gte: parcelVolume },
-      // assignedBranch: parcel.from,
+      assignedBranch: parcel.from,
       _id: { $nin: scheduledVehicleIds },
-      // available: true,
+      available: true,
     });
 
     if (!vehicle) {

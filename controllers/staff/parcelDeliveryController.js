@@ -65,19 +65,18 @@ const updateParcelStatusToDeliveryDispatched = async (req, res) => {
           deliveryInformation: { staffId: staff_id },
     };
     
-    //Uncomment to update in DB
-    // const updatedParcel = await Parcel.findOneAndUpdate(
-    //   { parcelId },
-    //   updatedDeliveryParcel,
-    //   { new: true }
-    // );
+    const updatedParcel = await Parcel.findOneAndUpdate(
+      { parcelId },
+      updatedDeliveryParcel,
+      { new: true }
+    );
 
     console.log("Updated parcel status to delivery dispatched");  
-    // add updatedParcel to response
+    
     return res.status(200).json({
       success:true,
       message: "Parcel status updated - delivery dispatched",
-      
+      updatedParcel
     });
     
   } catch (error) {

@@ -174,6 +174,24 @@ const getStaffLoggedPage = (req, res) => {
   res.json({ message: "Welcome to Staff Main Menu", staff: req.staff });
 };
 
+// get Staff Information
+const getStaffInfo = async(req, res) => {
+  try {
+    const staffId = req.staff._id;
+    const staff = await Staff.findOne({staffId: staffId});
+
+    if(!staff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    console.log("Staff information retrieved successfully");
+    return res.status(200).json(staff);
+  }catch (error) {
+    console.error("Error fetching staff information:", error);
+    return res.status(500).json({ message: "Error fetching staff information", error });
+  }
+}
+
 module.exports = {
   checkAuthenticity,
   staffLogin,
@@ -182,4 +200,5 @@ module.exports = {
   staffPasswordResetCode,
   staffPasswordUpdate,
   getStaffLoggedPage, 
+  getStaffInfo,
 };
