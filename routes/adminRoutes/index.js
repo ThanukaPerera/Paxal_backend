@@ -25,4 +25,5 @@ router.use("/branches", branchRoutes);
 router.use("/vehicles", vehicleRoutes);
 router.use("/management", adminManagementRoutes);
 
+
 module.exports = router;

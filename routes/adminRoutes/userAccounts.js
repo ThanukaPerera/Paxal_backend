@@ -31,4 +31,11 @@ router.get("/staff", authenticateAdmin, fetchAllStaff);
 router.get("/driver", authenticateAdmin, fetchAllDriver);
 router.get("/admin", authenticateAdmin, fetchAllAdmin);
 
+// Each user type can have more specific routes added here as needed
+// router.get("/customer/:id", authenticateAdmin,fetchCustomerById);
+// router.get("/staff/:id", authenticateAdmin, fetchStaffById);
+// router.get("/driver/:id", authenticateAdmin, fetchDriverById);
+// router.get("/admin/:id", authenticateAdmin, fetchAdminById);
+
+
 module.exports = router;

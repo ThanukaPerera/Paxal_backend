@@ -1,8 +1,9 @@
 const Parcel = require("../../../models/parcelModel");
 const VehicleSchedule = require("../../../models/VehicleScheduleModel");
+const mongoose = require("mongoose");
 
 const fetchOrderPlacedTime = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select("createdAt from submittingType")
     .populate("from", "location")
     .lean()
@@ -26,7 +27,7 @@ const fetchOrderPlacedTime = async (parcelId) => {
 };
 
 const findPendingPickupDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("pickupInformation.staffId");
@@ -42,7 +43,7 @@ const findPendingPickupDetails = async (parcelId) => {
 };
 
 const findDeliveryDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("deliveryInformation.staffId");
@@ -58,7 +59,7 @@ const findDeliveryDetails = async (parcelId) => {
 };
 
 const findPickedUpDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("pickupInformation");
@@ -74,7 +75,7 @@ const findPickedUpDetails = async (parcelId) => {
 };
 
 const findArrivedAtDistributionCenterDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("pickupInformation");
@@ -90,7 +91,7 @@ const findArrivedAtDistributionCenterDetails = async (parcelId) => {
 };
 
 const findShipmentAssignedDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("pickupInformation");
@@ -106,7 +107,7 @@ const findShipmentAssignedDetails = async (parcelId) => {
 };
 
 const findInTransitDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("deliveryInformation.staffId");
@@ -136,7 +137,7 @@ const findArrivedAtCollectionCenterDetails = async (parcelId) => {
   };
 };
 const findDeliveredDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
     .populate("deliveryInformation.staffId");
@@ -155,14 +156,23 @@ const trackStatuses = async (req, res) => {
   try {
     const parcelId = req.params.parcelId;
 
+    if (!mongoose.Types.ObjectId.isValid(parcelId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid parcel ID",
+      });
+    }
+
     const orderPlacedDetails = await fetchOrderPlacedTime(parcelId);
     const pendingPickupDetails = await findPendingPickupDetails(parcelId);
     const deliveryDetails = await findDeliveryDetails(parcelId);
     const PickedUpDetails = await findPickedUpDetails(parcelId);
-    const ArrivedAtDistributionCenterDetails =await findArrivedAtDistributionCenterDetails(parcelId);
+    const ArrivedAtDistributionCenterDetails =
+      await findArrivedAtDistributionCenterDetails(parcelId);
     const ShipmentAssignedDetails = await findShipmentAssignedDetails(parcelId);
-    const InTransitDetails =await findInTransitDetails(parcelId);
-    const ArrivedAtCollectionCenterDetails = await findArrivedAtCollectionCenterDetails(parcelId);
+    const InTransitDetails = await findInTransitDetails(parcelId);
+    const ArrivedAtCollectionCenterDetails =
+      await findArrivedAtCollectionCenterDetails(parcelId);
     const DeliveredDetails = await findDeliveredDetails(parcelId);
 
     if (!orderPlacedDetails || !pendingPickupDetails) {
@@ -171,7 +181,17 @@ const trackStatuses = async (req, res) => {
         .json({ status: "error", message: "Parcel not found" });
     }
 
-    const timeData = [orderPlacedDetails, pendingPickupDetails,PickedUpDetails,ArrivedAtDistributionCenterDetails,ShipmentAssignedDetails,InTransitDetails,ArrivedAtCollectionCenterDetails,deliveryDetails,DeliveredDetails];
+    const timeData = [
+      orderPlacedDetails,
+      pendingPickupDetails,
+      PickedUpDetails,
+      ArrivedAtDistributionCenterDetails,
+      ShipmentAssignedDetails,
+      InTransitDetails,
+      ArrivedAtCollectionCenterDetails,
+      deliveryDetails,
+      DeliveredDetails,
+    ];
 
     res.status(200).json({ status: "success", timeData });
   } catch (error) {

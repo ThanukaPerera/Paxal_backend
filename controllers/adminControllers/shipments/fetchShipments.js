@@ -52,7 +52,6 @@ const fetchShipments = async (req, res) => {
       .populate('createdByCenter');
 
     const flattened = shipments.map(flattenShipment);
-    console.log(flattened)
     res.status(200).json({ success: true, userData: flattened });
   } catch (err) {
     console.error(err);
