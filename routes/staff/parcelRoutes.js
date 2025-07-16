@@ -1,26 +1,18 @@
 const express = require("express");
 const router = express.Router();
-// const { registerNewCustomer, addReceiver } = require("../controllers/customerControllers");
-const { registerParcel, getAllParcels, getOneParcel, updateTheParcel, calculatePayment } = require("../../controllers/staff/parcelControllers");
-const { savePayment } = require("../../controllers/staff/paymentController");
+const { registerParcel, getAllParcels, calculatePayment, getOneParcel } = require("../../controllers/staff/parcelControllers");
 const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 
+// register a new parcel by staff
+router.post('/register-parcel', authenticateStaff, registerParcel );
 
-// REGISTER A PARCEL - STAFF FORM
-//router.post('/register-parcel', registerNewCustomer, addReceiver,  savePayment, registerParcel );
-
-// GET ALL PARCELS
+// get all parcels
 router.get('/get-all-parcels', authenticateStaff, getAllParcels);
 
-// GET ONE PARCEL
-router.get('/get-one-parcel', getOneParcel);
+// get one parcel
+router.get('/get-one-parcel/:parcelId',authenticateStaff, getOneParcel );
 
-// UPDATE THE PARCEL
-router.post('/update-parcel', updateTheParcel);
-
+// get paymnet for a parcel - parcel form
 router.get('/calculate-payment', calculatePayment);
-
-
-
 
 module.exports = router;

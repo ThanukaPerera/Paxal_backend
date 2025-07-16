@@ -7,206 +7,190 @@ const { sendPasswordResetEmail } = require("../../emails/emails");
 
 require("dotenv").config();
 
-// Server route (add this to your backend)
+// server route 
 const checkAuthenticity = (req, res) => {
   res.status(200).json({ isAuthenticated: true, user: req.staff });
 };
 
-// // ADD NEW STAFF
-// const addNewStaff = async (req, res) => {
-//   try {
-//     const { email } = req.body;
 
-//     const staffAlreadyExists = await Staff.findOne({ email });
-//     if (staffAlreadyExists) {
-//       return res.status(400).json({ message: "Staff already exists" });
-//     }
-//     // Find last staff ID and generate the next one
-//     const lastStaff = await Staff.findOne().sort({ staffId: -1 }).lean();
-//     let nextStaffId = "STAFF001"; // Default ID if no staffs exist
-
-//     if (lastStaff) {
-//       const lastIdNumber = parseInt(lastStaff.staffId.replace("STAFF", ""), 10);
-//       nextStaffId = `STAFF${String(lastIdNumber + 1).padStart(3, "0")}`;
-//     }
-
-//     const hashedPassword = await bcrypt.hash(req.body.password, 12);
-
-//     // Create new staff with the generated ID
-//     const staffData = {
-//       ...req.body,
-//       staffId: nextStaffId,
-//       password: hashedPassword,
-//     };
-//     const staff = new Staff(staffData);
-//     console.log("Staff registered", staffData);
-//     const savedStaff = await staff.save();
-//     res.status(201).json({ message: "Staff registered", savedStaff });
-//   } catch (error) {
-//     res.status(500).json({ message: "Error registering staff", error });
-//   }
-// };
-
-// STAFF LOGIN
+// staff login
 const staffLogin = async (req, res) => {
   try {
-
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(500).json('All fields must be filled');
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Find staff by email
+    // Search for a staff member with the email.
     const staff = await Staff.findOne({ email });
 
     if (!staff) {
       return res.status(401).json({ message: "Invalid staff credentials" });
     }
-
-    // Compare password
+ 
     const isPasswordValid = await bcrypt.compare(password, staff.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid staff credentials" });
     }
 
-    // Generate JWT Token
+    // Generate JWT Token.
     const token = jwt.sign(
       { _id: staff._id, email: staff.email },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
-    ); // Use a strong secret in production
+    ); 
 
     res.cookie("StaffToken", token, {
-      httpOnly: true, // cookie cannot be accessed by client side js
-      //secure: process.env.NODE_ENV === "production",
-      secure:false,
+      httpOnly: true, 
+      secure:false, //  In production, set this to true to allow only HTTPS . 
       sameSite: "Lax",
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
-    res.status(200).json({ message: "Login successful", email, token });
+    return res.status(200).json({ message: "Login successful", staff });
   } catch (error) {
-    res.status(500).json(error) 
+    return res.status(500).json({ message: "Server error, please try again later", error }) 
   }
 };
 
-// STAFF LOGOUT
+
+// staff logout
 const staffLogout = (req, res) => {
-  res.clearCookie("StaffToken");
-  res.status(200).json({ message: "Logged out Successfully" });
+  try {
+    res.clearCookie("StaffToken", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: false
+    });
+    return res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.log("Logout error: ", error);
+    return res.status(500).json({success: false, message: "Error in loggin out, Please try again"})
+  }
 };
 
-// STAFF FORGOT PASSWORD REQUEST
+
+// staff forgot password request handler
 const staffForgotPassword = async (req, res) => {
   try {
     
     const { email } = req.body;
+
+    // Search for a staff member with the email.
     const staff = await Staff.findOne({ email });
     
     if (!staff) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Staff does not exist" });
+      return res.status(400).json({ message: "No staff found with the provided email" });
     }
 
-    // Generate reset token and expiry date
+    // Generate a reset token and set an expiry date for the token.
     const resetStaffToken = crypto.randomInt(100000, 999999).toString();
 
+    // Save the reset token and expiry date to the staff document.
     staff.resetPasswordToken = resetStaffToken;
-    console.log(resetStaffToken)
-    staff.resetPasswordTokenExpires = Date.now() + 1 * 60 * 60 * 1000; //1 hour
-
+    staff.resetPasswordTokenExpires = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
     await staff.save();
 
-    // send email
+    // Send the email with the reset token.
+    const result = await sendPasswordResetEmail(email, resetStaffToken);
+    if (!result.success) {
+      return res.status(500).json({message: result.messageId})
+    }
 
-    await sendPasswordResetEmail(email, resetStaffToken);
-
-    res.status(200).json({ message: "Password reset email sent" });
+    return res.status(200).json({ message: "Password reset code has been sent to your email" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error, please try again later" });
   }
 };
 
-//FORGOT PASSWORD - RESET CODE
+
+// staff password reset code verification
 const staffPasswordResetCode = async (req, res) => {
   try {
     
-    
     const {email, resetCode } = req.body;
     
-    const staff = await Staff.findOne({ email});
-    
+    // Search for a staff member with the email.
+    const staff = await Staff.findOne({ email});    
     
     if (!staff) {
-      return res
-        .status(400)
-        .json({message: "Staff not found" });
+      return res.status(400).json({message: "No staff found with the provided email" });
     }
 
-    // Check if the reset code matches
+    // Check if the reset code matches.
     if (staff.resetPasswordToken !== String(resetCode)) {
-      console.log("Invalid reset code");
-      return res.status(400).json({ message: "Invalid reset code" });
+      return res.status(400).json({ message: "Invalid password reset code" });
     }
 
-    // Check if the reset code has expired
+    // Check if the reset code has expired.
     if (new Date(staff.resetPasswordTokenExpires).getTime() < Date.now()) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Reset code has expired" });
+      return res.status(400).json({ message: "Password reset code has expired" });
     }
-
-    res.status(200).json({ success: true, message: "Reset Code is valid" });
+   
+    return res.status(200).json({ success:true, message: "Password reset code is valid" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server error" });
+
+    res.status(500).json({ success: false, message: "Server error, please try again later" });
   }
 };
 
-//FORGOT PASSWORD - PASSWORD UPDATE
+// update the staff passowrd
 const staffPasswordUpdate = async (req, res) => {
-  try {
-    
+  try {    
     const { newPassword , resetCode , email} = req.body;
     
-
+    // Search for a staff member with the email.
     const staff = await Staff.findOne({ email });
 
     if (!staff) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Staff not found" });
+      return res.status(400).json({ message: "No staff found with the provided email" });
     }
     
     if (staff.resetPasswordToken !== String(resetCode) || Date.now() > staff.resetPasswordTokenExpires) {
-      console.log("Invalid or expired reset code");
       return res.status(400).json({ message: "Invalid or expired reset code" });
     }
 
-
-    // Hash the new password
+    // Hash the new password for security.
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Update the password and remove the reset token
+    // Update the password and remove the reset token.
     staff.password = hashedPassword;
     staff.resetPasswordToken = undefined;
     staff.resetPasswordTokenExpires = undefined;
 
     await staff.save();
 
-    res
-      .status(200)
-      .json({ success: true, message: "Password updated successfully!" });
-  } catch (error) {}
+    res.status(200).json({ success: true, message: "Password updated successfully!" });
+  } catch (error) {
+    res.status(500).json({success:false, message:"Failed to update the password"})
+  }
 };
 
 // STAFF LOGGED PAGE
 const getStaffLoggedPage = (req, res) => {
   res.json({ message: "Welcome to Staff Main Menu", staff: req.staff });
 };
+
+// get Staff Information
+const getStaffInfo = async(req, res) => {
+  try {
+    const staffId = req.staff._id;
+    const staff = await Staff.findOne({staffId: staffId});
+
+    if(!staff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    console.log("Staff information retrieved successfully");
+    return res.status(200).json(staff);
+  }catch (error) {
+    console.error("Error fetching staff information:", error);
+    return res.status(500).json({ message: "Error fetching staff information", error });
+  }
+}
 
 module.exports = {
   checkAuthenticity,
@@ -215,6 +199,6 @@ module.exports = {
   staffForgotPassword,
   staffPasswordResetCode,
   staffPasswordUpdate,
-  getStaffLoggedPage,
-  
+  getStaffLoggedPage, 
+  getStaffInfo,
 };
