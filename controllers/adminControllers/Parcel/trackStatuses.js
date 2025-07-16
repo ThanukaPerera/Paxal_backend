@@ -1,5 +1,6 @@
 const Parcel = require("../../../models/parcelModel");
 const VehicleSchedule = require("../../../models/VehicleScheduleModel");
+const Staff = require("../../../models/StaffModel");
 const mongoose = require("mongoose");
 
 const fetchOrderPlacedTime = async (parcelId) => {
@@ -25,36 +26,55 @@ const fetchOrderPlacedTime = async (parcelId) => {
     note,
   };
 };
-
 const findPendingPickupDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("pickupInformation.staffId");
+  try {
+    const parcel = await Parcel.findOne({ _id: parcelId })
+      .select("pickupInformation from submittingType")
+      .lean()
+      .populate("pickupInformation.staffId", "name") // Populate only the name field
+      .populate("from", "location"); // Populate only the location field
 
-  if (!parcel) return null;
+    if (
+      !parcel ||
+      (parcel.submittingType === "pickup" && !parcel?.pickupInformation)
+    ) {
+      return null;
+    }
 
-  return {
-    status: "Pending Pickup",
-    time: parcel?.pickupInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.pickupInformation?.staffId,
-  };
+    // Only return pickup details if submittingType is "pickup"
+    if (parcel.submittingType !== "pickup") {
+      return null;
+    }
+
+    return {
+      status: "Pending Pickup",
+      time: parcel?.pickupInformation?.createdAt || null,
+      location: parcel?.from?.location || "Unknown",
+      handledBy: parcel?.pickupInformation?.staffId?.name || "Not Assigned",
+    };
+  } catch (error) {
+    console.error("Error fetching pending pickup details:", error);
+    return null;
+  }
 };
 
 const findDeliveryDetails = async (parcelId) => {
   const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
-    .populate("deliveryInformation.staffId");
+    .populate("deliveryInformation.staffId", "name")
+    .populate("from", "location");
 
   if (!parcel) return null;
-
+  if (parcel.submittingType !== "delivery") {
+    return null;
+  }
+  console.log("Parcel details for delivery:", parcel);
   return {
     status: "Delivery Dispatched",
     time: parcel?.deliveryInformation?.createdAt,
     location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
+    handledBy: parcel?.deliveryInformation?.name || "Driver",
   };
 };
 
@@ -65,6 +85,9 @@ const findPickedUpDetails = async (parcelId) => {
     .populate("pickupInformation");
 
   if (!parcel) return null;
+  if (parcel.submittingType !== "pickup") {
+    return null;
+  }
 
   return {
     status: "PickedUp",
@@ -81,6 +104,9 @@ const findArrivedAtDistributionCenterDetails = async (parcelId) => {
     .populate("pickupInformation");
 
   if (!parcel) return null;
+  if (parcel.submittingType !== "pickup") {
+    return null;
+  }
 
   return {
     status: "Arrived to distribution center",
@@ -122,18 +148,20 @@ const findInTransitDetails = async (parcelId) => {
   };
 };
 const findArrivedAtCollectionCenterDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
+  const parcel = await Parcel.findOne({ _id: parcelId })
     .select()
     .lean()
-    .populate("deliveryInformation.staffId");
+
+    .populate("to", "location")
+    .populate("orderPlacedStaffId", "name");
 
   if (!parcel) return null;
 
   return {
     status: "Arrived to Collection Center",
-    time: parcel?.deliveryInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
+    time: parcel?.arrivedToCollectionCenterTime || null,
+    location: parcel?.to?.location || "Unknown",
+    handledBy: `${parcel?.orderPlacedStaffId?.name}(staff)` || "Not Assigned",
   };
 };
 const findDeliveredDetails = async (parcelId) => {
@@ -143,12 +171,14 @@ const findDeliveredDetails = async (parcelId) => {
     .populate("deliveryInformation.staffId");
 
   if (!parcel) return null;
-
+  if (parcel.submittingType !== "delivery") {
+    return null;
+  }
   return {
     status: "Delivered",
     time: parcel?.deliveryInformation?.createdAt,
     location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
+    handledBy: parcel?.deliveryInformation?.name,
   };
 };
 
@@ -165,37 +195,38 @@ const trackStatuses = async (req, res) => {
 
     const orderPlacedDetails = await fetchOrderPlacedTime(parcelId);
     const pendingPickupDetails = await findPendingPickupDetails(parcelId);
-    const deliveryDetails = await findDeliveryDetails(parcelId);
-    const PickedUpDetails = await findPickedUpDetails(parcelId);
-    const ArrivedAtDistributionCenterDetails =
+    const deliveryDetachedDetails = await findDeliveryDetails(parcelId);
+    const pickedUpDetails = await findPickedUpDetails(parcelId);
+    const arrivedAtDistributionCenterDetails =
       await findArrivedAtDistributionCenterDetails(parcelId);
-    const ShipmentAssignedDetails = await findShipmentAssignedDetails(parcelId);
-    const InTransitDetails = await findInTransitDetails(parcelId);
-    const ArrivedAtCollectionCenterDetails =
+    const shipmentAssignedDetails = await findShipmentAssignedDetails(parcelId);
+    const inTransitDetails = await findInTransitDetails(parcelId);
+    const arrivedAtCollectionCenterDetails =
       await findArrivedAtCollectionCenterDetails(parcelId);
-    const DeliveredDetails = await findDeliveredDetails(parcelId);
+    const deliveredDetails = await findDeliveredDetails(parcelId);
 
-    if (!orderPlacedDetails || !pendingPickupDetails) {
+    if (!orderPlacedDetails) {
       return res
         .status(404)
         .json({ status: "error", message: "Parcel not found" });
     }
 
+    // Filter out null values and include only relevant statuses based on parcel progress
     const timeData = [
       orderPlacedDetails,
       pendingPickupDetails,
-      PickedUpDetails,
-      ArrivedAtDistributionCenterDetails,
-      ShipmentAssignedDetails,
-      InTransitDetails,
-      ArrivedAtCollectionCenterDetails,
-      deliveryDetails,
-      DeliveredDetails,
-    ];
+      pickedUpDetails,
+      arrivedAtDistributionCenterDetails,
+      shipmentAssignedDetails,
+      inTransitDetails,
+      arrivedAtCollectionCenterDetails,
+      deliveryDetachedDetails,
+      deliveredDetails,
+    ].filter((detail) => detail !== null);
 
     res.status(200).json({ status: "success", timeData });
   } catch (error) {
-    console.error(error);
+    console.error("Error in trackStatuses:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 };
