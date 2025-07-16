@@ -119,7 +119,8 @@ const getOneParcel = async(req, res) => {
     const parcel = await Parcel.findOne({parcelId: req.params.parcelId})
     .populate("senderId")
     .populate("receiverId")
-    .populate("paymentId");
+    .populate("paymentId")
+    .populate("to");
 
     if (!parcel) {
       return res.status(404).json({message: "Parcel Not found"});
@@ -132,15 +133,11 @@ const getOneParcel = async(req, res) => {
 }
 
 
-// calculate the Payment
-const calculatePayment = async(req, res) => {
-  const paymentAmount = 1000;
-  res.json({ paymentAmount });
-}
+
 
 module.exports = {
   registerParcel,
   getAllParcels,
   getOneParcel,
-  calculatePayment,
+  
 };

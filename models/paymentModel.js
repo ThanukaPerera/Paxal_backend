@@ -26,7 +26,7 @@ const paymentSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId, 
       ref: "Parcel", 
       required: function() {
-        return this.paymentMethod !== 'physicalPayment';
+        return this.paymentMethod === 'online';
       } 
     },
     paymentMethod: { 

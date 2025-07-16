@@ -119,6 +119,8 @@ const replyToInquiry = async (req, res) => {
       updatedInquiry;
     const staffName = updatedInquiry.staffId.name;
 
+       
+
     // Send the email.
     const result = await sendInquiryReplyEmail(
       email,
