@@ -1,8 +1,9 @@
-const {Admin} = require('../../models/models');
+const Admin = require("../../models/AdminModel");
 
 const deleteAdminById =async (req, res) => {
     try {
-      const result = await Admin.deleteOne({ adminId: req.params.adminId });
+      // const result = await Admin.deleteOne({ adminId: req.params.adminId });
+      const result = await Admin.findByIdAndDelete(req.params.adminId);
       if (result.deletedCount === 0) {
         return res.status(404).json({ message: "Admin not found" });
       }
