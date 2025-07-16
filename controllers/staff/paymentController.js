@@ -1,24 +1,21 @@
 const Payment = require("../../models/PaymentModel");
 
-
-const savePayment = async (req, res, next) => {
+// save payment details of the parcel
+const savePayment = async (paymentData, session) => {
   try {
-    
-    
-    // Find last payment ID and generate the next one
+
+    // Find last payment ID and generate the next one.
     const lastPayment = await Payment.findOne().sort({ paymentId: -1 }).lean();
-    let nextPaymentId = "PAYMENT001"; // Default ID if no payment exist
+    let nextPaymentId = "PAYMENT001"; // Default ID if no payment exists.
 
     if (lastPayment) {
-      const lastIdNumber = parseInt(
-        lastPayment.paymentId.replace("PAYMENT", ""),
-        10
-      );
+      const lastIdNumber = parseInt(lastPayment.paymentId.replace("PAYMENT", ""),10);
       nextPaymentId = `PAYMENT${String(lastIdNumber + 1).padStart(3, "0")}`;
     }
 
-    const {paymentMethod} = req.body.originalData;
+    const {paymentMethod} = paymentData;
     let paidBy, paymentStatus, paymentDate;
+
     if (paymentMethod == "physicalPayment") {
       paidBy = "sender"
       paymentStatus = "paid"
@@ -26,33 +23,28 @@ const savePayment = async (req, res, next) => {
     }else if(paymentMethod == "COD") {
       paidBy = "receiver"
       paymentStatus = "pending"
+    }else {
+      throw new Error("Invalid payment method");
     }
     
-    const PaymentData = {
-      ...req.updatedData.originalData,
+    // create the payment.
+    const newPayment = {
+      ...paymentData,
       paymentId: nextPaymentId,
-      paidBy: paidBy,
-      paymentStatus: paymentStatus,
-      paymentDate: paymentDate,
+      paidBy,
+      paymentStatus,
+      paymentDate,
     };
   
-
-    const payment = new Payment(PaymentData);
-    const savedPayment = await payment.save();
-
+    const payment = new Payment(newPayment);
+    const savedPayment = await payment.save({session});
     console.log("------Payment saved------");
-    const paymentReference =  savedPayment._id;
-
     
-    req.updatedData = {
-        ...req.updatedData,
-        paymentRef: paymentReference,
-      };
-    
-    next();
+    return savedPayment._id;  
+   
   } catch (error) {
-    res.status(500).json({ message: "Error saving payment", error });
-  }
+    console.error("Error in saving payment:", error);
+    throw error;  }
 };
 
 module.exports = {
