@@ -284,7 +284,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
       }
     }
 
-    // ✅ Notification logic added here
+    // Notification logic added here
     try {
       const userId = parcel.senderId; // Sender is the customer
       let message = '';
@@ -370,8 +370,8 @@ router.put("/drivers/:email/profilepicture",authMiddleware, async (req, res) => 
 router.get('/parcels',authMiddleware, async (req, res) => {
     try {
       const parcels = await Parcel.find({})
-        .populate('receiverId', 'fullName address') // Populate receiver's name and address
-        .select('parcelId trackingNo receiverId status'); // Select only required fields
+        .populate('receiverId', 'fullName address') 
+        .select('parcelId trackingNo receiverId status'); 
       res.json(parcels);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch parcels' });
