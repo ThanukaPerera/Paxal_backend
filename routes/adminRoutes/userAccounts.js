@@ -16,6 +16,11 @@ const fetchAllStaff = require("../../controllers/adminControllers/userAccounts/T
 const fetchAllDriver = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllDriver");
 const fetchAllCustomers = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllCustomers");
 const fetchNoOfUsers = require("../../controllers/adminControllers/fetchNoOfUsers");
+const fetchCustomerById = require("../../controllers/adminControllers/userAccounts/Tables/TableSelections/fetchCustomerById");
+// const fetchStaffById = require("../../controllers/adminControllers/userAccounts/Tables/fetchStaffById");
+// const fetchDriverById = require("../../controllers/adminControllers/userAccounts/Tables/fetchDriverById");
+// const fetchAdminById = require("../../controllers/adminControllers/userAccounts/Tables/fetchAdminById");
+
 
 // User Statistics
 router.get("/count", authenticateAdmin, fetchNoOfUsers);
@@ -32,7 +37,7 @@ router.get("/driver", authenticateAdmin, fetchAllDriver);
 router.get("/admin", authenticateAdmin, fetchAllAdmin);
 
 // Each user type can have more specific routes added here as needed
-// router.get("/customer/:id", authenticateAdmin,fetchCustomerById);
+router.get("/customer/:id", authenticateAdmin,fetchCustomerById);
 // router.get("/staff/:id", authenticateAdmin, fetchStaffById);
 // router.get("/driver/:id", authenticateAdmin, fetchDriverById);
 // router.get("/admin/:id", authenticateAdmin, fetchAdminById);
