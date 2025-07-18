@@ -20,7 +20,7 @@ const getStaffInformation = async (req, res) => {
     if (!staff) {
       return res.status(404).json({ message: "Staff not found" });
     }
-
+    
     return res.status(200).json(staff);
     
   } catch (error) {
