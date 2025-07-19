@@ -14,6 +14,7 @@ const branchRoutes = require("./branches");
 const vehicleRoutes = require("./vehicles");
 const adminManagementRoutes = require("./adminManagement");
 
+
 // Use sub-routes
 router.use("/auth", authRoutes);
 router.use("/dashboard", dashboardRoutes);
@@ -24,6 +25,7 @@ router.use("/profile", profileRoutes);
 router.use("/branches", branchRoutes);
 router.use("/vehicles", vehicleRoutes);
 router.use("/management", adminManagementRoutes);
+
 
 
 module.exports = router;

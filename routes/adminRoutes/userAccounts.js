@@ -17,9 +17,10 @@ const fetchAllDriver = require("../../controllers/adminControllers/userAccounts/
 const fetchAllCustomers = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllCustomers");
 const fetchNoOfUsers = require("../../controllers/adminControllers/fetchNoOfUsers");
 const fetchCustomerById = require("../../controllers/adminControllers/userAccounts/Tables/TableSelections/fetchCustomerById");
-// const fetchStaffById = require("../../controllers/adminControllers/userAccounts/Tables/fetchStaffById");
+const fetchStaffById = require("../../controllers/adminControllers/userAccounts/Tables/TableSelections/fetchStaffById");
 // const fetchDriverById = require("../../controllers/adminControllers/userAccounts/Tables/fetchDriverById");
 // const fetchAdminById = require("../../controllers/adminControllers/userAccounts/Tables/fetchAdminById");
+const staffStatusUpdate = require("../../controllers/adminControllers/userAccounts/Tables/TableSelections/staffStatusUpdate");
 
 
 // User Statistics
@@ -38,7 +39,8 @@ router.get("/admin", authenticateAdmin, fetchAllAdmin);
 
 // Each user type can have more specific routes added here as needed
 router.get("/customer/:id", authenticateAdmin,fetchCustomerById);
-// router.get("/staff/:id", authenticateAdmin, fetchStaffById);
+router.get("/staff/:id", authenticateAdmin, fetchStaffById);
+router.put('staff/:staffId/status', authenticateAdmin, staffStatusUpdate);
 // router.get("/driver/:id", authenticateAdmin, fetchDriverById);
 // router.get("/admin/:id", authenticateAdmin, fetchAdminById);
 
