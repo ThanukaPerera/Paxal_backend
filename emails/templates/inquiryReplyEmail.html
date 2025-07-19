@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reply to Your Inquiry</title>
+    <style type="text/css">
+        /* Reset styles */
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 100%;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f6f6f6;
+            color: #333333;
+        }
+        
+        /* Main content */
+        .email-wrapper {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .content {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 5px;
+        }
+        
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #2563eb;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="content">
+            <!-- Header Section -->
+            <div class="header">
+                <img src="{{logoUrl}}" alt="Company Logo" class="logo">
+                <h1 style="color: #1F818C; margin-top: 20px;">Response to Your Inquiry</h1>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 20px 0;">
+                <p>Dear {CUSTOMER_NAME},</p>
+                
+                <p>Thank you for contacting us. Here is the response to your inquiry:</p>
+                
+                <div style="background: #f8fafc; padding: 20px; border-radius: 4px; margin: 20px 0;">
+                    <h3 style="margin-top: 0;">Our Response:</h3>
+                    <p>{REPLY}</p>
+                    
+                    
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Original Inquiry Details:</h3>
+                    <p><strong>Date:</strong> {INQUIRY_DATE}</p>
+                    
+                    <p><strong>Tracking Number:</strong> {TRACKING_NO}</p>
+                    <blockquote style="border-left: 3px solid #ddd; padding-left: 15px; margin: 15px 0;">
+                        {MESSAGE}
+                    </blockquote>
+                </div>
+
+                <p>If you need any further assistance, please don't hesitate to contact us.</p>
+                
+                
+                <p>Best regards,<br>
+                {STAFF_NAME},<br>
+                PAXAL Support Team</p>
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align: center; padding: 20px 0; border-top: 1px solid #eeeeee; margin-top: 30px;">
+                <p style="margin: 5px 0; font-size: 0.9em; color: #666;">
+                    PAXAL<br>
+                    PAXAL HQ, 123 Courier Lane, Colombo, Sri Lanka
+                </p>
+                <p style="margin: 5px 0; font-size: 0.8em;">
+                    <a href="{{unsubscribeLink}}" style="color: #666;">Unsubscribe</a> | 
+                    <a href="{{privacyPolicyLink}}" style="color: #666;">Privacy Policy</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

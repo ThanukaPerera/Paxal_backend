@@ -1,59 +1,49 @@
 const Parcel = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
+const User = require("../../models/userModel");
+const Receiver = require("../../models/receiverModel");
 const {
   generateTrackingNumber,
   generateQRCode,
-} = require("./parcelControllers");
-
+} = require("./qrAndTrackingNumber");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
+const notificationController = require("../notificationController");
 
-// GET ALL DROP-OFF PARCELS
+// get all drop-off parcels
 const viewAllDropOffupParcels = async (req, res) => {
   try {
+    // Find the branch that requests drop-off parcels using staff ID.
     const staff_id = req.staff._id.toString();
     console.log(staff_id);
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
+
     const dropOffParcels = await Parcel.find({
       submittingType: "drop-off",
       status: "OrderPlaced",
       from: branch_id,
     })
-      .populate("senderId", "fName lName")
+      .populate({ path: "senderId", select: "fName lName" })
       .sort({
         createdAt: -1,
       });
 
-    res.status(200).json(dropOffParcels);
+    return res.status(200).json(dropOffParcels);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching drop-off parcels", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching drop-off parcels", error });
   }
 };
 
-// GET ONE DROP-OFF PARCEL
-const getOneDropOffParcel = async (req, res) => {
-  try {
-    const dropOffParcel = await Parcel.findOne({
-      parcelId: req.params.parcelId,
-    });
-
-    if (!dropOffParcel) {
-      return res.status(404).json({ message: "Parcel Not found" });
-    }
-    res.status(200).json(dropOffParcel);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching the parcel", error });
-  }
-};
-
-//GENERATE QR AND TRACKING NUMBER
+// update drop-off parcel when collected
 const getQRandTrackingNumberForDropOff = async (req, res) => {
   try {
     const parcelId = req.params.parcelId;
-
+    console.log(parcelId);
     const dropOffParcel = await Parcel.findOne({ parcelId });
 
-    // Generate a tracking number for the dropOff parcel
+    // Generate a tracking number for the parcel.
     let trackingNumber;
     let numberExists;
     do {
@@ -61,45 +51,128 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       numberExists = await Parcel.findOne({ trackingNo: trackingNumber });
     } while (numberExists);
 
-    // Generate a QR code for the pickup parcel
+   
+    // Generate a QR code for the parcel.
     const qrCodeString = await generateQRCode(parcelId);
+    
+
+    // Get the staff who collected the parcel.
+    const staff_id = req.staff._id;
+    console.log("Staff ID:", staff_id);
 
     const updatedDropOffParcel = {
       trackingNo: trackingNumber,
       qrCodeNo: qrCodeString,
       status: "ArrivedAtDistributionCenter",
+      orderPlacedStaffId: staff_id,
     };
 
-    const updatedParcel = await Parcel.findOneAndUpdate(
+     const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
       updatedDropOffParcel,
       { new: true }
     );
-
-    // SEND EMAILS TO SENDER AND RECEIVER
-    const sender = await Customer.findById(dropOffParcel.senderId);
-    const receiver = await Customer.findById(dropOffParcel.receiverId);
-    const senderEmail = sender.customerEmail;
+    console.log("updated");
+ // Send a notification to the user in the application
+await notificationController.createNotification(
+  updatedParcel.senderId,
+  `Your parcel (#${updatedParcel.parcelId}) has been registered successfully! \nTrack it anytime using the tracking number: ${updatedParcel.trackingNo}.`,
+  'parcel_registered',
+  { id: updatedParcel._id, type: 'Parcel' }
+);
+     console.log("notification sent");
+    
+    // Send emails to sender and receiver with the tracking number.
+    const sender = await User.findById(dropOffParcel.senderId);
+    const receiver = await Receiver.findById(dropOffParcel.receiverId);
+    const senderEmail = sender.email;
     const receiverEmail = receiver.receiverEmail;
+    console.log("Drop-offs collected and updated.Sending emails....",senderEmail, receiverEmail);
+    const result1 = await sendTrackingNumberEmail(
+      senderEmail,
+      parcelId,
+      trackingNumber
+    );
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result1);
+      return res.status(500).json({
+        success: false,
+        message: "Drop-off parcel collected.Error in sending the email with tracking number",
+        error: result1?.error.message || "Email service error",
+      });
+    }
 
-    await sendTrackingNumberEmail(senderEmail, parcelId, trackingNumber);
-    await sendTrackingNumberEmail(receiverEmail, parcelId, trackingNumber);
+    const result2 = await sendTrackingNumberEmail(
+      receiverEmail,
+      parcelId,
+      trackingNumber
+    );
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result2);
+      return res.status(500).json({
+        success: false,
+        message: "Drop-off parcel collected.Error in sending the email with tracking number",
+        error:  result2?.error.message || "Email service error",
+      });
+    }
 
-    res.status(200).json({
+    console.log("Drop-off parcel collected and emails sent successfully");
+    
+    return res.status(200).json({
+      success: true,
       message:
         "QR and Tracking number successfully generated - arrived at distribution center",
-      updatedParcel,
+      updatedParcel
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Error in generating qr and tracking number for drop-off",
+    return res.status(500).json({
+      success: false,
+      message: "Error in generating qr and tracking number for drop-off parcel",
       error,
     });
   }
 };
 
+// Get drop-offs stats
+const getDropOffsStats = async (req, res) => {
+  try {
+    // Find the branch using staff ID.
+    const staff_id = req.staff._id.toString();
+    console.log(staff_id);
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+
+    // Count the number of drop-offs made today.
+    const dropOffsToday = await Parcel.countDocuments({
+      submittingType: "drop-off",
+      status: "OrderPlaced",
+      from: branch_id,
+      createdAt: { $gte: startOfToday, $lt: endOfToday },
+    });
+
+     // Count the number of pending pickup requests.
+    const pendingDropOffs= await Parcel.countDocuments({
+      submittingType: "drop-off",
+      status: "OrderPlaced",
+      from: branch_id,
+    });
+
+    return res.status(200).json({ dropOffsToday: dropOffsToday, pendingDropOffs: pendingDropOffs });
+  } catch (error) {
+    console.error("Error fetching drop-offs stats:", error);
+    return res.status(500).json({ message: "Error fetching drop-offs stats", error });
+  }
+};
+
 module.exports = {
   viewAllDropOffupParcels,
-  getOneDropOffParcel,
   getQRandTrackingNumberForDropOff,
+  getDropOffsStats
 };

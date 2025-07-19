@@ -8,6 +8,7 @@ const vehicleScheduleSchema = new mongoose.Schema({
     assignedParcels: [{ type: mongoose.Schema.Types.ObjectId, ref: "Parcel" }],
     totalVolume: { type: Number, default: 0 },
     totalWeight: { type: Number, default: 0 },
+    branch: {type: mongoose.Schema.Types.ObjectId, ref: "Branch", required: true }
     
   },{ timestamps: true });
 module.exports = mongoose.model("VehicleSchedule", vehicleScheduleSchema);
