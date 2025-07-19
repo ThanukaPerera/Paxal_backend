@@ -6,6 +6,7 @@ const Receiver = require("../../models/ReceiverModel");
 
 const {generateTrackingNumber,generateQRCode} = require("./qrAndTrackingNumber");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
+const notificationController = require("../notificationController");
 
 
 // Get all new pickup requests so the staff can assign drivers to pick them up.
@@ -56,17 +57,26 @@ const getQRandTrackingNumberForPickup = async (req, res) => {
 
     // Update the pickup parcel.
     // Add the staff who handled the pickup request.
-    const updatedPickupParcel = {
-      trackingNo: trackingNumber,
-      qrCodeNo: qrCodeString,
-      status: "PendingPickup",
-      pickupInformation: { staffId: staff_id },
-    };
 
     const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
-      updatedPickupParcel,
+      {
+         $set: {
+      trackingNo: trackingNumber,
+      qrCodeNo: qrCodeString,
+      status: "PendingPickup",
+      "pickupInformation.staffId": staff_id,
+    },
+      },
       { new: true }
+    );
+
+     // Send a notification to the user in the application
+    await notificationController.createNotification(
+      updatedParcel.senderId,
+      `Your parcel (#${updatedParcel.parcelId}) has been registered successfully! \nTrack it anytime using the tracking number: ${updatedParcel.trackingNo}.`,
+      'parcel_registered',
+      { id: updatedParcel._id, type: 'Parcel' }
     );
 
     console.log("Pickup updated. Sending emails..");

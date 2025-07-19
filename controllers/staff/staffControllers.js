@@ -77,6 +77,7 @@ const staffForgotPassword = async (req, res) => {
   try {
     
     const { email } = req.body;
+    console.log(email);
 
     // Search for a staff member with the email.
     const staff = await Staff.findOne({ email });
@@ -98,7 +99,7 @@ const staffForgotPassword = async (req, res) => {
     if (!result.success) {
       return res.status(500).json({message: result.messageId})
     }
-
+    console.log("Password reset email has  been sent")
     return res.status(200).json({ message: "Password reset code has been sent to your email" });
   } catch (error) {
     console.error(error);
@@ -192,6 +193,63 @@ const getStaffInfo = async(req, res) => {
   }
 }
 
+//update the staff information
+const updateStaffInfo = async (req, res) => {
+  try {
+    const staffId = req.staff._id; 
+    const { name, email, contactNo, nic } = req.body;
+
+    const updatedStaff = await Staff.findByIdAndUpdate(
+      staffId,
+      { name, email, contactNo, nic },
+      { new: true } 
+    );
+
+    if (!updatedStaff) {
+      return res.status(404).json({ message: "Staff not found" });
+    }
+
+    res.status(200).json(updatedStaff);
+  } catch (error) {
+    console.error("Error updating staff profile:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// staff profile picture update
+
+const staffProfilePicUpdate = async (req, res) => {
+  try {
+    const { public_id, userId } = req.uploadData;
+    
+    
+    const updatedStaff = await Staff.findByIdAndUpdate(
+      userId,
+      { profilePicLink: public_id },
+      { new: true, runValidators: true }
+    );
+
+    
+    if (!updatedStaff) {
+      return res.status(404).json({
+        success: false,
+        message: "Staff not found",
+      });
+    }
+    console.log("Profile picture updated successfully");
+    res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully",
+      profilePicLink: updatedStaff.profilePicLink,
+    });
+  } catch (error) {
+    console.error("Database update error:", error);
+    res.status(500).json({message: "Failed to update profile picture",error: error.message,})
+  }
+};
+
+
+
 module.exports = {
   checkAuthenticity,
   staffLogin,
@@ -201,4 +259,6 @@ module.exports = {
   staffPasswordUpdate,
   getStaffLoggedPage, 
   getStaffInfo,
+  updateStaffInfo,
+  staffProfilePicUpdate
 };

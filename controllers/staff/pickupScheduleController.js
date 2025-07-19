@@ -151,9 +151,7 @@ const createNewPickupSchedule = async (req, res) => {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-
-    // Find the pickup date and time for the parcel
-    // it can be used as schedule date and time.
+    // Find the pickup date and time for the parcel.It can be used as schedule date and time.
     const { pickupDate, pickupTime } = parcel.pickupInformation;
     if (!pickupDate || !pickupTime) {
       return res
@@ -161,8 +159,7 @@ const createNewPickupSchedule = async (req, res) => {
         .json({ message: "Parcel missing pickup information" });
     }
 
-    // Find parcel volume,weight
-    // so it can be used to check if the vehicle has enough spacce.
+    // Find parcel volume,weight so it can be used to check if the vehicle has enough spacce.
     const itemSize = parcel.itemSize;
     const { parcelWeight, parcelVolume } = getParcelProperties(itemSize);
 
@@ -200,7 +197,6 @@ const createNewPickupSchedule = async (req, res) => {
     });
 
     const savedSchedule = await schedule.save();
-
     console.log("pickup schedule created", savedSchedule);
 
     const newSchedule = await VehicleSchedule.findById(savedSchedule._id)
@@ -209,7 +205,6 @@ const createNewPickupSchedule = async (req, res) => {
         path: "assignedParcels",
         select: "pickupInformation",
       });
-
       
     return res.status(201).json({
         success:true,
