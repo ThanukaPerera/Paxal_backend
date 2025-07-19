@@ -4,7 +4,9 @@ const User = require("../../models/userModel");
 const Receiver = require("../../models/ReceiverModel");
 const Parcel = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
+const Branch = require("../../models/BranchesModel");
 const { sendCollectionCenterArrivedEmail } = require("../../emails/emails");
+const notificationController = require("../notificationController");
 
 // generate a tracking number
 const generateTrackingNumber = async (regTime) => {
@@ -43,19 +45,28 @@ const scanQRCode = async (req, res) => {
     console.log("QR Code Data:", decodedText);
 
     const staff_id = req.staff._id.toString();
-    const staff = await Staff.findById(staff_id).populate("branchId");
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+    const branch = await Branch.findById(branch_id);
 
     if (!staff) {
       return res.status(404).json({ message: "Staff not found" });
     }
 
-    const branchName = staff.branchId?.location;
+    const branchName = branch.location;
+    console.log("Branch Name:", branchName);
 
     // Find parcel by parcelId
     const parcel = await Parcel.findOne({ parcelId: decodedText });
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
+    }
+
+    
+    if (!parcel.to.equals(staff.branchId)){
+      console.log("Parcel is not for this branch");
+      return res.status(400).json({ message: "Parcel is not for this branch"})
     }
 
     // Check if already updated
@@ -70,6 +81,14 @@ const scanQRCode = async (req, res) => {
     parcel.arrivedToCollectionCenterTime = new Date();
     const updatedParcel = await parcel.save();
     console.log("Parcel updated successfully:", updatedParcel);
+
+      // Send a notification to the user in the application
+        await notificationController.createNotification(
+          parcel.senderId,
+          `Your parcel (#${parcel.parcelId}) has arrived at ${branchName} branch.`,
+          'parcel_arrived',
+          { id: updatedParcel._id, type: 'Parcel' }
+        );
 
     console.log("Sending emails..");
     // Send emails to the sender and receiver with the tracking number.
@@ -93,7 +112,7 @@ const scanQRCode = async (req, res) => {
       decodedText,
       branchName
     );
-    if (!result1.success) {
+    if (!result2.success) {
       console.log("Error in sending the email with tracking number", result2);
     }
 

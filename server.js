@@ -38,6 +38,7 @@ const paymentRouter = require("./routes/paymentRoutes");
 const inquiryRoutes = require("./routes/inquiryRoutes");
 const AppError = require("./utils/appError");
 const branchRoutes = require("./routes/branchRoutes");
+const userNotificationRoutes = require('./routes/userNotificationRoutes');
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use("/api/parcels", parcelRoutes); // Use parcel routes
 app.use("/api/payment", paymentRouter);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/branches", branchRoutes);
+app.use('/api/notifications',userNotificationRoutes); 
 
 
 

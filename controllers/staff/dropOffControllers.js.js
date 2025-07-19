@@ -7,6 +7,7 @@ const {
   generateQRCode,
 } = require("./qrAndTrackingNumber");
 const { sendTrackingNumberEmail } = require("../../emails/emails");
+const notificationController = require("../notificationController");
 
 // get all drop-off parcels
 const viewAllDropOffupParcels = async (req, res) => {
@@ -57,6 +58,7 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
 
     // Get the staff who collected the parcel.
     const staff_id = req.staff._id;
+    console.log("Staff ID:", staff_id);
 
     const updatedDropOffParcel = {
       trackingNo: trackingNumber,
@@ -70,7 +72,15 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       updatedDropOffParcel,
       { new: true }
     );
-    
+    console.log("updated");
+ // Send a notification to the user in the application
+await notificationController.createNotification(
+  updatedParcel.senderId,
+  `Your parcel (#${updatedParcel.parcelId}) has been registered successfully! \nTrack it anytime using the tracking number: ${updatedParcel.trackingNo}.`,
+  'parcel_registered',
+  { id: updatedParcel._id, type: 'Parcel' }
+);
+     console.log("notification sent");
     
     // Send emails to sender and receiver with the tracking number.
     const sender = await User.findById(dropOffParcel.senderId);
