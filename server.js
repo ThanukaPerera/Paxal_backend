@@ -20,7 +20,8 @@ const parcelRoutesStaff = require("./routes/staff/parcelRoutes");
 const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
-const mobileRoutes=require("./routes/mobile");
+const mobileRoutes = require("./routes/mobile");
+const branchRoutes = require("./routes/branchRoutes");
 
 //Deeraka
 const globalErrorHandler = require("./controllers/errorController");
@@ -29,7 +30,7 @@ const globalErrorHandler = require("./controllers/errorController");
     const inquiryRoutes = require("./routes/inquiryRoutes"); 
    const AppError = require("./utils/appError");
     
-    const branchRoutes = require("./routes/branchRoutes");
+   
 
 const app = express();
 const PORT = 8000;
@@ -74,6 +75,8 @@ app.use("/parcels", parcelRoutes);
 app.use("/drivers", driverRoutes);
 app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
+app.use("/branches", branchRoutes);
+
 app.use("/admin", adminRoutes);
 // app.use("/", customerRoutes);
 app.use("/staff", staffRoutes);

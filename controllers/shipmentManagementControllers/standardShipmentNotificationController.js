@@ -413,9 +413,13 @@
 // module.exports = { processStandardShipment };
 
 
+
+//http://localhost:8000/standard-shipments/notifyAboutShipment/68136d77f364769daccb4014
+
+
 const mongoose = require('mongoose');
 const Shipment = require('../../models/B2BShipmentModel');
-const Parcel = require('../../models/ParcelModel');
+
 const Branch = require('../../models/BranchesModel');
 
 // Maximum weight and volume constraints for standard shipments
@@ -435,7 +439,7 @@ async function processStandardShipment(shipmentId) {
             .populate('parcels')
             .populate('route')
             .populate('currentLocation')
-            .populate('arrivalTimes.center');
+            .populate('arrivalTimes.center');  
 
         if (!shipment) {
             console.error(`Shipment not found: ${shipmentId}`);
@@ -443,7 +447,7 @@ async function processStandardShipment(shipmentId) {
         }
 
         // Ensure it's a standard shipment
-        if (shipment.deliveryType !== "Standard") {
+        if (shipment.deliveryType !== "standard") {
             console.error(`Not a standard shipment: ${shipmentId}`);
             return null;
         }

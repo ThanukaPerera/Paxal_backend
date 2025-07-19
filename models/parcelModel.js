@@ -26,15 +26,15 @@ const deliverySchema = new mongoose.Schema({
 const parcelSchema = new mongoose.Schema(
   {
     parcelId: { type: String, required: true, unique: true },
-    trackingNo: { type: String, required: false, unique: true },
-    qrCodeNo: { type: String, required: false, unique: true },
+    trackingNo: { type: String, required: true, unique: true },
+    qrCodeNo: { type: String, required: true, unique: true },
     itemType: { type: String, enum:["Glass","Flowers",'Document', 'Clothing', 'Electronics', 'Food', 'Other'],required: true },
     itemSize: {
       type: String,
       enum: ["small", "medium", "large"],
       required: true,
     }, // Enum for size
-    specialInstructions: { type: String, required: false },
+    specialInstructions: { type: String, required: true },
     submittingType: {
       type: String,
       enum: ["pickup", "drop-off", "branch"],
@@ -61,23 +61,26 @@ const parcelSchema = new mongoose.Schema(
       required: true,
     }, // Reference to Receiver
     paymentId: { type: mongoose.Schema.Types.ObjectId,
-      ref: "Payment", required: false }, // Reference to Payment
+      ref: "Payment", required: true }, // Reference to Payment
     orderPlacedStaffId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Staff",
-      required: false,
+      required: true,
     }, // Reference to Staff
     shipmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "B2BShipment",
-      required: false,
-    }, // Reference to B2B Shipment
-    arrivedToCollectionCenterTime: { type: Date, required: false },
+      default: null
+    }, // Reference to B2B Shipment - can be null when not assigned
+    arrivedToCollectionCenterTime: { type: Date, required: true },
+    parcelArrivedDate: { type: Date, default: null }, // Date when parcel arrived at collection center
+    parcelDeliveredDate: { type: Date, default: null }, // Date when parcel was delivered
+    parcelDispatchedDate: { type: Date, default: null }, // Date when parcel was dispatched for delivery
     status: {
       type: String,
       enum: [
         "OrderPlaced",
-        "PendingPickup",
+        "PendingPickup", 
         "PickedUp",
         "ArrivedAtDistributionCenter",
         "ShipmentAssigned",
@@ -97,12 +100,13 @@ const parcelSchema = new mongoose.Schema(
 
     from:{type: mongoose.Schema.Types.ObjectId,
         ref: "Branch",
-        required: false
+        required: true
     },
     to:{type: mongoose.Schema.Types.ObjectId,
         ref: "Branch",
-        required: false
+        required: true
     }
+
   },
   
   { timestamps: true }
