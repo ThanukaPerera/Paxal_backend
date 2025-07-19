@@ -31,7 +31,7 @@ const staffInquiryRoutes = require("./routes/staff/inquiryRoutes");
 const qrCodeRoutes = require("./routes/staff/qrCodeRoutes");
 
 const mobileRoutes=require("./routes/mobile");
-const branchRoutes = require("./routes/branchRoutes");
+// const branchRoutes = require("./routes/branchRoutes");
 
 //Deeraka
 const globalErrorHandler = require("./controllers/errorController");
