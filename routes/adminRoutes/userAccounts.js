@@ -7,6 +7,7 @@ const router = express.Router();
 // Middleware
 const {authenticateAdmin} = require("../../middleware/adminMiddleware/authMiddleware");
 const { validateAdminRegistration, validateAdminSearch } = require("../../middleware/adminMiddleware/adminValidationMiddleware");
+const { validateDriverRegistration } = require("../../middleware/adminMiddleware/driverValidationMiddleware");
 
 // Controllers
 const fetchAllAdmin = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllAdmin");
@@ -29,7 +30,7 @@ router.get("/count", authenticateAdmin, fetchNoOfUsers);
 
 // Registration Routes
 router.post("/admin/register", authenticateAdmin, validateAdminRegistration, registerAdmin);
-router.post("/driver/register", authenticateAdmin, registerDriver);
+router.post("/driver/register", authenticateAdmin, validateDriverRegistration, registerDriver);
 router.post("/staff/register", authenticateAdmin, registerStaff);
 
 // User Tables
