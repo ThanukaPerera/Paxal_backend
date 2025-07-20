@@ -13,17 +13,19 @@ const validateRequest = (schema) => {
       const result = schema.safeParse(req.body);
       
       if (!result.success) {
-        const formattedErrors = result.error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: err.message,
-          code: err.code
+        // Safely handle the error structure
+        const errors = result.error?.issues || result.error?.errors || [];
+        const formattedErrors = errors.map(err => ({
+          field: err.path ? err.path.join('.') : 'unknown',
+          message: err.message || 'Validation error',
+          code: err.code || 'VALIDATION_ERROR'
         }));
         
         return res.status(400).json({
           status: 'error',
           message: 'Validation failed',
           errors: formattedErrors,
-          details: result.error.errors
+          details: errors
         });
       }
       
@@ -48,17 +50,19 @@ const validateBranchRegistration = async (req, res, next) => {
     const result = branchRegistrationSchema.safeParse(req.body);
     
     if (!result.success) {
-      const formattedErrors = result.error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message,
-        code: err.code
+      // Safely handle the error structure
+      const errors = result.error?.issues || result.error?.errors || [];
+      const formattedErrors = errors.map(err => ({
+        field: err.path ? err.path.join('.') : 'unknown',
+        message: err.message || 'Validation error',
+        code: err.code || 'VALIDATION_ERROR'
       }));
       
       return res.status(400).json({
         status: 'error',
         message: 'Branch registration validation failed',
         errors: formattedErrors,
-        details: result.error.errors
+        details: errors
       });
     }
 
@@ -115,17 +119,19 @@ const validateBranchUpdate = async (req, res, next) => {
     const result = branchUpdateSchema.safeParse(req.body);
     
     if (!result.success) {
-      const formattedErrors = result.error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message,
-        code: err.code
+      // Safely handle the error structure
+      const errors = result.error?.issues || result.error?.errors || [];
+      const formattedErrors = errors.map(err => ({
+        field: err.path ? err.path.join('.') : 'unknown',
+        message: err.message || 'Validation error',
+        code: err.code || 'VALIDATION_ERROR'
       }));
       
       return res.status(400).json({
         status: 'error',
         message: 'Branch update validation failed',
         errors: formattedErrors,
-        details: result.error.errors
+        details: errors
       });
     }
 

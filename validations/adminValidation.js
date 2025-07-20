@@ -578,6 +578,121 @@ const branchUpdateSchema = z.object({
   return Object.keys(data).length > 0;
 }, "At least one field must be provided for update");
 
+// Base vehicle validation schema
+const baseVehicleSchema = {
+  registrationNo: z
+    .string()
+    .min(3, "Registration number must be at least 3 characters long")
+    .max(20, "Registration number must not exceed 20 characters")
+    .transform(val => val.trim().toUpperCase()) // Transform to uppercase
+    .refine(regNo => {
+      // Sri Lankan vehicle registration patterns
+      // Old format: AB-1234, ABC-1234, AB-12-1234
+      // New format: CAR-1234, ABC-1234, etc.
+      const sriLankanRegPattern = /^[A-Z]{2,3}-\d{1,4}(-\d{1,4})?$|^[A-Z]{2,4}\d{1,4}$|^[A-Z]{2,3}\s?\d{1,4}$/;
+      return sriLankanRegPattern.test(regNo);
+    }, "Invalid registration number format. Use Sri Lankan format (e.g., CAR-1234, AB-1234)"),
+  
+  vehicleType: z
+    .enum(["shipment", "pickupDelivery"], {
+      errorMap: () => ({ message: "Vehicle type must be either 'shipment' or 'pickupDelivery'" })
+    }),
+  
+  assignedBranch: z
+    .string()
+    .min(1, "Assigned branch is required")
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid branch ID format"),
+  
+  currentBranch: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid current branch ID format")
+    .optional(),
+  
+  capableVolume: z
+    .union([z.number(), z.string()]) // Accept both number and string
+    .transform((val) => {
+      // Convert string to number if needed
+      if (typeof val === 'string') {
+        const num = parseFloat(val);
+        return isNaN(num) ? val : num; // Return original if not a valid number
+      }
+      return val;
+    })
+    .pipe(z.number().positive("Capable volume must be a positive number"))
+    .refine(volume => volume <= 10000, "Capable volume cannot exceed 10,000 cubic units")
+    .refine(volume => Number.isFinite(volume), "Capable volume must be a valid number"),
+  
+  capableWeight: z
+    .union([z.number(), z.string()]) // Accept both number and string
+    .transform((val) => {
+      // Convert string to number if needed
+      if (typeof val === 'string') {
+        const num = parseFloat(val);
+        return isNaN(num) ? val : num; // Return original if not a valid number
+      }
+      return val;
+    })
+    .pipe(z.number().positive("Capable weight must be a positive number"))
+    .refine(weight => weight <= 50000, "Capable weight cannot exceed 50,000 kg")
+    .refine(weight => Number.isFinite(weight), "Capable weight must be a valid number"),
+  
+  available: z
+    .union([z.boolean(), z.string()]) // Accept both boolean and string
+    .transform((val) => {
+      // Convert string to boolean if needed
+      if (typeof val === 'string') {
+        if (val.toLowerCase() === 'true') return true;
+        if (val.toLowerCase() === 'false') return false;
+        return val; // Return original if not a valid boolean string
+      }
+      return val;
+    })
+    .pipe(z.boolean())
+    .default(true)
+    .optional(),
+  
+  vehicleId: z
+    .string()
+    .regex(/^VEHICLE[0-9]{3}$/, "Vehicle ID must be in format VEHICLE001, VEHICLE002, etc.")
+    .optional(), // Optional since it's auto-generated
+};
+
+// Vehicle registration validation schema
+const vehicleRegistrationSchema = z.object({
+  registrationNo: baseVehicleSchema.registrationNo,
+  vehicleType: baseVehicleSchema.vehicleType,
+  assignedBranch: baseVehicleSchema.assignedBranch,
+  currentBranch: baseVehicleSchema.currentBranch,
+  capableVolume: baseVehicleSchema.capableVolume,
+  capableWeight: baseVehicleSchema.capableWeight,
+  available: baseVehicleSchema.available,
+  
+  // Optional fields that might be sent from frontend but are not needed for vehicle registration
+  vehicleId: baseVehicleSchema.vehicleId,
+}).strict() // Prevent additional fields
+.refine(data => {
+  // If currentBranch is not provided, it should default to assignedBranch
+  if (!data.currentBranch) {
+    data.currentBranch = data.assignedBranch;
+  }
+  return true;
+}, "Current branch validation failed");
+
+// Vehicle update validation schema
+const vehicleUpdateSchema = z.object({
+  registrationNo: baseVehicleSchema.registrationNo.optional(),
+  vehicleType: baseVehicleSchema.vehicleType.optional(),
+  assignedBranch: baseVehicleSchema.assignedBranch.optional(),
+  currentBranch: baseVehicleSchema.currentBranch.optional(),
+  capableVolume: baseVehicleSchema.capableVolume.optional(),
+  capableWeight: baseVehicleSchema.capableWeight.optional(),
+  available: baseVehicleSchema.available.optional(),
+  vehicleId: baseVehicleSchema.vehicleId.optional(),
+}).refine(data => {
+  // At least one field must be provided for update
+  return Object.keys(data).length > 0;
+}, "At least one field must be provided for update");
+
 module.exports = {
   adminRegistrationSchema,
   adminUpdateSchema,
@@ -596,4 +711,7 @@ module.exports = {
   branchRegistrationSchema,
   branchUpdateSchema,
   baseBranchSchema,
+  vehicleRegistrationSchema,
+  vehicleUpdateSchema,
+  baseVehicleSchema,
 };
