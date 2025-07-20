@@ -526,6 +526,58 @@ const staffUpdateSchema = z.object({
   return Object.keys(data).length > 0;
 }, "At least one field must be provided for update");
 
+// Base branch validation schema
+const baseBranchSchema = {
+  location: z
+    .string()
+    .min(2, "Branch location must be at least 2 characters long")
+    .max(100, "Branch location must not exceed 100 characters")
+    .transform(val => val.trim().replace(/\s+/g, ' ')) // Normalize spaces
+    .refine(location => {
+      // Allow letters, numbers, spaces, and common location characters
+      const locationPattern = /^[a-zA-Z0-9\s\.\,\-\(\)\/]+$/;
+      return locationPattern.test(location);
+    }, "Location can only contain letters, numbers, spaces, periods, commas, hyphens, parentheses, and forward slashes")
+    .refine(location => {
+      return location.length >= 2;
+    }, "Location must contain at least 2 non-space characters"),
+  
+  contact: z
+    .string()
+    .min(10, "Contact number must be at least 10 digits")
+    .max(15, "Contact number must not exceed 15 digits")
+    .transform(val => val.replace(/[\s\-\(\)]/g, '').trim()) // Clean and transform first
+    .refine(contact => {
+      // Sri Lankan landline or mobile numbers
+      const sriLankanNumbers = /^(0[1-9][0-9]{7,8}|07[0-9]{8}|011[0-9]{7}|[0-9]{10})$/;
+      return sriLankanNumbers.test(contact);
+    }, "Invalid contact number. Use Sri Lankan format (011XXXXXXX for landline or 07XXXXXXXX for mobile)"),
+  
+  branchId: z
+    .string()
+    .regex(/^B[0-9]{3}$/, "Branch ID must be in format B001, B002, etc.")
+    .optional(), // Optional since it's auto-generated
+};
+
+// Branch registration validation schema
+const branchRegistrationSchema = z.object({
+  location: baseBranchSchema.location,
+  contact: baseBranchSchema.contact,
+  
+  // Optional fields that might be sent from frontend but are not needed for branch registration
+  branchId: baseBranchSchema.branchId,
+}).strict(); // Prevent additional fields
+
+// Branch update validation schema
+const branchUpdateSchema = z.object({
+  location: baseBranchSchema.location.optional(),
+  contact: baseBranchSchema.contact.optional(),
+  branchId: baseBranchSchema.branchId.optional(),
+}).refine(data => {
+  // At least one field must be provided for update
+  return Object.keys(data).length > 0;
+}, "At least one field must be provided for update");
+
 module.exports = {
   adminRegistrationSchema,
   adminUpdateSchema,
@@ -541,4 +593,7 @@ module.exports = {
   staffRegistrationSchema,
   staffUpdateSchema,
   baseStaffSchema,
+  branchRegistrationSchema,
+  branchUpdateSchema,
+  baseBranchSchema,
 };

@@ -209,6 +209,68 @@ const EMAIL_TEMPLATES = {
         </div>
     </body>
     </html>
+  `,
+
+  // Staff account creation template
+  staffAccount: (password, userName = 'Staff', staffId) => `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Staff Account Created - Paxal</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+            .header { background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); color: white; padding: 30px; text-align: center; }
+            .content { padding: 40px 30px; text-align: center; }
+            .credentials-box { background: #f8f9fa; border: 2px solid #00b894; border-radius: 8px; padding: 20px; margin: 30px 0; }
+            .password { font-size: 24px; font-weight: bold; color: #00b894; letter-spacing: 2px; margin: 10px 0; }
+            .staff-id { font-size: 18px; color: #495057; margin: 10px 0; }
+            .security-note { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 20px 0; color: #155724; }
+            .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; border-top: 1px solid #eee; }
+            .warning { color: #dc3545; font-size: 14px; margin-top: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>👋 Welcome to the Team!</h1>
+                <p>Staff Account Created</p>
+            </div>
+            <div class="content">
+                <h2>Hello ${userName}!</h2>
+                <p>Welcome to Paxal! Your staff account has been successfully created.</p>
+                
+                <div class="credentials-box">
+                    <h3>Your Login Credentials:</h3>
+                    <div class="staff-id"><strong>Staff ID:</strong> ${staffId}</div>
+                    <div class="password"><strong>Password:</strong> ${password}</div>
+                </div>
+                
+                <div class="security-note">
+                    <strong>🔒 Security Notice:</strong> Please change your password immediately after your first login for security purposes.
+                </div>
+                
+                <p><strong>Next Steps:</strong></p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li>Log in to the staff portal</li>
+                    <li>Change your password</li>
+                    <li>Complete your profile</li>
+                    <li>Start managing parcels and deliveries</li>
+                </ul>
+                
+                <div class="warning">
+                    ⚠️ Keep your credentials secure and do not share them with anyone.
+                </div>
+            </div>
+            <div class="footer">
+                <p>&copy; 2024 Paxal Parcel Management System. All rights reserved.</p>
+                <p>This is an automated message, please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
   `
 };
 
@@ -218,7 +280,7 @@ const EMAIL_TEMPLATES = {
  * @param {string} options.to - Recipient email address
  * @param {string} options.subject - Email subject
  * @param {string} [options.html] - Custom HTML content
- * @param {string} [options.template] - Template type (verification, welcome, passwordReset, adminAccount)
+ * @param {string} [options.template] - Template type (verification, welcome, passwordReset, adminAccount, staffAccount)
  * @param {Object} [options.templateData] - Data for template rendering
  * @param {string} [options.templateData.code] - Verification code
  * @param {string} [options.templateData.userName] - User name
@@ -308,6 +370,14 @@ const sendEmail = async (options) => {
           }
           htmlContent = EMAIL_TEMPLATES.adminAccount(templateData.password, templateData.userName, templateData.adminId);
           textContent = `Your Paxal admin account has been created. Admin ID: ${templateData.adminId}, Password: ${templateData.password}. Please change your password after first login.`;
+          break;
+          
+        case 'staffAccount':
+          if (!templateData.password) {
+            throw new Error('Password is required for staff account template');
+          }
+          htmlContent = EMAIL_TEMPLATES.staffAccount(templateData.password, templateData.userName, templateData.adminId);
+          textContent = `Your Paxal staff account has been created. Staff ID: ${templateData.adminId}, Password: ${templateData.password}. Please change your password after first login.`;
           break;
           
         default:

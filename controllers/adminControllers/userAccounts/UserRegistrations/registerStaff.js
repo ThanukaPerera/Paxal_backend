@@ -68,12 +68,17 @@ const registerStaff = async (req, res) => {
     const staff = new Staff(staffData);
     const savedStaff = await staff.save();
 
-    // Send email notification
+    // Send email notification with professional template
     try {
       await sendEmail({
         to: validatedData.email,
-        subject: "Your Staff Account is Created",
-        html: `<p>Your account has been created successfully. Your Staff ID is: <b>${nextStaffId}</b> and your password is: <b>${password}</b></br> Please reset your password after logging in for security purposes.</p>`,
+        subject: "Staff Account Created - Paxal PMS",
+        template: "staffAccount",
+        templateData: {
+          password: password,
+          userName: validatedData.name,
+          adminId: nextStaffId // Using staffId as the ID for template
+        }
       });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
