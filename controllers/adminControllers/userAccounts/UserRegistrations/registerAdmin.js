@@ -1,38 +1,20 @@
 const Admin = require("../../../../models/AdminModel");
 const bcrypt = require("bcryptjs");
-// const { validationResult } = require('express-validator'); // Or use Joi/validator
-
 const sendEmail = require("../../../../utils/sendEmail");
 const { default: generateRandomPassword } = require("../../../../utils/admin/genPassword");
 
 const registerAdmin = async (req, res) => {
-  console.log(req.body);
+  console.log("Registering admin...", req.body);
   try {
-    // 1. Input Validation
-    const requiredFields = ["name", "email", "contactNo"];
-    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    // The validation is already handled by middleware, so we can use req.body directly
+    // req.body has already been validated and transformed by the middleware
+    const validatedData = req.body;
 
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        status: "error",
-        message: `Missing required fields: ${missingFields.join(", ")}`,
-        code: "MISSING_FIELDS",
-      });
-    }
+    console.log("Validated data:", validatedData);
 
-    // 2. Email Format Validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(req.body.email)) {
-      return res.status(400).json({
-        status: "error",
-        message: "Invalid email format",
-        code: "INVALID_EMAIL",
-      });
-    }
-
-    // 3. Check Existing Admin
-    const existingAdmin = await Admin.findOne({ email: req.body.email });
-    if (existingAdmin) {
+    // 2. Check Existing Admin by Email
+    const existingAdminByEmail = await Admin.findOne({ email: validatedData.email });
+    if (existingAdminByEmail) {
       return res.status(409).json({
         status: "error",
         message: "Admin with this email already exists",
@@ -40,17 +22,26 @@ const registerAdmin = async (req, res) => {
       });
     }
 
-    // 4. Password Strength Validation
+    // 3. Check Existing Admin by NIC
+    const existingAdminByNic = await Admin.findOne({ nic: validatedData.nic });
+    if (existingAdminByNic) {
+      return res.status(409).json({
+        status: "error",
+        message: "Admin with this NIC already exists",
+        code: "DUPLICATE_NIC",
+      });
+    }
+
+    // 4. Generate and Validate Password
+    const password = generateRandomPassword();
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    const password = generateRandomPassword();
 
     if (!passwordRegex.test(password)) {
-      return res.status(400).json({
+      return res.status(500).json({
         status: "error",
-        message:
-          "Password must contain at least 8 characters, one uppercase, one lowercase, one number and one special character",
-        code: "WEAK_PASSWORD",
+        message: "Generated password does not meet security requirements",
+        code: "PASSWORD_GENERATION_ERROR",
       });
     }
 
@@ -71,7 +62,7 @@ const registerAdmin = async (req, res) => {
 
     // 7. Admin Creation
     const adminData = {
-      ...req.body,
+      ...validatedData,
       adminId: nextAdminId,
       password: hashedPassword,
     };
@@ -79,7 +70,7 @@ const registerAdmin = async (req, res) => {
     const admin = new Admin(adminData);
     const savedAdmin = await admin.save();
     await sendEmail({
-      to: req.body.email,
+      to: validatedData.email,
       subject: "Admin account password",
       html: `<p>Your password is: <b>${password}</b></br> Reset your password after logged in</p>`,
     });

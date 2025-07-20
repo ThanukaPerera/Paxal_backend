@@ -1,0 +1,225 @@
+const { z } = require("zod");
+
+// Base admin validation schema with common fields
+const baseAdminSchema = {
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters long")
+    .max(50, "Name must not exceed 50 characters")
+    .transform(val => val.trim().replace(/\s+/g, ' ')) // Normalize spaces first
+    .refine(name => {
+      // Allow letters, spaces, and some common name characters
+      const namePattern = /^[a-zA-Z\s\.\'-]+$/;
+      return namePattern.test(name);
+    }, "Name can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .refine(name => {
+      // Ensure it's not just spaces
+      return name.length >= 2;
+    }, "Name must contain at least 2 non-space characters"),
+  
+  email: z
+    .string()
+    .min(5, "Email must be at least 5 characters long")
+    .max(100, "Email must not exceed 100 characters")
+    .transform(val => val.toLowerCase().trim()) // Transform first
+    .refine(email => {
+      // More strict email validation - check for valid domain extensions (removed .co)
+      const strictEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const validDomainExtensions = /\.(com|org|net|edu|gov|co\.uk|ac\.uk|in|lk|io|dev|tech|info|biz)$/i;
+      return strictEmailRegex.test(email) && validDomainExtensions.test(email);
+    }, "Please enter a valid email address with a proper domain (e.g., .com, .org, .net)"),
+  
+  contactNo: z
+    .string()
+    .min(10, "Contact number must be at least 10 digits")
+    .max(15, "Contact number must not exceed 15 digits")
+    .transform(val => val.replace(/[\s\-\(\)]/g, '').trim()) // Clean and transform first
+    .refine(contact => {
+      // Sri Lankan mobile numbers: 07XXXXXXXX or +947XXXXXXXX
+      const sriLankanMobile = /^(07[0-9]{8}|947[0-9]{8}|\+947[0-9]{8})$/;
+      const generalMobile = /^[0-9]{10,15}$/;
+      return sriLankanMobile.test(contact) || generalMobile.test(contact);
+    }, "Invalid contact number format. Use Sri Lankan format (07XXXXXXXX) or international format"),
+  
+  nic: z
+    .string()
+    .transform(val => val.trim().toUpperCase()) // Transform first
+    .refine(nic => {
+      // Sri Lankan NIC validation with exact patterns
+      const oldFormat = /^[0-9]{9}[VX]$/; // Exactly 9 digits + V or X (uppercase after transform)
+      const newFormat = /^[0-9]{12}$/;    // Exactly 12 digits
+      return oldFormat.test(nic) || newFormat.test(nic);
+    }, "Invalid NIC format. Use old format (123456789V) or new format (200203601188)")
+    .refine(nic => {
+      return nic.length === 10 || nic.length === 12;
+    }, "NIC must be exactly 10 characters (old format) or 12 characters (new format)")
+    .refine(nic => {
+      // Additional validation for Sri Lankan NIC logic
+      if (nic.length === 12) {
+        // New format NIC validation
+        const year = parseInt(nic.substring(0, 4));
+        const dayOfYear = parseInt(nic.substring(4, 7));
+        
+        // Basic year validation (should be realistic birth year)
+        if (year < 1900 || year > new Date().getFullYear()) {
+          return false;
+        }
+        
+        // Day of year validation (1-366 for males, 501-866 for females)
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      } else if (nic.length === 10) {
+        // Old format NIC validation
+        const dayOfYear = parseInt(nic.substring(2, 5));
+        
+        // Day of year validation for old format
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }, "Invalid NIC number - please check the format and validity"),
+};
+
+// Admin registration validation schema
+const adminRegistrationSchema = z.object({
+  ...baseAdminSchema,
+  // NIC is required for registration
+  nic: baseAdminSchema.nic,
+  
+  // Optional fields that might be sent from frontend but are not needed for admin registration
+  userType: z.string().optional(),
+  licenseId: z.string().optional(),
+  branchId: z.string().optional(),
+  vehicleId: z.string().optional(),
+}).strict(); // Prevent additional fields
+
+// Admin update validation schema (all fields optional except adminId)
+const adminUpdateSchema = z.object({
+  adminId: z
+    .string()
+    .regex(/^ADMIN\d{3}$/, "Invalid admin ID format")
+    .optional(),
+  
+  name: baseAdminSchema.name.optional(),
+  email: baseAdminSchema.email.optional(),
+  contactNo: baseAdminSchema.contactNo.optional(),
+  nic: baseAdminSchema.nic.optional(),
+  
+  // Profile picture is optional and can be updated
+  profilePicLink: z
+    .string()
+    .url("Invalid profile picture URL")
+    .or(z.string().regex(/\.(jpg|jpeg|png|gif|webp)$/i, "Invalid image file format"))
+    .optional(),
+    
+}).strict().refine(
+  (data) => {
+    // At least one field should be provided for update
+    const updateFields = ['name', 'email', 'contactNo', 'nic', 'profilePicLink'];
+    return updateFields.some(field => data[field] !== undefined);
+  },
+  {
+    message: "At least one field must be provided for update",
+    path: ["update"]
+  }
+);
+
+// Password validation schema (for password changes)
+const passwordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, "Current password is required"),
+  
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(128, "Password must not exceed 128 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    ),
+  
+  confirmPassword: z
+    .string()
+    .min(1, "Password confirmation is required"),
+    
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+// Admin ID validation schema
+const adminIdSchema = z.object({
+  adminId: z
+    .string()
+    .regex(/^ADMIN\d{3}$/, "Invalid admin ID format (should be ADMIN followed by 3 digits)"),
+});
+
+// Email uniqueness check schema (for duplicate checks)
+const emailCheckSchema = z.object({
+  email: baseAdminSchema.email,
+  excludeAdminId: z
+    .string()
+    .regex(/^ADMIN\d{3}$/, "Invalid admin ID format")
+    .optional(),
+});
+
+// NIC uniqueness check schema
+const nicCheckSchema = z.object({
+  nic: baseAdminSchema.nic,
+  excludeAdminId: z
+    .string()
+    .regex(/^ADMIN\d{3}$/, "Invalid admin ID format")
+    .optional(),
+});
+
+// Admin search/filter schema
+const adminSearchSchema = z.object({
+  page: z.union([
+    z.string().regex(/^\d+$/, "Page must be a positive number").transform(val => parseInt(val)),
+    z.number()
+  ])
+    .refine(val => val > 0, "Page must be greater than 0")
+    .optional()
+    .default(1),
+  
+  limit: z.union([
+    z.string().regex(/^\d+$/, "Limit must be a positive number").transform(val => parseInt(val)),
+    z.number()
+  ])
+    .refine(val => val > 0 && val <= 100, "Limit must be between 1 and 100")
+    .optional()
+    .default(10),
+  
+  search: z
+    .string()
+    .min(1, "Search term must be at least 1 character")
+    .max(50, "Search term must not exceed 50 characters")
+    .trim()
+    .optional(),
+  
+  sortBy: z
+    .enum(['name', 'email', 'adminId', 'createdAt'])
+    .optional()
+    .default('createdAt'),
+  
+  sortOrder: z
+    .enum(['asc', 'desc'])
+    .optional()
+    .default('desc'),
+}).passthrough(); // Allow additional fields to pass through
+
+module.exports = {
+  adminRegistrationSchema,
+  adminUpdateSchema,
+  passwordSchema,
+  adminIdSchema,
+  emailCheckSchema,
+  nicCheckSchema,
+  adminSearchSchema,
+  baseAdminSchema,
+};

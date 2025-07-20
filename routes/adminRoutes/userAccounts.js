@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Middleware
 const {authenticateAdmin} = require("../../middleware/adminMiddleware/authMiddleware");
+const { validateAdminRegistration, validateAdminSearch } = require("../../middleware/adminMiddleware/adminValidationMiddleware");
 
 // Controllers
 const fetchAllAdmin = require("../../controllers/adminControllers/userAccounts/Tables/fetchAllAdmin");
@@ -27,7 +28,7 @@ const staffStatusUpdate = require("../../controllers/adminControllers/userAccoun
 router.get("/count", authenticateAdmin, fetchNoOfUsers);
 
 // Registration Routes
-router.post("/admin/register", authenticateAdmin, registerAdmin);
+router.post("/admin/register", authenticateAdmin, validateAdminRegistration, registerAdmin);
 router.post("/driver/register", authenticateAdmin, registerDriver);
 router.post("/staff/register", authenticateAdmin, registerStaff);
 
@@ -35,7 +36,7 @@ router.post("/staff/register", authenticateAdmin, registerStaff);
 router.get("/customer", authenticateAdmin, fetchAllCustomers);
 router.get("/staff", authenticateAdmin, fetchAllStaff);
 router.get("/driver", authenticateAdmin, fetchAllDriver);
-router.get("/admin", authenticateAdmin, fetchAllAdmin);
+router.get("/admin", authenticateAdmin, validateAdminSearch, fetchAllAdmin);
 
 // Each user type can have more specific routes added here as needed
 router.get("/customer/:id", authenticateAdmin,fetchCustomerById);
