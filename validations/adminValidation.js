@@ -362,6 +362,170 @@ const driverUpdateSchema = z.object({
   return Object.keys(data).length > 0;
 }, "At least one field must be provided for update");
 
+// Staff validation schemas
+const baseStaffSchema = {
+  name: z
+    .string()
+    .min(1, 'Staff name is required')
+    .max(100, 'Name must not exceed 100 characters')
+    .transform(val => val.trim())
+    .refine(name => {
+      // Allow letters, spaces, and some common name characters
+      const namePattern = /^[a-zA-Z\s\.\'-]+$/;
+      return namePattern.test(name);
+    }, "Name can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .refine(name => {
+      // Ensure it's not just spaces
+      return name.length >= 2;
+    }, "Name must contain at least 2 non-space characters"),
+  
+  email: z
+    .string()
+    .min(5, "Email must be at least 5 characters long")
+    .max(100, "Email must not exceed 100 characters")
+    .transform(val => val.toLowerCase().trim()) // Transform first
+    .refine(email => {
+      // Basic email format validation
+      const strictEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return strictEmailRegex.test(email);
+    }, "Invalid email format")
+    .refine(email => {
+      // More strict email validation - check for valid domain extensions (removed .co)
+      const strictEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const validDomainExtensions = /\.(com|org|net|edu|gov|co\.uk|ac\.uk|in|lk|io|dev|tech|info|biz)$/i;
+      return strictEmailRegex.test(email) && validDomainExtensions.test(email);
+    }, "Please enter a valid email address with a proper domain (e.g., .com, .org, .net)"),
+
+  contactNo: z
+    .string()
+    .min(10, 'Contact number must be at least 10 digits')
+    .max(15, 'Contact number must not exceed 15 characters')
+    .transform(val => val.replace(/[\s\-()+=]/g, '')) // Remove spaces, dashes, brackets
+    .refine(contact => {
+      // Sri Lankan mobile number or international format
+      const sriLankanMobile = /^(07[0-9]{8}|(\+94|0094)7[0-9]{8})$/;
+      const generalMobile = /^[0-9]{10,15}$/;
+      return sriLankanMobile.test(contact) || generalMobile.test(contact);
+    }, "Invalid contact number format. Use Sri Lankan format (07XXXXXXXX) or international format"),
+
+  nic: z
+    .string()
+    .transform(val => val.trim().toUpperCase()) // Transform first
+    .refine(nic => {
+      // Sri Lankan NIC validation with exact patterns
+      const oldFormat = /^[0-9]{9}[VX]$/; // Exactly 9 digits + V or X (uppercase after transform)
+      const newFormat = /^[0-9]{12}$/;    // Exactly 12 digits
+      return oldFormat.test(nic) || newFormat.test(nic);
+    }, "Invalid NIC format. Use old format (123456789V) or new format (200203601188)")
+    .refine(nic => {
+      return nic.length === 10 || nic.length === 12;
+    }, "NIC must be exactly 10 characters (old format) or 12 characters (new format)")
+    .refine(nic => {
+      // Additional validation for Sri Lankan NIC logic
+      if (nic.length === 12) {
+        // New format NIC validation
+        const year = parseInt(nic.substring(0, 4));
+        const dayOfYear = parseInt(nic.substring(4, 7));
+        
+        // Basic year validation (should be realistic birth year)
+        if (year < 1900 || year > new Date().getFullYear()) {
+          return false;
+        }
+        
+        // Day of year validation (1-366 for males, 501-866 for females)
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      } else if (nic.length === 10) {
+        // Old format NIC validation
+        const dayOfYear = parseInt(nic.substring(2, 5));
+        
+        // Day of year validation for old format
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }, "Invalid NIC number - please check the format and validity"),
+
+  staffId: z
+    .string()
+    .min(1, 'Staff ID is required')
+    .max(20, 'Staff ID must not exceed 20 characters')
+    .transform(val => val.trim().toUpperCase())
+    .refine(staffId => {
+      // Staff ID format validation (e.g., STF001, STAFF001, etc.)
+      const staffIdPattern = /^(STF|STAFF)\d{3,6}$/;
+      return staffIdPattern.test(staffId);
+    }, "Invalid Staff ID format. Use format like STF001 or STAFF001"),
+
+  status: z
+    .enum(['active', 'inactive'], {
+      errorMap: () => ({ message: "Status must be either 'active' or 'inactive'" })
+    }),
+
+  branchId: z
+    .string()
+    .min(1, 'Branch assignment is required')
+    .refine(branchId => {
+      // Check if it's a valid MongoDB ObjectId format
+      const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+      return objectIdPattern.test(branchId);
+    }, "Invalid branch ID format"),
+
+  adminId: z
+    .string()
+    .min(1, 'Admin assignment is required')
+    .refine(adminId => {
+      // Check if it's a valid MongoDB ObjectId format
+      const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+      return objectIdPattern.test(adminId);
+    }, "Invalid admin ID format"),
+
+  profilePicLink: z
+    .string()
+    .url("Invalid profile picture URL")
+    .or(z.string().regex(/\.(jpg|jpeg|png|gif|webp)$/i, "Invalid image file format"))
+    .optional(),
+};
+
+// Staff registration validation schema
+const staffRegistrationSchema = z.object({
+  ...baseStaffSchema,
+  // All required fields for staff registration
+  name: baseStaffSchema.name,
+  email: baseStaffSchema.email,
+  contactNo: baseStaffSchema.contactNo,
+  nic: baseStaffSchema.nic,
+  staffId: baseStaffSchema.staffId.optional(), // Optional since it's auto-generated
+  status: baseStaffSchema.status.optional(), // Optional since it defaults to 'active'
+  branchId: baseStaffSchema.branchId,
+  adminId: baseStaffSchema.adminId.optional(), // Optional since it's set from authenticated admin
+  profilePicLink: baseStaffSchema.profilePicLink,
+  
+  // Optional fields that might be sent from frontend but are not needed for staff registration
+  userType: z.string().optional(),
+  password: z.string().optional(), // Password is auto-generated
+});
+
+// Staff update validation schema (for editing staff)
+const staffUpdateSchema = z.object({
+  name: baseStaffSchema.name.optional(),
+  email: baseStaffSchema.email.optional(),
+  contactNo: baseStaffSchema.contactNo.optional(),
+  nic: baseStaffSchema.nic.optional(),
+  staffId: baseStaffSchema.staffId.optional(),
+  status: baseStaffSchema.status.optional(),
+  branchId: baseStaffSchema.branchId.optional(),
+  adminId: baseStaffSchema.adminId.optional(),
+  profilePicLink: baseStaffSchema.profilePicLink,
+}).refine(data => {
+  // At least one field must be provided for update
+  return Object.keys(data).length > 0;
+}, "At least one field must be provided for update");
+
 module.exports = {
   adminRegistrationSchema,
   adminUpdateSchema,
@@ -374,4 +538,7 @@ module.exports = {
   driverRegistrationSchema,
   driverUpdateSchema,
   baseDriverSchema,
+  staffRegistrationSchema,
+  staffUpdateSchema,
+  baseStaffSchema,
 };
