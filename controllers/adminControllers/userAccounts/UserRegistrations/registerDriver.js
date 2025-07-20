@@ -1,8 +1,7 @@
 const Driver = require("../../../../models/DriverModel");
 const bcrypt = require("bcryptjs");
 const findAdminFunction = require("../../../../utils/findAdminFunction");
-
-const sendEmail = require("../../../../utils/sendEmail");
+const sendEmail = require("../../../../utils/admin/sendEmail");
 const {
   default: generateRandomPassword,
 } = require("../../../../utils/admin/genPassword");

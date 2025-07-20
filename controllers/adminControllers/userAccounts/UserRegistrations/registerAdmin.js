@@ -1,6 +1,6 @@
 const Admin = require("../../../../models/AdminModel");
 const bcrypt = require("bcryptjs");
-const sendEmail = require("../../../../utils/sendEmail");
+const sendEmail = require("../../../../utils/admin/sendEmail");
 const { default: generateRandomPassword } = require("../../../../utils/admin/genPassword");
 
 const registerAdmin = async (req, res) => {
@@ -69,10 +69,17 @@ const registerAdmin = async (req, res) => {
 
     const admin = new Admin(adminData);
     const savedAdmin = await admin.save();
+    
+    // Send professional admin account email
     await sendEmail({
       to: validatedData.email,
-      subject: "Admin account password",
-      html: `<p>Your password is: <b>${password}</b></br> Reset your password after logged in</p>`,
+      subject: "Admin Account Created - Paxal PMS",
+      template: "adminAccount",
+      templateData: {
+        password: password,
+        userName: validatedData.name,
+        adminId: nextAdminId
+      }
     });
 
   
