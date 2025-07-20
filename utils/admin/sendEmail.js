@@ -101,7 +101,7 @@ const EMAIL_TEMPLATES = {
                 <p>If you have any questions, our support team is here to help!</p>
             </div>
             <div class="footer">
-                <p>&copy; 2024 Paxal Parcel Management System. All rights reserved.</p>
+                <p>&copy; 2025 Paxal Parcel Management System. All rights reserved.</p>
             </div>
         </div>
     </body>
