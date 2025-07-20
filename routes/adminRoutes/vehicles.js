@@ -6,6 +6,11 @@ const router = express.Router();
 
 // Middleware
 const {authenticateAdmin} = require("../../middleware/adminMiddleware/authMiddleware");
+const {
+  validateVehicleRegistration,
+  validateVehicleUpdate,
+  validateVehicleId
+} = require("../../middleware/adminMiddleware/vehicleValidationMiddleware");
 
 // Controllers
 const fetchVehicles = require("../../controllers/adminControllers/Vehicles/fetchVehicles");
@@ -17,8 +22,8 @@ const updateVehicle = require('../../controllers/adminControllers/Vehicles/updat
 // Vehicle Routes
 router.get("/", authenticateAdmin, fetchVehicles);
 router.get("/branch/:branchId", authenticateAdmin, fetchVehiclesOfBranch);
-router.post("/", authenticateAdmin, registerVehicle);
-router.put("/:id", authenticateAdmin, updateVehicle);
-router.delete("/:id", authenticateAdmin, deleteVehicle);
+router.post("/", authenticateAdmin, validateVehicleRegistration, registerVehicle);
+router.put("/:id", authenticateAdmin, validateVehicleUpdate, updateVehicle);
+router.delete("/:id", authenticateAdmin, validateVehicleId, deleteVehicle);
 
 module.exports = router;
