@@ -16,4 +16,7 @@ router.get('/get-one-parcel/:parcelId',authenticateStaff, getOneParcel );
 // get paymnet for a parcel - parcel form
 router.get('/calculate-payment', authenticateStaff, calculatePayment);
 
+
+
+
 module.exports = router;

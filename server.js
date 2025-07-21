@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose=require('mongoose');
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -29,15 +30,17 @@ const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
 const staffInquiryRoutes = require("./routes/staff/inquiryRoutes");
 const qrCodeRoutes = require("./routes/staff/qrCodeRoutes");
 
-const mobileRoutes = require("./routes/mobile");
+const mobileRoutes=require("./routes/mobile");
+// const branchRoutes = require("./routes/branchRoutes");
 
 //Deeraka
 const globalErrorHandler = require("./controllers/errorController");
-const userRouter = require("./routes/userRoutes");
-const paymentRouter = require("./routes/paymentRoutes");
-const inquiryRoutes = require("./routes/inquiryRoutes");
-const AppError = require("./utils/appError");
-const branchRoutes = require("./routes/branchRoutes");
+    const userRouter=require("./routes/userRoutes");
+    const paymentRouter=require("./routes/paymentRoutes");
+    const inquiryRoutes = require("./routes/inquiryRoutes"); 
+   const AppError = require("./utils/appError");
+    
+    const branchRoutes = require("./routes/branchRoutes");
 const userNotificationRoutes = require('./routes/userNotificationRoutes');
 
 const app = express();
@@ -73,11 +76,8 @@ app.use("/parcels", parcelRoutes);
 app.use("/drivers", driverRoutes);
 app.use("/vehicles", vehicleRoutes);
 app.use("/standard-shipments", notificationRoutes);
-
-//Admin Routes
 app.use("/api/admin", adminRoutes);
-
-//Staff routes
+// app.use("/", customerRoutes);
 app.use("/staff", staffRoutes);
 app.use("/staff/lodging-management", parcelRoutesStaff);
 app.use("/staff/lodging-management", pickupRoutes);
