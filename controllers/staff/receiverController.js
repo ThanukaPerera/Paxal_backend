@@ -1,51 +1,42 @@
-const Receiver = require("../../models/receiverModel");
+const Receiver = require("../../models/ReceiverModel");
 
-// SAVE RECEIVER DATA
-const addReceiver = async (req, res, next) => {
+// save receiver details
+const addReceiver = async (receiverData, session) => {
   try {
-    const { receiverEmail } = req.updatedData.originalData;
-    let receiverReference;
+    const { receiverEmail } = receiverData;
 
-    const existingReceiver = await Receiver.findOne({ receiverEmail });
+    // Check if the receiver already exists with the same email.
+    const existingReceiver = await Receiver.findOne({ receiverEmail }).session(session);
     if (existingReceiver) {
-      receiverReference = existingReceiver._id; // return the receiver ID
       console.log("------Exsisting Receiver Found------");
-    } else {
-      // Find last receiver ID and generate the next one
-      const lastreceiver = await Receiver.findOne()
-        .sort({ receiverId: -1 })
-        .lean();
-      let nextReceiverId = "RECEIVER001"; // Default ID if no customers exist
+      return existingReceiver._id; 
+    } 
+    
 
-      if (lastreceiver) {
-        const lastIdNumber = parseInt(
-          lastreceiver.receiverId.replace("RECEIVER", ""),
-          10,
-        );
-        nextReceiverId = `RECEIVER${String(lastIdNumber + 1).padStart(3, "0")}`;
-      }
+    // Find last receiver ID and generate the next one.
+    const lastreceiver = await Receiver.findOne().sort({ receiverId: -1 }).session(session).lean();
+    let nextReceiverId = "RECEIVER001"; // Default ID if no receiver exists.
 
-      // Create new receiver with the generated ID
-      const receiverData = {
-        ...req.updatedData.originalData,
+    if (lastreceiver) {
+      const lastIdNumber = parseInt(lastreceiver.receiverId.replace("RECEIVER", ""),1);
+      nextReceiverId = `RECEIVER${String(lastIdNumber + 1).padStart(3, "0")}`;
+            
+      // Create new receiver with the generated ID.
+      const newReceiver = {
+        ...receiverData,
         receiverId: nextReceiverId,
       };
 
-      const receiver = new Receiver(receiverData);
-      console.log("------Receiver registered------");
-      const savedReceiver = await receiver.save();
-      receiverReference = savedReceiver._id;
+      const receiver = new Receiver(newReceiver);
+      const savedReceiver = await receiver.save({session});
+      console.log("------A new receiver registered------");
+    
+      return savedReceiver._id; 
     }
-    req.updatedData = {
-      ...req.updatedData,
-      receiverRef: receiverReference,
-    };
-
-    next();
+    
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error receiving receiver reference", error });
+    console.error("Error in adding a new receiver:", error);
+    throw error;
   }
 };
 

@@ -1,70 +1,58 @@
 const bcrypt = require("bcrypt");
-
 const User = require("../../models/userModel");
 
-// REGISTER NEW User
-const registerNewUser = async (req, res, next) => {
+// register a new user
+const registerNewUser = async (userData, session) => {
   try {
-    const { email } = req.body;
+    const { email } = userData;
 
-    let userReference;
-
-    const existingUser = await User.findOne({ email });
+    // Check if the user already exists with the same email.
+    const existingUser = await User.findOne({ email }).session(session);
     if (existingUser) {
-      userReference = existingUser._id; // return the user ID
       console.log("------Exisiting user found------");
-    } else {
-      // Find last user ID and generate the next one
-      const lastUser = await User.findOne().sort({ userId: -1 }).lean();
-      let nextUserId = "USER001"; // Default ID if no customers exist
+      return existingUser._id; 
+    } 
 
-      if (lastUser) {
-        const lastIdNumber = parseInt(
-          lastUser.customerId.replace("USER", ""),
-          10,
-        );
-        nextUserId = `USER${String(lastIdNumber + 1).padStart(3, "0")}`;
-      }
+    // If there is no exisitng user find the last user ID and generate the next one.
+    const lastUser = await User.findOne().sort({ userId: -1 }).session(session).lean();
+    let nextUserId = "USER001"; // Default ID if no customers exists.
 
-      const defaultPassword = "paxal12345";
+    if (lastUser) {
+      const lastIdNumber = parseInt(lastUser.userId.replace("USER", ""),10);
+      nextUserId = `USER${String(lastIdNumber + 1).padStart(3, "0")}`;
+      
+      const defaultPassword = "paxal12345"; // Provide a default password for the users registered by the staff.
       const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
-      // Create new user with the generated ID
-      const userData = {
-        ...req.body,
+      // Create new user with the generated ID.
+      const newUser = {
+        ...userData,
         userId: nextUserId,
         password: hashedPassword,
       };
 
-      const user = new Customer(userData);
-      const savedUser = await user.save();
-      console.log("------User registered------");
+      const user = new User(newUser);
+      const savedUser = await user.save({session});
+      console.log("------A new user registered------");
 
-      userReference = savedUser._id;
+      return savedUser._id; 
     }
 
-    req.updatedData = {
-      userRef: userReference,
-      orderTime: Date.now(),
-      originalData: req.body,
-    };
-
-    next();
+    
   } catch (error) {
-    res.status(500).json(error);
+    console.error("Error in registering a new user:", error);
+    throw error; 
   }
 };
 
-//GET USER INFROMATION
+// fetch a single user by ID
 const getOneUser = async (req, res) => {
   try {
-    const user_id = req.body;
-    console.log(user_id);
-    const user = await User.findById(user_id);
-    console.log("user", user);
-    res.status(200).json(user);
+    const  user_id  = req.body;
+    const user = await User.findById(user_id );
+    return res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching user information", error });
+    return res.status(500).json({ message: "Error fetching user information", error });
   }
 };
 

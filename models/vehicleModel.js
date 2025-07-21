@@ -16,7 +16,7 @@ const vehicleSchema = new mongoose.Schema({
   currentBranch: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Branch", // Reference to the current branch of the vehicle
-    required: true,
+    required: false,
   },
   capableVolume: { type: Number, required: true }, // Maximum volume capacity of the vehicle
   capableWeight: { type: Number, required: true }, // Maximum weight capacity of the vehicle

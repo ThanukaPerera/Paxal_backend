@@ -12,8 +12,8 @@ const authenticateMobileJWT = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.MOBILE_JWT_SECRET); // Verify token
-    req.user = decoded; // Attach decoded payload to request object
-    next(); // Proceed to the next middleware or route handler
+    req.user = decoded; // 
+    next(); // Proceed to the next middleware
   } catch (error) {
     res.status(401).json({
       success: false,

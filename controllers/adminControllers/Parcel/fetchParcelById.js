@@ -1,23 +1,25 @@
 const Parcel = require("../../../models/parcelModel");
 const Payment = require("../../../models/PaymentModel");
+const mongoose = require('mongoose')
 
 const fetchParcelById = async (req, res) => {
   try {
     const parcelId = req.params.id;
-    // Validate input
-    if (!parcelId || typeof parcelId !== "string") {
+
+    if (!mongoose.Types.ObjectId.isValid(parcelId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid parcel ID provided",
+        message: "Invalid parcel ID",
       });
     }
 
     // Find parcel by custom ID
-    const parcel = await Parcel.findOne({ parcelId: parcelId })
+
+    const parcel = await Parcel.findOne({_id:parcelId})
       .select("-__v")
       .populate(
         "senderId",
-        "-password -__v -resetPasswordOTP -resetPasswordOTPExpires",
+        "-password -__v -resetPasswordOTP -resetPasswordOTPExpires"
       )
       .populate("receiverId", "-__v")
       .populate("paymentId", "-__v")
@@ -25,14 +27,12 @@ const fetchParcelById = async (req, res) => {
       .populate("to", "-__v")
       .lean()
       .exec();
-
     if (!parcel) {
       return res.status(404).json({
         success: false,
         message: "Parcel not found",
       });
     }
-
     res.status(200).json({
       success: true,
       data: parcel,

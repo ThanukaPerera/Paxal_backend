@@ -1,6 +1,10 @@
 const Driver = require("../../../../models/DriverModel");
 
 const fetchAllDrivers = async (req, res) => {
+
+  // Fetch all drivers from the database`
+  // Populate adminId and branchId with specific fields
+  // Exclude password and other sensitive fields from the response
   try {
     const drivers = await Driver.find()
       .select("-password -__v -updatedAt")
@@ -9,7 +13,9 @@ const fetchAllDrivers = async (req, res) => {
         "-adminId -password -email -contactNo -createdAt -profilePicLink -__v -updatedAt",
       )
       .populate("branchId", "-branchId -__v -updatedAt");
-
+    if (!drivers || drivers.length === 0) {
+      return res.status(404).json({ message: "No drivers found" });
+    }
     const userData = drivers.map((driver) => ({
       _id: driver._id,
       driverId: driver.driverId,

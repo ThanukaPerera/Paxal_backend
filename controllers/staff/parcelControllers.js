@@ -1,175 +1,150 @@
-const crypto = require("crypto");
-const QRCode = require("qrcode");
-
+const mongoose = require("mongoose");
 const Parcel = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
+
 const { sendTrackingNumberEmail } = require("../../emails/emails");
+const {
+  generateQRCode,
+  generateTrackingNumber,
+} = require("./qrAndTrackingNumber");
+const { registerNewUser } = require("./userController");
+const { addReceiver } = require("./receiverController");
+const { savePayment } = require("./paymentController");
 
-//GENERATE TRACKING NUMBER
-const generateTrackingNumber = async (regTime) => {
-  const randomCode = crypto.randomBytes(4).toString("hex").toUpperCase();
-  const timestamp = Math.floor(regTime / 1000).toString();
-  console.log("------Tracking number generated------");
-
-  return `${randomCode}-${timestamp}`;
-};
-
-// GENERATE THE QR CODE
-const generateQRCode = async (parcelData) => {
-  try {
-    const qr = await QRCode.toDataURL(parcelData, {
-      errorCorrectionLevel: "H",
-    });
-
-    console.log("------QR code generated------");
-    return qr;
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-// ADD NEW PARCEL - PARCEL REGISTRATION FORM
+// add new parcel by the staff
 const registerParcel = async (req, res) => {
-  try {
-    // get the staff who register the parcel
-    const staff_id = req.staff._id;
-    const staff = await Staff.findById(staff_id);
-    const branch_id = staff.branchId;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    // Find last parcel ID and generate the next one
+  try {
+    const requestTime = new Date();
+
+    // Find or create the sender and receiver.
+    const sender_id = await registerNewUser(req.body, session);
+    const receiver_id = await addReceiver(req.body, session);
+
+    // Create Payment.
+    const payment_id = await savePayment(req.body, session);
+
+    // Get the staff who register the parcel.
+    const staff_id = req.staff._id;
+
+    // Find last parcel ID and generate the next one.
     const lastParcel = await Parcel.findOne().sort({ parcelId: -1 }).lean();
-    let nextParcelId = "PARCEL001"; // Default ID if no parcels exist
+    let nextParcelId = "PARCEL001"; // Default ID if no parcels exists.
 
     if (lastParcel) {
       const lastIdNumber = parseInt(
         lastParcel.parcelId.replace("PARCEL", ""),
-        10,
+        10
       );
       nextParcelId = `PARCEL${String(lastIdNumber + 1).padStart(3, "0")}`;
     }
 
+    // Generate a tracking number for the new parcel.
     let trackingNumber;
     let numberExists;
     do {
-      trackingNumber = await generateTrackingNumber(req.updatedData.orderTime);
-      numberExists = await Parcel.findOne({ trackingNo: trackingNumber });
+      trackingNumber = await generateTrackingNumber(requestTime, session);
+      numberExists = await Parcel.findOne({
+        trackingNo: trackingNumber,
+      }).session(session);
     } while (numberExists);
 
-    // Create new parcel with the generated ID
+    // Generate a QR code for the new parcel.
+    const qrCodeString = await generateQRCode(nextParcelId);
+
+    // Create new parcel with the generated ID.
     const parcelData = {
-      ...req.updatedData.originalData,
-      senderId: req.updatedData.customerRef,
-      receiverId: req.updatedData.receiverRef,
-      paymentId: req.updatedData.paymentRef,
+      ...req.body,
+      senderId: sender_id,
+      receiverId: receiver_id,
+      paymentId: payment_id,
       parcelId: nextParcelId,
       trackingNo: trackingNumber,
+      qrCodeNo: qrCodeString,
       submittingType: "branch",
       status: "ArrivedAtDistributionCenter",
       orderPlacedStaffId: staff_id,
-      from: branch_id,
     };
-
-    // Generate the qr code for the parcel
-    //const qrCodeString = await generateQRCode(JSON.stringify(parcelData)); to encode all data
-    const qrCodeString = await generateQRCode(parcelData.parcelId);
-    parcelData.qrCodeNo = qrCodeString;
-
     const parcel = new Parcel(parcelData);
+    const savedParcel = await parcel.save({ session });
+    console.log("------A new parcel registered------");
 
-    const savedParcel = await parcel.save();
-    console.log("------Parcel registered------");
+    await session.commitTransaction();
 
-    req.updatedData = {
-      ...req.updatedData,
-      parcelRef: savedParcel.parcelId,
-      orderTime: Date.now(),
-    };
-    // SEND EMAILS TO SENDER AND RECEIVER
-    const senderEmail = parcelData.email;
-    const receiverEmail = parcelData.receiverEmail;
+    // Send emails to sender and receiver with the tracking number.
+    const senderEmail = req.body.email;
+    const receiverEmail = req.body.receiverEmail;
 
-    await sendTrackingNumberEmail(
-      senderEmail,
-      parcelData.parcelId,
-      parcelData.trackingNo,
+    const result1 = await sendTrackingNumberEmail(senderEmail,parcelData.parcelId,parcelData.trackingNo);
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result1);
+    }
+
+    const result2 = await sendTrackingNumberEmail(receiverEmail,parcelData.parcelId,parcelData.trackingNo
     );
-    await sendTrackingNumberEmail(
-      receiverEmail,
-      parcelData.parcelId,
-      parcelData.trackingNo,
-    );
+    if (!result1.success) {
+      console.log("Error in sending the email with tracking number", result2);
+    }
 
-    res
+    return res
       .status(201)
-      .json({ message: "Parcel registered successfully", savedParcel });
+      .json({
+        message: "Parcel registered successfully",
+        parcelId: parcelData.parcelId,
+      });
   } catch (error) {
-    res.status(500).json({ message: "Error registering parcel", error });
+    await session.abortTransaction();
+    return res
+      .status(500)
+      .json({ message: "Error in registering the parcel", error });
+  } finally {
+    session.endSession();
   }
 };
 
-// GET ALL PARCELS
+// get all parcels
 const getAllParcels = async (req, res) => {
   try {
+    // Find the branch requesting parcel details.
     const staff_id = req.staff._id.toString();
-    console.log(staff_id);
     const staff = await Staff.findById(staff_id);
     const branch_id = staff.branchId;
+
     const parcels = await Parcel.find({ from: branch_id }).sort({
       createdAt: -1,
     });
-    res.status(200).json(parcels);
+    return res.status(200).json(parcels);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching parcels", error });
+    return res.status(500).json({ message: "Error fetching parcels", error });
   }
 };
 
-// GET ONE PARCEL
+// get one parcel details
 const getOneParcel = async (req, res) => {
   try {
-    const parcel = await Parcel.findOne({ parcelId: req.params.parcelId });
+    // Find the parcel using parcel ID.
+    const parcel = await Parcel.findOne({ parcelId: req.params.parcelId })
+      .populate("senderId")
+      .populate("receiverId")
+      .populate("paymentId")
+      .populate("to");
+
     if (!parcel) {
       return res.status(404).json({ message: "Parcel Not found" });
     }
-    res.status(200).json({ success: true, existingPosts: parcel });
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching the parcel", error });
-  }
-};
 
-// UPDATE THE PARCEL
-const updateTheParcel = async (req, res) => {
-  try {
-    const parcel = await Parcel.findOneAndUpdate(req.params.parcelId, req.body);
-    res.status(200).json(parcel);
+    return res.status(200).json(parcel);
   } catch (error) {
-    res.status(500).json({ message: "Error updating the parcel", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching the parcel", error });
   }
-};
-
-// DELETE PARCEL
-const deleteParcel = async (parcelId) => {
-  try {
-    await Parcel.findOneAndDelete(parcelId);
-    console.log("Parcel deleted successfully");
-  } catch (error) {
-    console.log("Error deleting parcel");
-  }
-};
-
-//Calculate the Payment
-const calculatePayment = async (req, res) => {
-  console.log(req.query);
-  const paymentAmount = 1000;
-  res.json({ paymentAmount });
 };
 
 module.exports = {
   registerParcel,
   getAllParcels,
   getOneParcel,
-  updateTheParcel,
-  deleteParcel,
-  calculatePayment,
-  generateQRCode,
-  generateTrackingNumber,
 };

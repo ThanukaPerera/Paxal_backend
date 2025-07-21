@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Parcel Tracking Number</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      .email-container {
+        background-color: white;
+        width: 800px;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        text-align: left;
+      }
+      h1 {
+        color: #1f818c;
+        text-align: center;
+      }
+      .reset-code {
+        text-align: center;
+        background: #f3f3f3;
+        padding: 10px;
+        display: inline-block;
+        border-radius: 5px;
+        color: #1f818c;
+        font-size: 24px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="email-container"
+      style="
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 24px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      "
+    >
+      <h1 style="color: #21767f">
+        [PAXAL] Your Parcel is Ready for Collection
+      </h1>
+
+      <p style="font-size: 16px; color: #333">
+        Dear Customer,
+        <br /><br />
+        We are pleased to inform you that your parcel [Parcel ID: {PARCEL_ID}]
+        has <strong>been delivered.</strong>
+      </p>
+
+      <p style="font-size: 16px; color: #333">
+        Thank you for choosing our service!
+      </p>
+
+      <p style="font-size: 16px; color: #333">
+        Best regards,<br />
+        <strong>PAXAL Team</strong>
+      </p>
+    </div>
+  </body>
+</html>

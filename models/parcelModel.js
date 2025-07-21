@@ -12,7 +12,7 @@ const pickupSchema = new mongoose.Schema({
   district: { type: String, required: true },
   province: { type: String, required: true },
   staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" }, // Reference to Staff
-});
+}, { timestamps: true });
 
 const deliverySchema = new mongoose.Schema({
   deliveryAddress: { type: String, required: true },
@@ -21,7 +21,7 @@ const deliverySchema = new mongoose.Schema({
   deliveryProvince: { type: String, required: true },
   postalCode: { type: String, required: true },
   staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" }, // Reference to Staff
-});
+}, { timestamps: true });
 
 const parcelSchema = new mongoose.Schema(
   {
