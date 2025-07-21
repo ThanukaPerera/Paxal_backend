@@ -7,13 +7,12 @@ require('dotenv').config();
 
 const sender = process.env.EMAIL;
 
-const nodemailer = require("nodemailer");
-const path = require("path");
-const fs = require("fs");
+
+
 
 require("dotenv").config();
 
-const sender = process.env.EMAIL_USER;
+
 
 
 // Setup email transport

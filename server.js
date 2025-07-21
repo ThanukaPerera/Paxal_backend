@@ -50,7 +50,7 @@ app.use(
     origin: [
       "http://localhost:5173", // Your frontend URL
       "http://localhost:19006", // Expo dev server
-      "exp://192.168.1.6:19000",//  physical device
+      "exp://10.10.28.96:19000",//  physical device
     ], 
     credentials: true, // Allow credentials (cookies)
   })
