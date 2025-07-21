@@ -33,9 +33,19 @@ router.get("/stats/:center/:date", async (req, res) => {
         const nextDay = new Date(date);
         nextDay.setDate(date.getDate() + 1);
         
+        console.log("=== DRIVER STATS API CALLED ===");
+        console.log("Center:", center);
+        console.log("Date received:", req.params.date);
+        console.log("Date parsed:", date);
+        console.log("Next day:", nextDay);
+        
         // Check if selected date is today
         const today = new Date();
         const isToday = date.toDateString() === today.toDateString();
+        
+        console.log("Is today?", isToday);
+        console.log("Today:", today.toDateString());
+        console.log("Selected date:", date.toDateString());
         
         let query = {
             $or: [{ from: center }, { to: center }],
@@ -52,9 +62,13 @@ router.get("/stats/:center/:date", async (req, res) => {
             // For past dates: show failed delivery attempts
             query.status = { $in: ["NotAccepted", "WrongAddress", "Return"] };
         }
+        
+        console.log("Query constructed:", JSON.stringify(query, null, 2));
 
         const parcels = await Parcel.find(query)
             .populate('deliveryInformation.staffId', 'staffId name');
+            
+        console.log("Parcels found:", parcels.length);
 
         // Group parcels by delivery staff
         const driverGroups = {};
@@ -88,6 +102,9 @@ router.get("/stats/:center/:date", async (req, res) => {
 
         // Convert to array and sort by parcel count
         const drivers = Object.values(driverGroups).sort((a, b) => b.parcels - a.parcels);
+        
+        console.log("Driver groups processed:", Object.keys(driverGroups).length);
+        console.log("Final drivers array:", drivers);
 
         res.status(200).json({
             success: true,
@@ -98,6 +115,9 @@ router.get("/stats/:center/:date", async (req, res) => {
         });
 
     } catch (error) {
+        console.error("=== DRIVER STATS ERROR ===");
+        console.error("Error:", error);
+        console.error("Stack trace:", error.stack);
         res.status(500).json({
             success: false,
             error: error.message

@@ -1,7 +1,21 @@
 
 const express = require("express");
 const router = express.Router();
-const { assignVehicle, findVehicleForShipment } = require("../controllers/shipmentManagementControllers/vehicleController");
+const { 
+    assignVehicle, 
+    findVehicleForShipment, 
+    getPendingB2BShipments,
+    assignVehicleManual,
+    assignVehicleSmart,
+    confirmVehicleAssignment,
+    // PHASE 4 - Additional Parcels functionality
+    getAvailableParcelsForShipment,
+    addParcelsToShipment,
+    // ENHANCED API
+    enhancedFindVehicleForShipment,
+    findAvailableParcelsForRoute,
+    addParcelsToCurrentShipment
+} = require("../controllers/shipmentManagementControllers/vehicleController");
 const shipmentModel = require("../models/B2BShipmentModel");
 
 // Route to find available vehicle for a shipment (for user confirmation)
@@ -52,5 +66,31 @@ router.post("/assignVehicleToShipment/:id/:deliveryType", async (req, res) => {
         });
     }
 });
+
+// Route to get pending B2B shipments for a specific staff member's center
+router.get("/b2b/shipments/:staffId", getPendingB2BShipments);
+
+// PHASE 2 - Vehicle Assignment Routes
+// Manual vehicle assignment
+router.post("/b2b/shipments/:shipmentId/assign-vehicle/manual", assignVehicleManual);
+
+// Smart vehicle assignment (find vehicle using 3-step search)
+router.get("/b2b/shipments/:shipmentId/assign-vehicle/smart", assignVehicleSmart);
+
+// Confirm vehicle assignment
+router.post("/b2b/shipments/:shipmentId/assign-vehicle/confirm", confirmVehicleAssignment);
+
+// PHASE 4 - Additional Parcels Routes
+// Get available additional parcels for a shipment with assigned vehicle
+router.get("/b2b/shipments/:shipmentId/available-parcels", getAvailableParcelsForShipment);
+
+// Add selected parcels to shipment
+router.post("/b2b/shipments/:shipmentId/add-parcels", addParcelsToShipment);
+
+// ENHANCED VEHICLE ASSIGNMENT API - Complete 6-step workflow
+router.get("/b2b/shipments/:shipmentId/:deliveryType/enhanced-find-vehicle", enhancedFindVehicleForShipment);
+
+// Add parcels to current shipment and finalize assignment
+router.post("/b2b/shipments/:shipmentId/add-parcels-to-current", addParcelsToCurrentShipment);
 
 module.exports = router; 

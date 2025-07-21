@@ -3,10 +3,155 @@
 
 //http://localhost:8000/vehicles/assignVehicleToShipment/68136ad65f32baa9ccd2e923/express
 
-const Vehicle = require("../../models/VehicleModel");
+const Vehicle = require("../../models/vehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
 const Parcel = require('../../models/parcelModel');
 const Branch = require('../../models/BranchesModel');
+
+/**
+ * PHASE 4 - Find additional parcels from other centers that can be added to the shipment
+ * @param {ObjectId} vehicleCurrentBranch - Current location of the assigned vehicle
+ * @param {Array} shipmentRoute - Route of the main shipment
+ * @param {String} deliveryType - Express or Standard
+ * @param {Number} remainingWeight - Remaining weight capacity of vehicle
+ * @param {Number} remainingVolume - Remaining volume capacity of vehicle
+ * @returns {Object} Grouped parcels by destination center
+ */
+async function findAdditionalParcels(vehicleCurrentBranch, shipmentRoute, deliveryType, remainingWeight, remainingVolume) {
+    try {
+        // Find all unassigned parcels at the vehicle's current location with same shipping method
+        const unassignedParcels = await Parcel.find({
+            shipmentId: null, // Unassigned parcels
+            from: vehicleCurrentBranch,  // Changed from currentLocation to from
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }, // Case-insensitive matching
+            status: { $in: ['ArrivedAtCollectionCenter', 'OrderPlaced', 'PendingPickup', 'PickedUp'] } // Added PendingPickup
+        }).populate('to', 'location branchId')     // Changed from receiverLocation to to
+          .populate('from', 'location branchId');  // Changed from senderLocation and currentLocation to from
+
+        if (unassignedParcels.length === 0) {
+            return {
+                success: true,
+                availableParcels: [],
+                groupedByDestination: {},
+                totalAvailable: 0,
+                message: 'No additional parcels available at vehicle current location'
+            };
+        }
+
+        // Group parcels by destination center (to field)
+        const groupedByDestination = {};
+        let totalAvailableWeight = 0;
+        let totalAvailableVolume = 0;
+
+        unassignedParcels.forEach(parcel => {
+            const destinationId = parcel.to._id.toString(); // Changed from receiverLocation to to
+            const destinationName = parcel.to.location;
+
+            if (!groupedByDestination[destinationId]) {
+                groupedByDestination[destinationId] = {
+                    destinationId,
+                    destinationName,
+                    branchId: parcel.to.branchId, // Changed from branchName to branchId
+                    parcels: [],
+                    totalWeight: 0,
+                    totalVolume: 0,
+                    parcelCount: 0,
+                    canAddAll: true,
+                    isOnRoute: shipmentRoute.some(routeCenter => routeCenter._id.toString() === destinationId)
+                };
+            }
+
+            // Calculate weight and volume from itemSize since parcel model doesn't have direct weight/volume
+            const sizeSpecs = {
+                small: { weight: 2, volume: 0.2 },
+                medium: { weight: 5, volume: 0.5 },
+                large: { weight: 10, volume: 1 }
+            };
+            const itemSize = parcel.itemSize?.toLowerCase() || 'medium';
+            const sizeSpec = sizeSpecs[itemSize] || sizeSpecs.medium;
+
+            groupedByDestination[destinationId].parcels.push({
+                parcelId: parcel.parcelId,     // Changed from _id to parcelId
+                trackingId: parcel.trackingNo, // Changed to trackingNo
+                weight: sizeSpec.weight,       // Using calculated weight
+                volume: sizeSpec.volume,       // Using calculated volume
+                itemSize: parcel.itemSize,
+                itemType: parcel.itemType,
+                status: parcel.status,
+                createdAt: parcel.createdAt
+            });
+
+            groupedByDestination[destinationId].totalWeight += sizeSpec.weight;
+            groupedByDestination[destinationId].totalVolume += sizeSpec.volume;
+            groupedByDestination[destinationId].parcelCount += 1;
+
+            totalAvailableWeight += sizeSpec.weight;
+            totalAvailableVolume += sizeSpec.volume;
+        });
+
+        // Check constraints for each destination group
+        Object.values(groupedByDestination).forEach(group => {
+            group.canAddAll = (group.totalWeight <= remainingWeight && group.totalVolume <= remainingVolume);
+            
+            // If can't add all, calculate maximum parcels that can be added
+            if (!group.canAddAll) {
+                let runningWeight = 0;
+                let runningVolume = 0;
+                let maxParcels = 0;
+
+                for (const parcel of group.parcels) {
+                    if (runningWeight + parcel.weight <= remainingWeight && 
+                        runningVolume + parcel.volume <= remainingVolume) {
+                        runningWeight += parcel.weight;
+                        runningVolume += parcel.volume;
+                        maxParcels++;
+                    } else {
+                        break;
+                    }
+                }
+
+                group.maxPossibleParcels = maxParcels;
+                group.maxPossibleWeight = runningWeight;
+                group.maxPossibleVolume = runningVolume;
+            } else {
+                group.maxPossibleParcels = group.parcelCount;
+                group.maxPossibleWeight = group.totalWeight;
+                group.maxPossibleVolume = group.totalVolume;
+            }
+        });
+
+        // Sort groups by priority: On-route destinations first, then by parcel count
+        const sortedGroups = Object.values(groupedByDestination).sort((a, b) => {
+            if (a.isOnRoute && !b.isOnRoute) return -1;
+            if (!a.isOnRoute && b.isOnRoute) return 1;
+            return b.parcelCount - a.parcelCount;
+        });
+
+        return {
+            success: true,
+            availableParcels: unassignedParcels.length,
+            groupedByDestination: groupedByDestination,
+            sortedGroups: sortedGroups,
+            totalAvailable: unassignedParcels.length,
+            totalAvailableWeight,
+            totalAvailableVolume,
+            constraints: {
+                remainingWeight,
+                remainingVolume,
+                canFitWeight: totalAvailableWeight <= remainingWeight,
+                canFitVolume: totalAvailableVolume <= remainingVolume
+            }
+        };
+
+    } catch (error) {
+        console.error('Error finding additional parcels:', error);
+        return {
+            success: false,
+            message: 'Error finding additional parcels',
+            error: error.message
+        };
+    }
+}
 
 /**
  * Generate distance and time matrices based on fetched branch data
@@ -699,6 +844,124 @@ async function findVehicleForShipment(shipmentId, shipmentType) {
 }
 
 /**
+ * Find available parcels for a route (excluding the vehicle's current center)
+ * @param {ObjectId} vehicleCurrentCenter - Where the vehicle is currently located
+ * @param {Array} destinationCenters - Array of centers in the shipment route (excluding vehicle center)
+ * @param {String} deliveryType - Express or Standard  
+ * @returns {Object} - Grouped parcels by destination with capacity validation
+ */
+async function findAvailableParcelsForRoute(vehicleCurrentCenter, destinationCenters, deliveryType) {
+    try {
+        console.log(`Searching parcels from vehicle center ${vehicleCurrentCenter} to destinations: [${destinationCenters.map(d => `\n  new ObjectId('${d}')`).join(',')}${destinationCenters.length > 0 ? '\n' : ''}]`);
+        console.log(`Using delivery type: ${deliveryType}, looking for shippingMethod: ${deliveryType} (case-insensitive)`);
+
+        // Convert string IDs to ObjectIds if needed
+        const mongoose = require('mongoose');
+        const vehicleObjectId = mongoose.Types.ObjectId.isValid(vehicleCurrentCenter) ? 
+            (typeof vehicleCurrentCenter === 'string' ? new mongoose.Types.ObjectId(vehicleCurrentCenter) : vehicleCurrentCenter) : vehicleCurrentCenter;
+        const destinationObjectIds = destinationCenters.map(d => 
+            mongoose.Types.ObjectId.isValid(d) ? 
+                (typeof d === 'string' ? new mongoose.Types.ObjectId(d) : d) : d
+        );
+
+        // Debug: Show a few parcels from database to understand data structure
+        const debugParcels = await Parcel.find({})
+            .populate('from', 'location branchId')
+            .populate('to', 'location branchId')
+            .limit(5);
+        
+        console.log(`Debug: Found ${debugParcels.length} total parcels at vehicle center (showing first 5):`);
+        debugParcels.forEach(p => {
+            if (p.from && p.from._id.equals(vehicleObjectId)) {
+                console.log(`  Parcel ${p.parcelId}: shippingMethod=${p.shippingMethod}, status=${p.status}, shipmentId=${p.shipmentId}, to=${p.to ? p.to._id : 'null'}`);
+            }
+        });
+
+        // Find parcels from vehicle center to any destination center
+        const availableParcels = await Parcel.find({
+            from: vehicleObjectId,
+            to: { $in: destinationObjectIds },
+            shipmentId: null,
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') },
+            status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter', 'ArrivedAtCollectionCenter'] }
+        })
+        .populate('to', 'location branchId')
+        .populate('from', 'location branchId');
+
+        console.log(`Found ${availableParcels.length} available parcels for route`);
+
+        if (availableParcels.length > 0) {
+            console.log(`Available parcels details:`);
+            availableParcels.forEach(p => {
+                console.log(`  ${p.parcelId}: ${p.from?.location} → ${p.to?.location} (${p.shippingMethod}, ${p.status})`);
+            });
+        }
+
+        // Group parcels by destination
+        const parcelGroups = {};
+        const sizeSpecs = {
+            small: { weight: 2, volume: 0.2 },
+            medium: { weight: 5, volume: 0.5 },
+            large: { weight: 10, volume: 1 }
+        };
+
+        availableParcels.forEach(parcel => {
+            const destinationId = parcel.to._id.toString();
+            const destinationName = parcel.to.location;
+
+            if (!parcelGroups[destinationId]) {
+                parcelGroups[destinationId] = {
+                    destination: destinationName,
+                    destinationId: destinationId,
+                    parcels: [],
+                    totalWeight: 0,
+                    totalVolume: 0,
+                    parcelCount: 0
+                };
+            }
+
+            const itemSize = parcel.itemSize?.toLowerCase() || 'medium';
+            const sizeSpec = sizeSpecs[itemSize] || sizeSpecs.medium;
+
+            parcelGroups[destinationId].parcels.push({
+                _id: parcel._id,
+                parcelId: parcel.parcelId,
+                trackingNo: parcel.trackingNo,
+                itemType: parcel.itemType,
+                itemSize: parcel.itemSize,
+                weight: sizeSpec.weight,
+                volume: sizeSpec.volume,
+                status: parcel.status,
+                shippingMethod: parcel.shippingMethod
+            });
+
+            parcelGroups[destinationId].totalWeight += sizeSpec.weight;
+            parcelGroups[destinationId].totalVolume += sizeSpec.volume;
+            parcelGroups[destinationId].parcelCount += 1;
+        });
+
+        const groupCount = Object.keys(parcelGroups).length;
+        console.log(`Found ${groupCount} parcel group${groupCount !== 1 ? 's' : ''} for route`);
+
+        return {
+            success: true,
+            parcelGroups,
+            totalParcels: availableParcels.length,
+            totalGroups: groupCount,
+            message: groupCount > 0 ? `Found ${availableParcels.length} parcels across ${groupCount} destination${groupCount !== 1 ? 's' : ''}` : 'No available parcels found for route'
+        };
+
+    } catch (error) {
+        console.error('Error finding available parcels for route:', error);
+        return {
+            success: false,
+            message: 'Error finding available parcels',
+            error: error.message
+        };
+    }
+}
+
+/**
  * Find available parcels for vehicle transport when vehicle comes from another center
  * @param {String|ObjectId} fromCenterId - Center where vehicle is currently located
  * @param {String|ObjectId} toCenterId - Center where vehicle needs to go
@@ -1116,8 +1379,31 @@ async function createReverseShipment(params) {
         // Calculate arrival times and total time
         const { arrivalTimes, shipmentFinishTime } = calculateArrivalTimes(route, shipmentType, timeMatrix);
 
+        // If no specific parcels are selected, find available parcels for the reverse route
+        let finalSelectedParcelIds = selectedParcelIds;
+        if (selectedParcelIds.length === 0) {
+            console.log(`No parcels specified, searching for available parcels from ${fromLocation} to ${toLocation}`);
+            
+            // Find parcels that need to go from the vehicle's current location to the shipment source
+            const availableParcels = await Parcel.find({
+                // Parcel is at the vehicle's current location (fromCenterId)
+                from: fromCenterId,  // Changed from currentLocation to from
+                // Parcel is not already in a shipment
+                shipmentId: null,
+                // Parcel status allows it to be picked up
+                status: { $in: ['ArrivedAtCollectionCenter', 'OrderPlaced', 'PickedUp'] } // Using correct status values
+            }).limit(10); // Limit to prevent overloading
+
+            console.log(`Found ${availableParcels.length} parcels at ${fromLocation} available for reverse shipment:`);
+            availableParcels.forEach(p => {
+                console.log(`  - Parcel ${p.trackingNo}: ${p.itemType} (${p.itemSize})`); // Using correct field names
+            });
+
+            finalSelectedParcelIds = availableParcels.map(p => p._id);
+        }
+
         // Get selected parcels and calculate totals
-        const selectedParcels = await Parcel.find({ _id: { $in: selectedParcelIds } });
+        const selectedParcels = await Parcel.find({ _id: { $in: finalSelectedParcelIds } });
         
         let totalWeight = 0;
         let totalVolume = 0;
@@ -1146,7 +1432,7 @@ async function createReverseShipment(params) {
             assignedVehicle: vehicle._id, // STEP 5: Same vehicle as original
             assignedDriver: assignedDriver, // STEP 5: Same driver as original
             status: 'In Transit',
-            parcels: selectedParcelIds,
+            parcels: finalSelectedParcelIds,
             isVehicleTransport: false, // STEP 5: Set to false after assignment
             isReverseShipment: true, // STEP 4: Mark as reverse shipment
             reverseShipmentDetails: {
@@ -1154,7 +1440,7 @@ async function createReverseShipment(params) {
                 transportShipmentId: reverseShipmentId,
                 vehicleFromCenter: fromLocation,
                 vehicleToCenter: toLocation,
-                parcelsCarried: selectedParcelIds,
+                parcelsCarried: finalSelectedParcelIds,
                 parcelCount: selectedParcels.length,
                 totalWeight: totalWeight,
                 totalVolume: totalVolume,
@@ -1176,7 +1462,7 @@ async function createReverseShipment(params) {
             }
 
             await parcel.save();
-            console.log(`Updated parcel ${parcel._id} for reverse shipment`);
+            console.log(`Updated parcel ${parcel.parcelId} for reverse shipment`); // Using parcelId instead of _id
         }
 
         // STEP 5: Update vehicle allocation to reverse shipment
@@ -1193,7 +1479,7 @@ async function createReverseShipment(params) {
                 fromCenter: fromCenterId,
                 transportShipment: {
                     shipmentId: reverseShipmentId,
-                    parcelsCarried: selectedParcelIds,
+                    parcelsCarried: finalSelectedParcelIds,
                     totalWeight: totalWeight,
                     totalVolume: totalVolume,
                     status: 'In Transit',
@@ -1204,7 +1490,7 @@ async function createReverseShipment(params) {
                 transportShipmentId: reverseShipmentId,
                 vehicleFromCenter: fromLocation,
                 vehicleToCenter: toLocation,
-                parcelsCarried: selectedParcelIds,
+                parcelsCarried: finalSelectedParcelIds,
                 parcelCount: selectedParcels.length,
                 totalWeight: totalWeight,
                 totalVolume: totalVolume,
@@ -1249,4 +1535,1364 @@ async function createReverseShipment(params) {
     }
 }
 
-module.exports = { assignVehicle, findVehicleForShipment, findParcelsForVehicleTransport, createVehicleTransportWithParcels, createReverseShipment };
+/**
+ * Get pending B2B shipments for a specific center/branch
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+const getPendingB2BShipments = async (req, res) => {
+    try {
+        const { staffId } = req.params;
+        const { status = 'Pending' } = req.query;
+
+        // Find the staff to get their branch ID
+        const Staff = require('../../models/StaffModel');
+        const staff = await Staff.findById(staffId).select('branchId');
+        
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+
+        // Build query filter
+        const queryFilter = {
+            status: status,
+            sourceCenter: staff.branchId
+        };
+
+        // Fetch B2B shipments with the specified status for the staff's branch
+        const shipments = await B2BShipment.find(queryFilter)
+            .populate('sourceCenter', 'location branchName')
+            .populate('route', 'location branchName')
+            .populate('currentLocation', 'location branchName')
+            .populate({
+                path: 'assignedVehicle',
+                select: 'vehicleId registrationNo vehicleType currentBranch assignedBranch',
+                populate: {
+                    path: 'currentBranch assignedBranch',
+                    select: 'location branchName'
+                }
+            })
+            .populate('assignedDriver', 'name contactNo driverId licenseId')
+            .populate('parcels', 'trackingId weight volume')
+            .populate('createdByStaff', 'name staffId')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: shipments.length,
+            shipments: shipments,
+            message: `Found ${shipments.length} ${status.toLowerCase()} shipments for the center`
+        });
+
+    } catch (error) {
+        console.error('Error fetching pending B2B shipments:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching shipments',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Manual Vehicle Assignment - Assign specific vehicle by registration number
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+const assignVehicleManual = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+        const { vehicleRegistration } = req.body;
+
+        if (!vehicleRegistration) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle registration number is required'
+            });
+        }
+
+        // Find the shipment
+        const shipment = await B2BShipment.findById(shipmentId)
+            .populate('sourceCenter', 'location branchName');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        if (shipment.assignedVehicle) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle already assigned to this shipment'
+            });
+        }
+
+        // Find vehicle by registration number
+        const vehicle = await Vehicle.findOne({ 
+            registrationNo: vehicleRegistration,
+            vehicleType: "shipment"
+        }).populate('assignedBranch', 'location branchName')
+         .populate('currentBranch', 'location branchName')
+         .populate('driverId', 'name contactNo licenseId driverId');
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vehicle not found with the provided registration number'
+            });
+        }
+
+        // Check if vehicle is available
+        if (!vehicle.available) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle is currently not available'
+            });
+        }
+
+        // Check capacity
+        if (vehicle.capableWeight < shipment.totalWeight) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle Not Capable - Weight exceeds capacity',
+                details: {
+                    required: shipment.totalWeight,
+                    available: vehicle.capableWeight,
+                    type: 'weight'
+                }
+            });
+        }
+
+        if (vehicle.capableVolume < shipment.totalVolume) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle Not Capable - Volume exceeds capacity',
+                details: {
+                    required: shipment.totalVolume,
+                    available: vehicle.capableVolume,
+                    type: 'volume'
+                }
+            });
+        }
+
+        // Generate matrices for location calculations
+        const matrices = await generateMatrices();
+        const { branchIdToLocation } = matrices;
+
+        // Assign vehicle to shipment
+        shipment.assignedVehicle = vehicle._id;
+        if (vehicle.driverId) {
+            shipment.assignedDriver = vehicle.driverId._id;
+        }
+
+        // Always set status to "In Transit" when vehicle is assigned, regardless of location
+        shipment.status = "In Transit";
+        
+        // Check if vehicle is at source center
+        const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter._id);
+        
+        // Mark vehicle as unavailable when assigned
+        vehicle.available = false;
+        await vehicle.save();
+
+        await shipment.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Vehicle assigned successfully',
+            data: {
+                shipment: {
+                    shipmentId: shipment.shipmentId,
+                    status: shipment.status,
+                    assignedVehicle: {
+                        vehicleId: vehicle.vehicleId,
+                        registrationNo: vehicle.registrationNo
+                    },
+                    assignedDriver: vehicle.driverId ? {
+                        driverId: vehicle.driverId.driverId,
+                        name: vehicle.driverId.name,
+                        contactNo: vehicle.driverId.contactNo,
+                        licenseId: vehicle.driverId.licenseId
+                    } : null
+                },
+                vehicle: {
+                    vehicleId: vehicle.vehicleId,
+                    registrationNo: vehicle.registrationNo,
+                    currentLocation: vehicle.currentBranch.location,
+                    currentBranch: {
+                        branchId: vehicle.currentBranch._id,
+                        location: vehicle.currentBranch.location,
+                        branchName: vehicle.currentBranch.branchName
+                    },
+                    isAtSource: isAtSource,
+                    capacity: {
+                        weight: vehicle.capableWeight,
+                        volume: vehicle.capableVolume
+                    },
+                    driver: vehicle.driverId ? {
+                        driverId: vehicle.driverId.driverId,
+                        name: vehicle.driverId.name,
+                        contactNo: vehicle.driverId.contactNo,
+                        licenseId: vehicle.driverId.licenseId
+                    } : null
+                },
+                needsTransport: !isAtSource
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in manual vehicle assignment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Smart Vehicle Assignment - Use 3-step search algorithm
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+const assignVehicleSmart = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+
+        // Find the shipment
+        const shipment = await B2BShipment.findById(shipmentId)
+            .populate('sourceCenter', 'location branchName');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        if (shipment.assignedVehicle) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle already assigned to this shipment'
+            });
+        }
+
+        // Generate matrices for calculations
+        const matrices = await generateMatrices();
+        const { branchIdToLocation, distanceMatrix } = matrices;
+
+        // Use existing 3-step vehicle search
+        const foundVehicle = await findNearestVehicle(
+            shipment.sourceCenter._id,
+            shipment.totalWeight,
+            shipment.totalVolume,
+            matrices
+        );
+
+        if (!foundVehicle) {
+            return res.status(404).json({
+                success: false,
+                message: 'No suitable vehicle available',
+                searchSteps: {
+                    step1: 'No vehicles at source center',
+                    step2: 'No source-owned vehicles at nearby centers',
+                    step3: 'No vehicles at nearest 3 centers'
+                }
+            });
+        }
+
+        // Populate vehicle data with branch and driver information
+        const vehicle = await Vehicle.findById(foundVehicle._id)
+            .populate('assignedBranch', 'location branchName')
+            .populate('currentBranch', 'location branchName')
+            .populate('driverId', 'name contactNo licenseId driverId');
+
+        // Get vehicle location details
+        const sourceLocation = branchIdToLocation[shipment.sourceCenter._id.toString()];
+        const vehicleLocation = branchIdToLocation[vehicle.currentBranch._id.toString()];
+        const isAtSource = vehicle.currentBranch._id.equals(shipment.sourceCenter._id);
+
+        // Calculate distance and time if not at source
+        let distance = 0;
+        let estimatedTime = 0;
+        if (!isAtSource) {
+            const fromId = vehicle.currentBranch._id.toString();
+            const toId = shipment.sourceCenter._id.toString();
+            distance = distanceMatrix[fromId][toId] || 0;
+            // Rough estimation: 40 km/h average speed
+            estimatedTime = Math.ceil(distance / 40);
+        }
+
+        // Check if vehicle is at a different center and if there are parcels to collect
+        let availableParcelGroups = null;
+        if (!isAtSource) {
+            // Find parcels at vehicle's current center that can go to route destinations
+            availableParcelGroups = await findAvailableParcelsForRoute(
+                vehicle.currentBranch._id,
+                shipment.route,
+                shipment.deliveryType,
+                shipment.totalWeight,
+                shipment.totalVolume
+            );
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Vehicle found successfully',
+            data: {
+                shipment: {
+                    shipmentId: shipment.shipmentId,
+                    deliveryType: shipment.deliveryType,
+                    totalWeight: shipment.totalWeight,
+                    totalVolume: shipment.totalVolume,
+                    parcelCount: shipment.parcelCount,
+                    sourceCenter: sourceLocation,
+                    route: shipment.route
+                },
+                vehicle: {
+                    vehicleId: vehicle.vehicleId,
+                    registrationNo: vehicle.registrationNo,
+                    vehicleType: vehicle.vehicleType,
+                    currentLocation: vehicleLocation,
+                    currentBranch: {
+                        branchId: vehicle.currentBranch._id,
+                        location: vehicle.currentBranch.location,
+                        branchName: vehicle.currentBranch.branchName
+                    },
+                    sourceLocation: sourceLocation,
+                    isAtSource: isAtSource,
+                    distance: distance,
+                    estimatedTime: estimatedTime,
+                    capacity: {
+                        weight: vehicle.capableWeight,
+                        volume: vehicle.capableVolume
+                    },
+                    driver: vehicle.driverId ? {
+                        driverId: vehicle.driverId.driverId,
+                        name: vehicle.driverId.name,
+                        contactNo: vehicle.driverId.contactNo,
+                        licenseId: vehicle.driverId.licenseId
+                    } : null
+                },
+                needsTransport: !isAtSource,
+                searchResult: {
+                    foundAt: isAtSource ? 'source' : 'remote',
+                    step: isAtSource ? 1 : (vehicle.assignedBranch.equals(shipment.sourceCenter._id) ? 2 : 3)
+                },
+                availableParcelGroups: availableParcelGroups
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in smart vehicle assignment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * PHASE 4 - Get available additional parcels for a shipment with assigned vehicle
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+const getAvailableParcelsForShipment = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+
+        // Find the shipment with its assigned vehicle
+        const shipment = await B2BShipment.findById(shipmentId)
+            .populate('assignedVehicle', 'vehicleId registrationNo currentBranch capableWeight capableVolume')
+            .populate('route', 'location branchName')
+            .populate('parcels', 'weight volume');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        if (!shipment.assignedVehicle) {
+            return res.status(400).json({
+                success: false,
+                message: 'No vehicle assigned to this shipment'
+            });
+        }
+
+        // Calculate remaining capacity
+        const currentWeight = shipment.totalWeight || 0;
+        const currentVolume = shipment.totalVolume || 0;
+        const remainingWeight = (shipment.assignedVehicle.capableWeight || 0) - currentWeight;
+        const remainingVolume = (shipment.assignedVehicle.capableVolume || 0) - currentVolume;
+
+        if (remainingWeight <= 0 || remainingVolume <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle is at full capacity',
+                data: {
+                    remainingWeight,
+                    remainingVolume,
+                    currentWeight,
+                    currentVolume,
+                    maxWeight: shipment.assignedVehicle.capableWeight,
+                    maxVolume: shipment.assignedVehicle.capableVolume
+                }
+            });
+        }
+
+        // Find additional parcels
+        const additionalParcelsResult = await findAdditionalParcels(
+            shipment.assignedVehicle.currentBranch,
+            shipment.route,
+            shipment.deliveryType,
+            remainingWeight,
+            remainingVolume
+        );
+
+        if (!additionalParcelsResult.success) {
+            return res.status(500).json({
+                success: false,
+                message: additionalParcelsResult.message,
+                error: additionalParcelsResult.error
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Found ${additionalParcelsResult.totalAvailable} additional parcels available`,
+            data: {
+                shipmentId: shipment.shipmentId,
+                vehicleInfo: {
+                    vehicleId: shipment.assignedVehicle.vehicleId,
+                    registrationNo: shipment.assignedVehicle.registrationNo,
+                    currentCapacity: {
+                        weight: currentWeight,
+                        volume: currentVolume
+                    },
+                    remainingCapacity: {
+                        weight: remainingWeight,
+                        volume: remainingVolume
+                    },
+                    maxCapacity: {
+                        weight: shipment.assignedVehicle.capableWeight,
+                        volume: shipment.assignedVehicle.capableVolume
+                    }
+                },
+                shipmentRoute: shipment.route.map(r => ({
+                    branchId: r._id,
+                    location: r.location,
+                    branchName: r.branchName
+                })),
+                ...additionalParcelsResult
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting available parcels for shipment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * PHASE 4 - Add selected parcels to shipment
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+const addParcelsToShipment = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+        const { selectedParcelIds } = req.body;
+
+        if (!selectedParcelIds || !Array.isArray(selectedParcelIds) || selectedParcelIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No parcels selected'
+            });
+        }
+
+        // Find the shipment
+        const shipment = await B2BShipment.findById(shipmentId)
+            .populate('assignedVehicle', 'capableWeight capableVolume')
+            .populate('parcels');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        // Find selected parcels
+        const selectedParcels = await Parcel.find({
+            _id: { $in: selectedParcelIds },
+            shipmentId: null // Ensure they're still unassigned
+        });
+
+        if (selectedParcels.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No valid unassigned parcels found'
+            });
+        }
+
+        // Calculate new totals
+        const additionalWeight = selectedParcels.reduce((sum, p) => sum + (p.weight || 0), 0);
+        const additionalVolume = selectedParcels.reduce((sum, p) => sum + (p.volume || 0), 0);
+        const newTotalWeight = (shipment.totalWeight || 0) + additionalWeight;
+        const newTotalVolume = (shipment.totalVolume || 0) + additionalVolume;
+
+        // Check capacity constraints
+        if (newTotalWeight > shipment.assignedVehicle.capableWeight) {
+            return res.status(400).json({
+                success: false,
+                message: 'Adding these parcels would exceed vehicle weight capacity',
+                data: {
+                    newTotalWeight,
+                    maxWeight: shipment.assignedVehicle.capableWeight,
+                    excess: newTotalWeight - shipment.assignedVehicle.capableWeight
+                }
+            });
+        }
+
+        if (newTotalVolume > shipment.assignedVehicle.capableVolume) {
+            return res.status(400).json({
+                success: false,
+                message: 'Adding these parcels would exceed vehicle volume capacity',
+                data: {
+                    newTotalVolume,
+                    maxVolume: shipment.assignedVehicle.capableVolume,
+                    excess: newTotalVolume - shipment.assignedVehicle.capableVolume
+                }
+            });
+        }
+
+        // Update parcels - assign them to this shipment
+        await Parcel.updateMany(
+            { _id: { $in: selectedParcelIds } },
+            { 
+                shipmentId: shipment._id,
+                status: 'In Transit'
+            }
+        );
+
+        // Update shipment with new totals
+        const updatedParcels = [...shipment.parcels.map(p => p._id), ...selectedParcelIds];
+        
+        await B2BShipment.findByIdAndUpdate(shipmentId, {
+            parcels: updatedParcels,
+            totalWeight: newTotalWeight,
+            totalVolume: newTotalVolume,
+            parcelCount: updatedParcels.length
+        });
+
+        // Get updated shipment data
+        const updatedShipment = await B2BShipment.findById(shipmentId)
+            .populate('parcels', 'trackingId weight volume senderName receiverName')
+            .populate('assignedVehicle', 'vehicleId registrationNo')
+            .populate('assignedDriver', 'name contactNo driverId');
+
+        return res.status(200).json({
+            success: true,
+            message: `Successfully added ${selectedParcels.length} parcels to shipment`,
+            data: {
+                shipmentId: shipment.shipmentId,
+                addedParcels: selectedParcels.length,
+                addedWeight: additionalWeight,
+                addedVolume: additionalVolume,
+                updatedTotals: {
+                    totalWeight: newTotalWeight,
+                    totalVolume: newTotalVolume,
+                    parcelCount: updatedParcels.length
+                },
+                remainingCapacity: {
+                    weight: shipment.assignedVehicle.capableWeight - newTotalWeight,
+                    volume: shipment.assignedVehicle.capableVolume - newTotalVolume
+                },
+                shipment: {
+                    shipmentId: updatedShipment.shipmentId,
+                    status: updatedShipment.status,
+                    totalWeight: updatedShipment.totalWeight,
+                    totalVolume: updatedShipment.totalVolume,
+                    parcelCount: updatedShipment.parcelCount,
+                    assignedVehicle: updatedShipment.assignedVehicle,
+                    assignedDriver: updatedShipment.assignedDriver
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error adding parcels to shipment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+/**
+ * Find available parcels from a vehicle's center to route destinations
+ */
+async function findAvailableParcelsForRoute(vehicleCenterId, shipmentRoute, deliveryType, currentWeight, currentVolume) {
+    try {
+        // Constraints for different delivery types
+        const constraints = {
+            express: { maxVolume: 5, maxWeight: 1000 },
+            standard: { maxVolume: 10, maxWeight: 2500 }
+        };
+
+        const maxCapacity = constraints[deliveryType.toLowerCase()] || constraints.standard;
+        const remainWeight = maxCapacity.maxWeight - currentWeight;
+        const remainVolume = maxCapacity.maxVolume - currentVolume;
+
+        // Convert to ObjectId if needed and filter route destinations excluding the vehicle's current center
+        const mongoose = require('mongoose');
+        const vehicleObjectId = mongoose.Types.ObjectId.isValid(vehicleCenterId) ? 
+            new mongoose.Types.ObjectId(vehicleCenterId) : vehicleCenterId;
+
+        const destinationCenters = shipmentRoute.filter(centerId => {
+            const centerObjectId = mongoose.Types.ObjectId.isValid(centerId) ? 
+                new mongoose.Types.ObjectId(centerId) : centerId;
+            return !centerObjectId.equals(vehicleObjectId);
+        });
+
+        if (destinationCenters.length === 0) {
+            console.log('No valid destinations after filtering vehicle center');
+            return null; // No valid destinations
+        }
+
+        console.log(`Searching parcels from vehicle center ${vehicleCenterId} to destinations:`, destinationCenters);
+        console.log(`Using delivery type: ${deliveryType}, looking for shippingMethod: ${deliveryType} (case-insensitive)`);
+
+        // Debug: First check if there are any parcels at the vehicle center at all
+        const allParcelsAtCenter = await Parcel.find({ from: vehicleObjectId }).limit(5);
+        console.log(`Debug: Found ${allParcelsAtCenter.length} total parcels at vehicle center (showing first 5):`);
+        allParcelsAtCenter.forEach(p => {
+            console.log(`  Parcel ${p.parcelId}: shippingMethod=${p.shippingMethod}, status=${p.status}, shipmentId=${p.shipmentId}, to=${p.to}`);
+        });
+
+        // Find parcels at vehicle's center going to route destinations
+        // Using broader status criteria to catch more parcels
+        // FIXED: Case-insensitive shipping method matching
+        const availableParcels = await Parcel.find({
+            from: vehicleObjectId,                                    // Parcel source center
+            to: { $in: destinationCenters },                        // Parcel destinations in route
+            shipmentId: null,                                       // Not assigned to any shipment
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }, // Case-insensitive matching
+            status: { $in: [
+                'OrderPlaced', 
+                'PendingPickup',        // Added missing status from debug output
+                'PickedUp', 
+                'ArrivedAtDistributionCenter',
+                'ArrivedAtCollectionCenter'
+            ]}  // Using broader status range
+        }).populate('to', 'location branchId')
+          .populate('from', 'location branchId');
+
+        console.log(`Found ${availableParcels.length} available parcels for route`);
+
+        // Debug: Show details of found parcels
+        if (availableParcels.length > 0) {
+            console.log('Available parcels details:');
+            availableParcels.forEach(p => {
+                console.log(`  ${p.parcelId}: ${p.from?.location} → ${p.to?.location} (${p.shippingMethod}, ${p.status})`);
+            });
+        }
+
+        // Group parcels by destination
+        const groupedParcels = {};
+        const sizeSpecs = {
+            small: { weight: 2, volume: 0.2 },
+            medium: { weight: 5, volume: 0.5 },
+            large: { weight: 10, volume: 1 }
+        };
+
+        for (const parcel of availableParcels) {
+            if (parcel.to) {
+                const destId = parcel.to._id.toString();
+                const destName = parcel.to.location;
+
+                if (!groupedParcels[destId]) {
+                    groupedParcels[destId] = {
+                        destinationId: destId,
+                        destinationName: destName,
+                        parcels: [],
+                        totalWeight: 0,
+                        totalVolume: 0
+                    };
+                }
+
+                // Calculate parcel weight and volume
+                const itemSize = parcel.itemSize?.toLowerCase() || 'medium';
+                const sizeSpec = sizeSpecs[itemSize] || sizeSpecs.medium;
+
+                groupedParcels[destId].parcels.push({
+                    _id: parcel._id,
+                    parcelId: parcel.parcelId,
+                    trackingNo: parcel.trackingNo,
+                    weight: sizeSpec.weight,
+                    volume: sizeSpec.volume,
+                    itemSize: parcel.itemSize,
+                    itemType: parcel.itemType,
+                    shippingMethod: parcel.shippingMethod,
+                    status: parcel.status
+                });
+
+                groupedParcels[destId].totalWeight += sizeSpec.weight;
+                groupedParcels[destId].totalVolume += sizeSpec.volume;
+            }
+        }
+
+        // Check capacity constraints for each group and determine feasibility
+        const finalGroups = {};
+        let runningWeight = 0;
+        let runningVolume = 0;
+
+        for (const [destId, group] of Object.entries(groupedParcels)) {
+            const groupWeight = group.totalWeight;
+            const groupVolume = group.totalVolume;
+
+            // Check if this group can fit with current running totals
+            const canFit = (runningWeight + groupWeight <= remainWeight) && 
+                          (runningVolume + groupVolume <= remainVolume);
+
+            finalGroups[destId] = {
+                ...group,
+                canFit: canFit,
+                runningWeight: runningWeight + groupWeight,
+                runningVolume: runningVolume + groupVolume
+            };
+
+            // Only update running totals if this group can fit
+            if (canFit) {
+                runningWeight += groupWeight;
+                runningVolume += groupVolume;
+            }
+        }
+
+        console.log(`Found ${Object.keys(finalGroups).length} parcel groups for route`);
+
+        return {
+            constraints: {
+                maxWeight: maxCapacity.maxWeight,
+                maxVolume: maxCapacity.maxVolume,
+                currentWeight: currentWeight,
+                currentVolume: currentVolume,
+                remainingWeight: remainWeight,
+                remainingVolume: remainVolume
+            },
+            parcelGroups: finalGroups,
+            totalGroupsFound: Object.keys(finalGroups).length,
+            totalParcelsFound: Object.values(finalGroups).reduce((sum, group) => sum + group.parcels.length, 0)
+        };
+
+    } catch (error) {
+        console.error('Error finding parcels for route:', error);
+        return null;
+    }
+}
+
+const confirmVehicleAssignment = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+        const { vehicleId, createReverseShipment: shouldCreateReverse = false } = req.body;
+
+        if (!vehicleId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle ID is required'
+            });
+        }
+
+        // Find shipment and vehicle
+        const shipment = await B2BShipment.findById(shipmentId);
+        
+        // Find vehicle by vehicleId (registration number) instead of _id
+        const vehicle = await Vehicle.findOne({ vehicleId: vehicleId })
+            .populate('driverId', 'name contactNo licenseId driverId');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vehicle not found'
+            });
+        }
+
+        if (shipment.assignedVehicle) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vehicle already assigned to this shipment'
+            });
+        }
+
+        // Generate matrices
+        const matrices = await generateMatrices();
+        const { branchIdToLocation } = matrices;
+
+        // Assign vehicle
+        shipment.assignedVehicle = vehicle._id;
+        if (vehicle.driverId) {
+            shipment.assignedDriver = vehicle.driverId._id;
+        }
+
+        // Always set status to "In Transit" when vehicle is assigned, regardless of location
+        shipment.status = "In Transit";
+        
+        const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter);
+        
+        // Mark vehicle as unavailable when assigned
+        vehicle.available = false;
+        await vehicle.save();
+
+        let reverseShipmentDetails = null;
+
+        // Handle reverse shipment creation if requested and vehicle is not at source
+        if (shouldCreateReverse && !isAtSource) {
+            try {
+                const reverseResult = await createReverseShipment({
+                    originalShipmentId: shipment._id,
+                    vehicle: vehicle,
+                    fromCenterId: vehicle.currentBranch,
+                    toCenterId: shipment.sourceCenter,
+                    shipmentType: shipment.deliveryType,
+                    selectedParcelIds: [], // Empty for now, as reverse shipment parcels are found internally
+                    assignedDriver: vehicle.driverId
+                });
+                
+                if (reverseResult.success) {
+                    reverseShipmentDetails = reverseResult;
+                }
+            } catch (error) {
+                console.error('Error creating reverse shipment:', error);
+            }
+        }
+
+        await shipment.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Vehicle assigned successfully',
+            data: {
+                shipmentDetails: {
+                    shipmentId: shipment.shipmentId,
+                    status: shipment.status,
+                    assignedVehicle: {
+                        vehicleId: vehicle.vehicleId,
+                        registrationNo: vehicle.registrationNo
+                    },
+                    assignedDriver: vehicle.driverId ? {
+                        driverId: vehicle.driverId.driverId,
+                        name: vehicle.driverId.name,
+                        contactNo: vehicle.driverId.contactNo,
+                        licenseId: vehicle.driverId.licenseId
+                    } : null
+                },
+                vehicle: {
+                    vehicleId: vehicle.vehicleId,
+                    registrationNo: vehicle.registrationNo,
+                    currentLocation: branchIdToLocation[vehicle.currentBranch.toString()],
+                    currentBranch: {
+                        branchId: vehicle.currentBranch._id,
+                        location: branchIdToLocation[vehicle.currentBranch.toString()],
+                        branchName: vehicle.currentBranch.branchName || branchIdToLocation[vehicle.currentBranch.toString()]
+                    },
+                    isAtSource: isAtSource,
+                    driver: vehicle.driverId ? {
+                        driverId: vehicle.driverId.driverId,
+                        name: vehicle.driverId.name,
+                        contactNo: vehicle.driverId.contactNo,
+                        licenseId: vehicle.driverId.licenseId
+                    } : null
+                },
+                reverseShipment: reverseShipmentDetails
+            }
+        });
+
+    } catch (error) {
+        console.error('Error confirming vehicle assignment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * ENHANCED VEHICLE ASSIGNMENT API - Find vehicle with parcel search logic
+ * Implements the complete 6-step workflow as specified
+ */
+const enhancedFindVehicleForShipment = async (req, res) => {
+    try {
+        const { shipmentId, deliveryType } = req.params;
+        console.log(`=== ENHANCED VEHICLE ASSIGNMENT START ===`);
+        console.log(`Shipment ID: ${shipmentId}, Delivery Type: ${deliveryType}`);
+
+        // Generate matrices needed for calculations
+        const matrices = await generateMatrices();
+        const { branchIdToLocation } = matrices;
+
+        // Find the shipment by ID
+        const shipment = await B2BShipment.findById(shipmentId)
+            .populate('sourceCenter', 'location branchId')
+            .populate({
+                path: 'route',
+                select: 'location branchId'
+            });
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        // Verify the shipment type matches
+        if (shipment.deliveryType.toLowerCase() !== deliveryType.toLowerCase()) {
+            return res.status(400).json({
+                success: false,
+                message: `Shipment type mismatch. Expected: ${deliveryType}, Found: ${shipment.deliveryType}`
+            });
+        }
+
+        // Get shipment details
+        const sourceCenterId = shipment.sourceCenter._id;
+        const sourceLocation = branchIdToLocation[sourceCenterId.toString()];
+        const weightRequired = shipment.totalWeight;
+        const volumeRequired = shipment.totalVolume;
+        const shipmentRoute = shipment.route || [];
+
+        console.log(`STEP 1: Shipment Analysis`);
+        console.log(`Source: ${sourceLocation} (${sourceCenterId})`);
+        console.log(`Route: ${shipmentRoute.map(r => r.location).join(' → ')}`);
+        console.log(`Requirements: ${weightRequired}kg, ${volumeRequired}m³`);
+        console.log(`Current weight: ${shipment.totalWeight}kg, volume: ${shipment.totalVolume}m³`);
+
+        // STEP 2: Find nearest available vehicle using 3-step search
+        console.log(`STEP 2: Vehicle Search (3-step approach)`);
+        const vehicle = await findNearestVehicle(sourceCenterId, weightRequired, volumeRequired, matrices);
+
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: "No suitable vehicle available for this shipment",
+                step: 'vehicle_search',
+                requirements: {
+                    sourceLocation,
+                    weightRequired,
+                    volumeRequired,
+                    searchSteps: [
+                        'Local vehicles at source center',
+                        'Source-owned vehicles at other centers', 
+                        'Vehicles from nearest centers'
+                    ]
+                }
+            });
+        }
+
+        // Get the branch information for the vehicle's current location
+        const vehicleBranch = await Branch.findById(vehicle.currentBranch);
+        const vehicleBranchId = vehicleBranch._id;
+        const vehicleLocation = branchIdToLocation[vehicleBranchId.toString()];
+        const isVehicleAtSource = vehicleBranchId.equals(sourceCenterId);
+
+        console.log(`STEP 3: Vehicle Found`);
+        console.log(`Vehicle: ${vehicle.vehicleId} at ${vehicleLocation}`);
+        console.log(`Is at source: ${isVehicleAtSource ? 'YES' : 'NO'}`);
+        console.log(`Capacity: ${vehicle.capableWeight}kg, ${vehicle.capableVolume}m³`);
+
+        // Prepare vehicle details
+        const vehicleDetails = {
+            _id: vehicle._id,
+            vehicleId: vehicle.vehicleId,
+            vehicleType: vehicle.vehicleType,
+            capableWeight: vehicle.capableWeight,
+            capableVolume: vehicle.capableVolume,
+            assignedBranch: vehicle.assignedBranch,
+            currentBranch: vehicle.currentBranch,
+            currentLocation: vehicleLocation,
+            sourceLocation: sourceLocation,
+            isAtSource: isVehicleAtSource
+        };
+
+        // STEP 4: If vehicle is from another center, check for available parcels
+        let availableParcelGroups = null;
+        let parcelSearchLogic = null;
+        
+        if (!isVehicleAtSource) {
+            console.log(`STEP 4: Vehicle from Another Center - Searching for Additional Parcels`);
+            console.log(`Vehicle at: ${vehicleLocation}, needs to go to: ${sourceLocation}`);
+            
+            // Create destination centers list (exclude vehicle's current center from route)
+            const destinationCenters = shipmentRoute
+                .filter(center => !center._id.equals(vehicleBranchId))
+                .map(center => center._id);
+            
+            console.log(`STEP 5: Parcel Search Logic`);
+            console.log(`Key Check: Excluding ${vehicleLocation} (vehicle center) from parcel search`);
+            console.log(`Searching for parcels FROM ${vehicleLocation} TO route centers:`);
+            destinationCenters.forEach(centerId => {
+                const centerName = branchIdToLocation[centerId.toString()];
+                console.log(`  → ${centerName}`);
+            });
+
+            if (destinationCenters.length > 0) {
+                const parcelSearchResult = await findAvailableParcelsForRoute(
+                    vehicleBranchId, 
+                    destinationCenters, 
+                    deliveryType
+                );
+
+                console.log(`PARCEL SEARCH RESULT:`, parcelSearchResult);
+
+                if (parcelSearchResult && parcelSearchResult.parcelGroups) {
+                    console.log(`✅ PARCELS FOUND: ${parcelSearchResult.totalParcelsFound} parcels in ${parcelSearchResult.totalGroupsFound} groups`);
+                    availableParcelGroups = parcelSearchResult;
+                    
+                    // STEP 6: Calculate capacity constraints
+                    const constraints = {
+                        express: { maxWeight: 1000, maxVolume: 5 },
+                        standard: { maxWeight: 2500, maxVolume: 10 }
+                    };
+                    
+                    const vehicleConstraints = constraints[deliveryType.toLowerCase()] || constraints.standard;
+                    const remainingWeight = vehicleConstraints.maxWeight - shipment.totalWeight;
+                    const remainingVolume = vehicleConstraints.maxVolume - shipment.totalVolume;
+                    
+                    console.log(`STEP 6: Capacity Validation`);
+                    console.log(`Vehicle limits: ${vehicleConstraints.maxWeight}kg, ${vehicleConstraints.maxVolume}m³`);
+                    console.log(`Current shipment: ${shipment.totalWeight}kg, ${shipment.totalVolume}m³`);
+                    console.log(`Remaining capacity: ${remainingWeight}kg, ${remainingVolume}m³`);
+
+                    // Add capacity validation to each group
+                    let totalGroupWeight = 0;
+                    let totalGroupVolume = 0;
+                    
+                    Object.values(parcelSearchResult.parcelGroups).forEach(group => {
+                        totalGroupWeight += group.totalWeight;
+                        totalGroupVolume += group.totalVolume;
+                        
+                        group.canAddAll = (group.totalWeight <= remainingWeight && group.totalVolume <= remainingVolume);
+                        group.remainingWeight = remainingWeight;
+                        group.remainingVolume = remainingVolume;
+                        
+                        if (!group.canAddAll) {
+                            // Calculate maximum parcels that can fit
+                            let runningWeight = 0;
+                            let runningVolume = 0;
+                            let maxParcels = 0;
+
+                            for (const parcel of group.parcels) {
+                                if (runningWeight + parcel.weight <= remainingWeight && 
+                                    runningVolume + parcel.volume <= remainingVolume) {
+                                    runningWeight += parcel.weight;
+                                    runningVolume += parcel.volume;
+                                    maxParcels++;
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            group.maxPossibleParcels = maxParcels;
+                            group.maxPossibleWeight = runningWeight;
+                            group.maxPossibleVolume = runningVolume;
+                        }
+                    });
+
+                    // Check if all parcels together would exceed capacity
+                    const wouldExceedCapacity = (totalGroupWeight > remainingWeight) || (totalGroupVolume > remainingVolume);
+                    
+                    console.log(`STEP 6: Capacity Analysis`);
+                    console.log(`All parcels total: ${totalGroupWeight}kg, ${totalGroupVolume}m³`);
+                    console.log(`Remaining capacity: ${remainingWeight}kg, ${remainingVolume}m³`);
+                    console.log(`Would exceed capacity: ${wouldExceedCapacity ? 'YES' : 'NO'}`);
+
+                    // Add capacity analysis to the response
+                    availableParcelGroups.capacityAnalysis = {
+                        totalParcelWeight: totalGroupWeight,
+                        totalParcelVolume: totalGroupVolume,
+                        remainingWeight: remainingWeight,
+                        remainingVolume: remainingVolume,
+                        wouldExceedCapacity: wouldExceedCapacity,
+                        exceededBy: wouldExceedCapacity ? {
+                            weight: Math.max(0, totalGroupWeight - remainingWeight),
+                            volume: Math.max(0, totalGroupVolume - remainingVolume)
+                        } : null
+                    };
+                }
+            } else {
+                console.log(`❌ NO PARCELS FOUND: parcelSearchResult was null, empty, or had no parcelGroups`);
+                console.log(`Search details: Vehicle at ${vehicleLocation}, destinations:`, destinationCenters.map(id => branchIdToLocation[id.toString()]));
+            }
+
+            parcelSearchLogic = {
+                vehicleCenter: vehicleLocation,
+                searchedDestinations: destinationCenters.map(id => branchIdToLocation[id.toString()]),
+                excludedFromSearch: vehicleLocation,
+                reason: 'Vehicle center excluded from search as per requirements'
+            };
+        }
+
+        // Prepare response with all the required information
+        const response = {
+            success: true,
+            step: isVehicleAtSource ? 'vehicle_at_source' : 'vehicle_from_other_center',
+            vehicle: vehicleDetails,
+            shipmentDetails: {
+                shipmentId: shipment.shipmentId,
+                deliveryType: shipment.deliveryType,
+                sourceCenter: sourceLocation,
+                route: shipmentRoute.map(r => r.location),
+                totalWeight: shipment.totalWeight,
+                totalVolume: shipment.totalVolume,
+                parcelCount: shipment.parcelCount,
+                requirements: {
+                    weightRequired,
+                    volumeRequired
+                }
+            },
+            needsTransport: !isVehicleAtSource,
+            message: isVehicleAtSource ? 
+                `✅ Vehicle ${vehicle.vehicleId} found at source location ${sourceLocation}` :
+                `🚚 Vehicle ${vehicle.vehicleId} found at ${vehicleLocation}, transport required to ${sourceLocation}`
+        };
+
+        // Add parcel information if vehicle is from another center
+        if (!isVehicleAtSource) {
+            if (availableParcelGroups && availableParcelGroups.parcelGroups && Object.keys(availableParcelGroups.parcelGroups).length > 0) {
+                // Parcels found - include them in the response
+                response.availableParcelGroups = availableParcelGroups;
+                response.parcelSearchLogic = parcelSearchLogic;
+                response.userOptions = {
+                    assignOnly: "Assign Vehicle Only - Immediate assignment",
+                    checkParcels: "Check for Parcels - Search and select additional parcels to carry"
+                };
+                console.log(`✅ PARCELS FOUND: ${availableParcelGroups.totalParcelsFound} parcels in ${availableParcelGroups.totalGroupsFound} groups`);
+            } else {
+                // No parcels found - still provide structure but empty
+                response.availableParcelGroups = {
+                    constraints: {
+                        maxWeight: 2500,
+                        maxVolume: 10,
+                        currentWeight: shipment.totalWeight,
+                        currentVolume: shipment.totalVolume,
+                        remainingWeight: 2500 - shipment.totalWeight,
+                        remainingVolume: 10 - shipment.totalVolume
+                    },
+                    parcelGroups: {},
+                    totalGroupsFound: 0,
+                    totalParcelsFound: 0
+                };
+                response.parcelSearchLogic = parcelSearchLogic || {
+                    vehicleCenter: vehicleLocation,
+                    searchedDestinations: [],
+                    excludedFromSearch: vehicleLocation,
+                    reason: 'No parcels found for route'
+                };
+                response.userOptions = {
+                    assignOnly: "Assign Vehicle Only - No additional parcels available"
+                };
+                console.log(`ℹ️ NO PARCELS FOUND: Vehicle can be assigned but no additional parcels available`);
+            }
+        }
+
+        console.log(`=== ENHANCED VEHICLE ASSIGNMENT COMPLETE ===`);
+        console.log(`Response: ${isVehicleAtSource ? 'DIRECT ASSIGNMENT' : 'PARCEL SELECTION REQUIRED'}`);
+        
+        return res.status(200).json(response);
+
+    } catch (error) {
+        console.error('Error in enhanced vehicle assignment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error during vehicle assignment',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Add selected parcels to current shipment and finalize assignment
+ */
+const addParcelsToCurrentShipment = async (req, res) => {
+    try {
+        const { shipmentId } = req.params;
+        const { selectedParcelIds, vehicleId } = req.body;
+
+        console.log(`=== ADDING PARCELS TO CURRENT SHIPMENT ===`);
+        console.log(`Shipment ID: ${shipmentId}`);
+        console.log(`Selected Parcels: ${selectedParcelIds?.length || 0}`);
+        console.log(`Vehicle ID: ${vehicleId}`);
+
+        // Find the shipment
+        const shipment = await B2BShipment.findById(shipmentId);
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Shipment not found'
+            });
+        }
+
+        // Find the vehicle
+        const vehicle = await Vehicle.findOne({ vehicleId: vehicleId });
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vehicle not found'
+            });
+        }
+
+        // Get selected parcels
+        const selectedParcels = await Parcel.find({ _id: { $in: selectedParcelIds } })
+            .populate('from', 'location')
+            .populate('to', 'location');
+
+        if (selectedParcels.length !== selectedParcelIds.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Some selected parcels not found'
+            });
+        }
+
+        // Calculate additional weight and volume
+        const sizeSpecs = {
+            small: { weight: 2, volume: 0.2 },
+            medium: { weight: 5, volume: 0.5 },
+            large: { weight: 10, volume: 1 }
+        };
+
+        let additionalWeight = 0;
+        let additionalVolume = 0;
+        const parcelSummary = [];
+
+        selectedParcels.forEach(parcel => {
+            const itemSize = parcel.itemSize?.toLowerCase() || 'medium';
+            const sizeSpec = sizeSpecs[itemSize] || sizeSpecs.medium;
+            
+            additionalWeight += sizeSpec.weight;
+            additionalVolume += sizeSpec.volume;
+
+            parcelSummary.push({
+                parcelId: parcel.parcelId,
+                trackingNo: parcel.trackingNo,
+                from: parcel.from?.location,
+                to: parcel.to?.location,
+                itemType: parcel.itemType,
+                itemSize: parcel.itemSize,
+                weight: sizeSpec.weight,
+                volume: sizeSpec.volume,
+                status: parcel.status
+            });
+        });
+
+        // Update parcels with shipment ID
+        await Parcel.updateMany(
+            { _id: { $in: selectedParcelIds } },
+            { 
+                shipmentId: shipment._id,
+                status: 'InTransit',
+                updatedAt: new Date()
+            }
+        );
+
+        // Update shipment with new totals and parcels
+        const newTotalWeight = shipment.totalWeight + additionalWeight;
+        const newTotalVolume = shipment.totalVolume + additionalVolume;
+        const newParcelCount = shipment.parcelCount + selectedParcels.length;
+
+        // Add selected parcels to existing parcels array
+        const existingParcels = shipment.parcels || [];
+        const updatedParcels = [...existingParcels, ...selectedParcelIds];
+
+        // Update the shipment
+        await B2BShipment.findByIdAndUpdate(shipmentId, {
+            totalWeight: newTotalWeight,
+            totalVolume: newTotalVolume,
+            parcelCount: newParcelCount,
+            parcels: updatedParcels,
+            assignedVehicle: vehicle._id,
+            status: 'In Transit',
+            updatedAt: new Date()
+        });
+
+        // Mark vehicle as unavailable
+        vehicle.available = false;
+        vehicle.currentShipment = shipment._id;
+        await vehicle.save();
+
+        console.log(`✅ Successfully added ${selectedParcels.length} parcels to shipment`);
+        console.log(`Updated totals: ${newTotalWeight}kg, ${newTotalVolume}m³, ${newParcelCount} parcels`);
+
+        return res.status(200).json({
+            success: true,
+            message: `Successfully added ${selectedParcels.length} parcels to shipment and assigned vehicle`,
+            data: {
+                shipmentId: shipment.shipmentId,
+                addedParcels: selectedParcels.length,
+                parcelSummary: parcelSummary,
+                updatedTotals: {
+                    totalWeight: newTotalWeight,
+                    totalVolume: newTotalVolume,
+                    parcelCount: newParcelCount
+                },
+                additionalTotals: {
+                    additionalWeight,
+                    additionalVolume,
+                    additionalParcels: selectedParcels.length
+                },
+                vehicleAssigned: {
+                    vehicleId: vehicle.vehicleId,
+                    currentLocation: vehicle.currentBranch,
+                    status: 'Assigned'
+                },
+                shipmentStatus: 'In Transit'
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error adding parcels to current shipment:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { 
+    assignVehicle, 
+    findVehicleForShipment, 
+    findParcelsForVehicleTransport, 
+    createVehicleTransportWithParcels, 
+    createReverseShipment, 
+    getPendingB2BShipments,
+    assignVehicleManual,
+    assignVehicleSmart,
+    confirmVehicleAssignment,
+    // PHASE 4 - Additional Parcels functionality
+    getAvailableParcelsForShipment,
+    addParcelsToShipment,
+    findAdditionalParcels,
+    // ENHANCED API
+    enhancedFindVehicleForShipment,
+    findAvailableParcelsForRoute,
+    addParcelsToCurrentShipment
+};

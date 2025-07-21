@@ -473,6 +473,22 @@ exports.processAllShipments = async (deliveryType, sourceCenterId, parcelIds) =>
             from: sourceCenterId,
             shipmentId: null // Ensure these parcels are not already assigned to a shipment
         }).populate('to').populate('from');
+
+        // Validate shipping method compatibility
+        if (parcels.length > 0) {
+            const incompatibleParcels = parcels.filter(parcel => 
+                parcel.shippingMethod?.toLowerCase() !== deliveryType.toLowerCase()
+            );
+
+            if (incompatibleParcels.length > 0) {
+                const incompatibleCount = incompatibleParcels.length;
+                const sampleParcel = incompatibleParcels[0];
+                return { 
+                    success: false, 
+                    message: `Cannot create ${deliveryType} shipment! ${incompatibleCount} selected parcel(s) have "${sampleParcel.shippingMethod}" shipping method. All parcels must have "${deliveryType}" shipping method.`
+                };
+            }
+        }
  
       //  console.log(`Requested parcels: ${parcelObjectIds.length}, Found parcels: ${parcels.length}`);
 

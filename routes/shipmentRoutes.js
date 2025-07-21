@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { createShipment } = require("../controllers/shipmentManagementControllers/createShipmentController");
+const { addMoreParcelsToStandardShipment } = require("../controllers/shipmentManagementControllers/standardShipmentNotificationController");
+const isStaffAuthenticated = require("../middleware/staffAuth");
 const Shipment = require("../models/B2BShipmentModel");
 const Parcel = require("../models/parcelModel");
 const Branch = require("../models/BranchesModel");
@@ -8,8 +10,127 @@ const Branch = require("../models/BranchesModel");
 
 
 
-// Route for creating manual shipments
-router.post("/create", createShipment);
+// Route for creating manual shipments with staff authentication
+router.post("/create", isStaffAuthenticated, createShipment);
+
+// Route for adding more parcels to standard shipments
+router.post("/b2b/standard-shipments/:id/add-more", async (req, res) => {
+    try {
+        const shipmentId = req.params.id;
+
+        // Validate shipment ID format
+        if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid shipment ID format'
+            });
+        }
+
+        // Call the controller function
+        const result = await addMoreParcelsToStandardShipment(shipmentId);
+
+        // Return response based on result
+        return res.status(result.statusCode).json({
+            success: result.success,
+            message: result.message,
+            data: result.data,
+            error: result.error
+        });
+
+    } catch (error) {
+        console.error('Error in add-more-parcels route:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Route for manually adding a single parcel to standard shipment
+router.post("/b2b/standard-shipments/:id/add-manual-parcel", async (req, res) => {
+    try {
+        const shipmentId = req.params.id;
+        const { parcelId } = req.body;
+
+        // Validate inputs
+        if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid shipment ID format'
+            });
+        }
+
+        if (!parcelId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parcel ID is required'
+            });
+        }
+
+        // Find the shipment
+        const shipment = await Shipment.findById(shipmentId);
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                error: 'Shipment not found'
+            });
+        }
+
+        // Find the parcel
+        const parcel = await Parcel.findById(parcelId);
+        if (!parcel) {
+            return res.status(404).json({
+                success: false,
+                error: 'Parcel not found'
+            });
+        }
+
+        // Calculate parcel weight and volume
+        const weightMap = { small: 1, medium: 3, large: 8 };
+        const volumeMap = { small: 0.1, medium: 0.3, large: 0.8 };
+        
+        const parcelWeight = weightMap[parcel.itemSize] || 1;
+        const parcelVolume = volumeMap[parcel.itemSize] || 0.1;
+
+        // Update shipment
+        shipment.parcels.push(parcelId);
+        shipment.totalWeight = (shipment.totalWeight || 0) + parcelWeight;
+        shipment.totalVolume = (shipment.totalVolume || 0) + parcelVolume;
+        shipment.parcelCount = (shipment.parcelCount || 0) + 1;
+
+        await shipment.save();
+
+        // Update parcel
+        parcel.shipmentId = shipmentId;
+        parcel.status = "ShipmentAssigned";
+        await parcel.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Parcel added to shipment successfully',
+            data: {
+                addedParcel: {
+                    parcelId: parcel.parcelId,
+                    itemSize: parcel.itemSize,
+                    weight: parcelWeight,
+                    volume: parcelVolume
+                },
+                newTotals: {
+                    weight: shipment.totalWeight,
+                    volume: shipment.totalVolume,
+                    parcelCount: shipment.parcelCount
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error adding manual parcel to shipment:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error while adding parcel'
+        });
+    }
+});
 
 // Get completed shipments with assigned vehicles for a specific center
 router.get("/completed/:centerId", async (req, res) => {
@@ -320,9 +441,17 @@ router.get("/:shipmentId/manifest", async (req, res) => {
 const { processAllShipments } = require("../controllers/shipmentManagementControllers/shipmentController");
 
 // Process shipments with staff authentication
-router.post('/process/:type/:center', async (req, res) => {
+router.post('/process/:type/:center', isStaffAuthenticated, async (req, res) => {
     try {
         const { parcelIds } = req.body;
+        
+        // Verify that the center matches staff's branch
+        if (req.params.center !== req.staff.branchId._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                error: "Access denied. You can only process shipments for your assigned branch."
+            });
+        }
         
         if (!parcelIds || !Array.isArray(parcelIds) || parcelIds.length === 0) {
             return res.status(400).json({
@@ -330,6 +459,8 @@ router.post('/process/:type/:center', async (req, res) => {
                 error: "Valid parcel IDs array is required"
             });
         }
+        
+        console.log(`Staff ${req.staff.name} from ${req.staff.branchId.location} is processing ${req.params.type} shipments`);
         
         const result = await processAllShipments(
             req.params.type,  // 'Express' or 'Standard'
@@ -342,11 +473,16 @@ router.post('/process/:type/:center', async (req, res) => {
         }
 
         res.status(201).json({
-            message: `${req.params.type} shipments processed successfully`,
+            message: `${req.params.type} shipments processed successfully by ${req.staff.name}`,
+            staffInfo: {
+                name: req.staff.name,
+                branch: req.staff.branchId.location
+            },
             ...result
         });
 
     } catch (error) {
+        console.error('Error in process shipments route:', error);
         res.status(500).json({
             success: false,
             error: error.message
