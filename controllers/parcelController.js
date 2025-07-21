@@ -6,6 +6,10 @@ const catchAsync = require("../utils/catchAscync");
 const Payment = require("../models/PaymentModel");
 const Branch = require("../models/BranchesModel");
 const AppError = require("../utils/appError");
+// controllers/parcelController.js
+const Notification = require('../models/Notification');
+const notificationController = require('../controllers/notificationController.js');
+
 
 const dotenv = require("dotenv");
 dotenv.config();
@@ -16,6 +20,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const branchDistances = {
   // Colombo (B001) to other districts (24 entries)
   B001: {
+    B001:10.2,
     B002: 35.2,
     B003: 115.5,
     B004: 165.0,
@@ -43,6 +48,7 @@ const branchDistances = {
   },
   // Gampaha (B002) to other districts (24 entries)
   B002: {
+     B002:10.2,
     B001: 35.2,
     B003: 110.0,
     B004: 170.0,
@@ -70,6 +76,7 @@ const branchDistances = {
   },
   // Kandy (B003) to other districts (24 entries)
   B003: {
+     B003:10.2,
     B001: 115.5,
     B002: 110.0,
     B004: 95.0,
@@ -97,6 +104,7 @@ const branchDistances = {
   },
   // Galle (B004) to other districts (24 entries)
   B004: {
+     B004:10.2,
     B001: 165.0,
     B002: 170.0,
     B003: 95.0,
@@ -124,6 +132,7 @@ const branchDistances = {
   },
   // Jaffna (B005) to other districts (24 entries)
   B005: {
+     B005:10.2,
     B001: 205.0,
     B002: 210.0,
     B003: 320.0,
@@ -151,6 +160,8 @@ const branchDistances = {
   },
   // Kurunegala (B006) to other districts (24 entries)
   B006: {
+     B006:10.2,
+     B006:10.2,
     B001: 148.0,
     B002: 140.0,
     B003: 80.0,
@@ -178,6 +189,8 @@ const branchDistances = {
   },
   // Matara (B007) to other districts (24 entries)
   B007: {
+     B007:10.2,
+     B001:10.2,
     B001: 102.0,
     B002: 107.0,
     B003: 145.0,
@@ -205,6 +218,7 @@ const branchDistances = {
   },
   // Anuradhapura (B008) to other districts (24 entries)
   B008: {
+     B008:10.2,
     B001: 160.0,
     B002: 155.0,
     B003: 135.0,
@@ -232,6 +246,7 @@ const branchDistances = {
   },
   // Trincomalee (B009) to other districts (24 entries)
   B009: {
+     B009:10.2,
     B001: 225.0,
     B002: 220.0,
     B003: 200.0,
@@ -259,6 +274,7 @@ const branchDistances = {
   },
   // Badulla (B010) to other districts (24 entries)
   B010: {
+     B010:10.2,
     B001: 125.0,
     B002: 120.0,
     B003: 65.0,
@@ -286,6 +302,7 @@ const branchDistances = {
   },
   // Ratnapura (B011) to other districts (24 entries)
   B011: {
+     B011:10.2,
     B001: 135.0,
     B002: 130.0,
     B003: 70.0,
@@ -313,6 +330,7 @@ const branchDistances = {
   },
   // Kalutara (B012) to other districts (24 entries)
   B012: {
+     B012:10.2,
     B001: 85.0,
     B002: 50.0,
     B003: 130.0,
@@ -340,6 +358,7 @@ const branchDistances = {
   },
   // Polonnaruwa (B013) to other districts (24 entries)
   B013: {
+     B013:10.2,
     B001: 195.0,
     B002: 190.0,
     B003: 160.0,
@@ -367,6 +386,7 @@ const branchDistances = {
   },
   // Batticaloa (B014) to other districts (24 entries)
   B014: {
+     B014:10.2,
     B001: 175.0,
     B002: 170.0,
     B003: 190.0,
@@ -394,6 +414,7 @@ const branchDistances = {
   },
   // Ampara (B015) to other districts (24 entries)
   B015: {
+     B015:10.2,
     B001: 240.0,
     B002: 235.0,
     B003: 255.0,
@@ -421,6 +442,7 @@ const branchDistances = {
   },
   // Kegalle (B016) to other districts (24 entries)
   B016: {
+     B016:10.2,
     B001: 55.0,
     B002: 60.0,
     B003: 40.0,
@@ -448,6 +470,7 @@ const branchDistances = {
   },
   // Puttalam (B017) to other districts (24 entries)
   B017: {
+     B017:10.2,
     B001: 70.0,
     B002: 65.0,
     B003: 175.0,
@@ -475,6 +498,7 @@ const branchDistances = {
   },
   // Monaragala (B018) to other districts (24 entries)
   B018: {
+     B018:10.2,
     B001: 180.0,
     B002: 175.0,
     B003: 110.0,
@@ -502,6 +526,7 @@ const branchDistances = {
   },
   // Hambantota (B019) to other districts (24 entries)
   B019: {
+     B019:10.2,
     B001: 155.0,
     B002: 150.0,
     B003: 185.0,
@@ -529,6 +554,7 @@ const branchDistances = {
   },
   // Matale (B020) to other districts (24 entries)
   B020: {
+     B020:10.2,
     B001: 90.0,
     B002: 85.0,
     B003: 25.0,
@@ -556,6 +582,7 @@ const branchDistances = {
   },
   // Vavuniya (B021) to other districts (24 entries)
   B021: {
+     B021:10.2,
     B001: 220.0,
     B002: 215.0,
     B003: 295.0,
@@ -583,6 +610,7 @@ const branchDistances = {
   },
   // Mullaitivu (B022) to other districts (24 entries)
   B022: {
+     B022:10.2,
     B001: 230.0,
     B002: 225.0,
     B003: 305.0,
@@ -610,6 +638,7 @@ const branchDistances = {
   },
   // Kilinochchi (B023) to other districts (24 entries)
   B023: {
+     B023:10.2,
     B001: 250.0,
     B002: 245.0,
     B003: 325.0,
@@ -637,6 +666,7 @@ const branchDistances = {
   },
   // Mannar (B024) to other districts (24 entries)
   B024: {
+     B024:10.2,
     B001: 265.0,
     B002: 260.0,
     B003: 340.0,
@@ -664,6 +694,7 @@ const branchDistances = {
   },
   // Nuwara Eliya (B025) to other districts (24 entries)
   B025: {
+     B025:10.2,
     B001: 275.0,
     B002: 270.0,
     B003: 75.0,
@@ -716,7 +747,7 @@ const getBranchDistance = (fromBranchId, toBranchId) => {
     throw new Error("Both from and to branches are required");
   }
 
-  if (fromBranchId === toBranchId) return 0; // Same branch
+  // if (fromBranchId === toBranchId) return 0; // Same branch
 
   const distance = branchDistances[fromBranchId]?.[toBranchId];
   if (distance === undefined) {
@@ -755,6 +786,8 @@ const createStripeSession = async (parcelDetails, amount) => {
   return session;
 };
 
+
+
 // Main controller function
 exports.addParcel = catchAsync(async (req, res, next) => {
   const {
@@ -790,15 +823,13 @@ exports.addParcel = catchAsync(async (req, res, next) => {
 
   // Validate branches based on submission type
   let fromBranch, toBranch;
-
+  
   // Scenario 1: Pickup & Doorstep
   if (submittingType === "pickup" && receivingType === "doorstep") {
-    // if (!from) return next(new AppError("'from' branch required for pickup", 400));
-    // fromBranch = await Branch.findById(from);
-    fromBranch = await Branch.findOne({ location: district });
+    fromBranch = await Branch.findById(from);
     if (!fromBranch)
       return next(new AppError("No branch found in Pickup district", 400));
-    toBranch = await Branch.findOne({ location: deliveryDistrict });
+    toBranch = await Branch.findById(to);
     if (!toBranch)
       return next(new AppError("No branch found in delivery district", 400));
   }
@@ -807,17 +838,19 @@ exports.addParcel = catchAsync(async (req, res, next) => {
     submittingType === "pickup" &&
     receivingType === "collection_center"
   ) {
-    if (!from || !to)
+    if ( !to)
       return next(new AppError("Both 'from' and 'to' branches required", 400));
     fromBranch = await Branch.findById(from);
+    if (!fromBranch) return next(new AppError("No branch found in pickup district", 400));
     toBranch = await Branch.findById(to);
   }
   // Scenario 3: Drop-off & Doorstep
   else if (submittingType === "drop-off" && receivingType === "doorstep") {
     if (!to)
       return next(new AppError("'to' branch required for drop-off", 400));
+    fromBranch = await Branch.findById(from);
     toBranch = await Branch.findById(to);
-    fromBranch = await Branch.findOne({ location: district });
+
     if (!fromBranch)
       return next(new AppError("No branch found in pickup district", 400));
   }
@@ -887,7 +920,7 @@ exports.addParcel = catchAsync(async (req, res, next) => {
       pickupTime,
       address,
       city,
-      district,
+      district: fromBranch.location,
       province,
     };
   }
@@ -895,7 +928,7 @@ exports.addParcel = catchAsync(async (req, res, next) => {
     parcelData.deliveryInformation = {
       deliveryAddress,
       deliveryCity,
-      deliveryDistrict,
+      deliveryDistrict:toBranch.location,
       deliveryProvince,
       postalCode,
     };
@@ -932,6 +965,14 @@ exports.addParcel = catchAsync(async (req, res, next) => {
     newParcel.paymentId = newPayment._id;
     await newParcel.save();
 
+         // Add notification
+await notificationController.createNotification(
+  req.user.id,
+  `Your parcel #${newParcel.parcelId} has been registered`, // Using parcelId since trackingNo might not be set yet
+  'parcel_created',
+  { id: newParcel._id, type: 'Parcel' }
+);
+
     return res.status(201).json({
       status: "success",
       message: "Proceed to payment",
@@ -962,6 +1003,16 @@ exports.addParcel = catchAsync(async (req, res, next) => {
     // Update parcel with payment reference
     newParcel.paymentId = newPayment._id;
     await newParcel.save();
+
+
+
+     // Add notification
+await notificationController.createNotification(
+  req.user.id,
+  `Your parcel #${newParcel.parcelId} has been registered`, // Using parcelId since trackingNo might not be set yet
+  'parcel_created',
+  { id: newParcel._id, type: 'Parcel' }
+);
 
     return res.status(201).json({
       status: "success",
@@ -1016,7 +1067,9 @@ exports.getUserParcels = catchAsync(async (req, res, next) => {
 
   const senderId = req.user.id; // Get the authenticated user's ID
 
-  const parcels = await Parcel.find({ senderId }).populate("receiverId");
+   const parcels = await Parcel.find({ senderId })
+   .populate("receiverId", "receiverFullName receiverDistrict")
+  
 
   res.status(200).json({
     status: "success",
@@ -1034,25 +1087,32 @@ exports.getParcelByTrackingNumber = catchAsync(async (req, res, next) => {
     throw new Error("Please provide a tracking number");
   }
 
-  const parcel = await Parcel.findOne({ trackingNo })
-    .populate("senderId", "fname email phone")
-    .populate("receiverId", "name email phone")
-    .populate("from to", "branchName address city district province")
-    .lean();
+  let parcelQuery = Parcel.findOne({ trackingNo: trackingNo.trim() })
+  .populate("senderId", "fname email contact")
+  .populate("receiverId", "receiverFullName receiverEmail receiverContact");
 
-  if (!parcel) {
-    res.status(404);
-    throw new Error("Parcel not found");
-  }
+const parcelDoc = await parcelQuery.lean();
 
-  // Format the response with tracking history based on status and timestamps
+if (!parcelDoc) {
+  res.status(404);
+  throw new Error("Parcel not found");
+}
 
-  const progressPercentage = calculateProgressPercentage(parcel.status);
+// optionally populate from/to only if they exist
+if (parcelDoc.from && parcelDoc.to) {
+  await Parcel.populate(parcelDoc, [
+    { path: "from", select: "location branchName city district" },
+    { path: "to", select: "location branchName city district" },
+  ]);
+}
 
-  res.json({
-    ...parcel,
-    progress: progressPercentage,
-  });
+ 
+const progressPercentage = calculateProgressPercentage(parcelDoc.status);
+
+res.json({
+  ...parcelDoc,
+  progress: progressPercentage,
+});
 });
 
 // Helper function to calculate progress percentage
@@ -1074,3 +1134,28 @@ const calculateProgressPercentage = (status) => {
     ? Math.round((currentIndex / (statusOrder.length - 1)) * 100)
     : 0;
 };
+
+
+
+exports.getParcelById = catchAsync(async (req, res, next) => {
+
+   try {
+    const parcelId = req.params.id.trim();
+
+    const parcel = await Parcel.findOne({ parcelId: { $regex: `^${parcelId}$`, $options: "i" } })
+      .populate("receiverId", "receiverFullName receiverEmail receiverContact")
+      .populate("from", "location")
+      .populate("to", "location");
+
+    if (!parcel) {
+      return res.status(404).json({ message: "Parcel not found" });
+    }
+
+    res.status(200).json({ parcel });
+  } catch (error) {
+    console.error("Parcel Fetch Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+

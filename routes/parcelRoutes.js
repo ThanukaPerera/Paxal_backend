@@ -9,11 +9,14 @@ const { getUserParcels } = require("../controllers/parcelController.js");
 const {
   getParcelByTrackingNumber,
 } = require("../controllers/parcelController.js");
+const {getParcelById } = require("../controllers/parcelController.js");
+
 
 // Define routes
 router.post("/addparcel", isAuthenticated, addParcel); // Add a new parcel
 router.get("/user_parcels", isAuthenticated, getUserParcels);
 router.get("/track/:trackingNo", getParcelByTrackingNumber);
+router.get("/:id", getParcelById);
 
 // notify the standard shipment
 router.get("/notifyAboutShipment/:id", async (req, res) => {

@@ -7,7 +7,7 @@ const {
   logout,
   forgetPassword,
   resetPassword,
-  getUserProfile,
+  
 } = require("../controllers/authController");
 const isAuthenticated = require("../middleware/isAuthenticated");
 const authController = require("../controllers/authController");
@@ -21,7 +21,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.post("/forget-password", forgetPassword);
 router.post("/reset-password", resetPassword);
-// router.get("/profile", isAuthenticated, getUserProfile);
+
 
 // Profile routes
 router.get("/profile", isAuthenticated, authController.getUserProfile);

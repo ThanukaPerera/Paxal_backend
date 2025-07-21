@@ -26,6 +26,8 @@ const createInquiry = async (req, res) => {
     // Save to database
     await newInquiry.save();
 
+   
+
     res.status(201).json({
       success: true,
       message: "Your inquiry has been submitted successfully",
