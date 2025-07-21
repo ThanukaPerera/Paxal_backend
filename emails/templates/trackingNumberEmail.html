@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Parcel Tracking Number</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .email-container {
+            background-color: white;
+            width: 800px; 
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+        h1 {
+            color: #1F818C;
+            text-align: center;
+        }
+        .reset-code {
+            text-align: center;
+            background: #f3f3f3;
+            padding: 10px;
+            display: inline-block;
+            border-radius: 5px;
+            color: #1F818C;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h1>[PAXAL] Your Parcel Tracking Number</h1>
+        <p>Dear Customer, <br>
+            We are pleased to inform you that your parcel has been successfully registered and is now being processed for delivery.
+        </p>
+        <p>To track your parcel status, use the tracking number below:</p>
+        <div class="reset-code">{TRACKING_NO}</div>
+        <p>
+            Thank you for choosing our service!
+        </p>
+        <p>Best regards,<br>PAXAL Team</p>
+    </div>
+</body>
+</html>

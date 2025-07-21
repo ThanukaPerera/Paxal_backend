@@ -1,1 +1,42 @@
-node_modules
+
+### Node.js ###
+# Dependency directories
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+
+# Production build
+build/
+dist/
+
+# Editor files
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Testing coverage
+coverage/
+
+# Database files
+*.sqlite
+*.sqlite-journal
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+*.bak
+*.old
