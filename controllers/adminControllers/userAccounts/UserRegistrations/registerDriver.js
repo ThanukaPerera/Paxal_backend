@@ -2,13 +2,10 @@ const Driver = require("../../../../models/DriverModel");
 const bcrypt = require("bcryptjs");
 const findAdminFunction = require("../../../../utils/findAdminFunction");
 const sendEmail = require("../../../../utils/admin/sendEmail");
-const {
-  default: generateRandomPassword,
-} = require("../../../../utils/admin/genPassword");
+const generateRandomPassword= require("../../../../utils/admin/genPassword");
 
 const registerDriver = async (req, res) => {
   try {
-    console.log(req.params);
     const adminId = req.admin.adminId;
     const response = await findAdminFunction(adminId);
 
@@ -70,6 +67,23 @@ const registerDriver = async (req, res) => {
       `,
     });
 
+    // Send email notification to driver with credentials
+    try {
+      await sendEmail({
+        to: req.body.email,
+        subject: "Driver Account Created - Paxal PMS",
+        template: "driverAccount",
+        templateData: {
+          password: password,
+          userName: req.body.name,
+          driverId: nextDriverId
+        }
+      });
+    } catch (emailError) {
+      console.error("Email sending to driver failed:", emailError);
+      // Continue with success response even if email fails
+    }
+
     // Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -91,15 +105,21 @@ const registerDriver = async (req, res) => {
       status: "success",
       message: "Driver registered successfully", 
       data: {
-        driverId: savedDriver.driverId,
-        name: savedDriver.name,
-        email: savedDriver.email,
-        nic: savedDriver.nic,
-        contactNo: savedDriver.contactNo,
-        licenseId: savedDriver.licenseId,
-        branchId: savedDriver.branchId,
-        vehicleId: savedDriver.vehicleId,
-        createdAt: savedDriver.createdAt
+        driver: {
+          driverId: savedDriver.driverId,
+          name: savedDriver.name,
+          email: savedDriver.email,
+          nic: savedDriver.nic,
+          contactNo: savedDriver.contactNo,
+          licenseId: savedDriver.licenseId,
+          branchId: savedDriver.branchId,
+          vehicleId: savedDriver.vehicleId,
+          createdAt: savedDriver.createdAt
+        },
+        credentials: {
+          driverId: savedDriver.driverId,
+          tempPassword: password // Include temp password in response for admin
+        }
       }
     });
   } catch (error) {

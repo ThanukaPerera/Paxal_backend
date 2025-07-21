@@ -2,9 +2,7 @@ const Staff = require("../../../../models/StaffModel");
 const bcrypt = require("bcryptjs");
 const findAdminFunction = require("../../../../utils/findAdminFunction");
 const sendEmail = require("../../../../utils/admin/sendEmail");
-const {
-  default: generateRandomPassword,
-} = require("../../../../utils/admin/genPassword");
+const generateRandomPassword= require("../../../../utils/admin/genPassword");
 
 const registerStaff = async (req, res) => {
   try {
