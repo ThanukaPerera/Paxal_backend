@@ -1,158 +1,119 @@
 const Branch = require("../../../models/BranchesModel");
-const { body, validationResult } = require("express-validator");
+const sendEmail = require("../../../utils/admin/sendEmail");
 
-const validateBranch = [
-  body("location")
-    .trim()
-    .notEmpty()
-    .withMessage("Branch location is required")
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Location must be between 2-100 characters")
-    .custom(async (value) => {
-      const existingBranch = await Branch.findOne({ location: value });
-      if (existingBranch) {
-        throw new Error("Branch location already exists");
-      }
-      return true;
-    }),
-    
-  body("contact")
-    .trim()
-    .notEmpty()
-    .withMessage("Contact number is required")
-    .isLength({ min: 10, max: 10 })
-    .withMessage("Contact number must be exactly 10 digits")
-    .matches(/^0\d{9}$/)
-    .withMessage("Invalid Sri Lankan format. Use 0XXXXXXXXX")
-    .customSanitizer(value => value.replace(/[^\d]/g, ''))
-];
-
+/**
+ * Enhanced branch registration controller with professional error handling
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 const addBranch = async (req, res) => {
-  // Get validation errors
-  const errors = validationResult(req);
+  console.log("Registering branch...", req.body);
   
-  if (!errors.isEmpty()) {
-    // Format errors properly
-    const formattedErrors = errors.array().reduce((acc, err) => {
-      acc[err.path] = err.msg;
-      return acc;
-    }, {});
-
-    return res.status(422).json({
-      status: "error",
-      message: "Validation failed",
-      errors: formattedErrors
-    });
-  }
-
   try {
-    const latestBranch = await Branch.findOne().sort({ branchId: -1 });
-    const newBranchNumber = latestBranch ? 
-      parseInt(latestBranch.branchId.substring(1)) + 1 : 1;
-    
-    const branchId = `B${newBranchNumber.toString().padStart(3, "0")}`;
-    
-    const branch = new Branch({
-      branchId,
-      location: req.body.location.trim(),
-      contact: req.body.contact.replace(/[^\d]/g, '')
-    });
+    // The validation is already handled by middleware, so we can use req.body directly
+    // req.body has already been validated and transformed by the middleware
+    const validatedData = req.body;
 
-    const savedBranch = await branch.save();
-    
-    res.status(201).json({
-      status: "success",
-      message: "Branch created successfully",
-      data: savedBranch
-    });
+    console.log("Validated branch data:", validatedData);
 
-  } catch (error) {
-    console.error("Branch creation error:", error);
-    
-    if (error.code === 11000) {
-      return res.status(409).json({
-        status: "error",
-        message: "Branch already exists",
-        errors: { 
-          location: "A branch with this location already exists" 
-        }
-      });
+    // Generate branch ID with transaction safety
+    const lastBranch = await Branch.findOne().sort({ branchId: -1 }).lean();
+    let nextBranchId = "B001";
+
+    if (lastBranch) {
+      const lastIdNumber = parseInt(lastBranch.branchId.replace("B", ""), 10);
+      if (isNaN(lastIdNumber)) {
+        throw new Error("Invalid branch ID format in database");
+      }
+      nextBranchId = `B${String(lastIdNumber + 1).padStart(3, "0")}`;
     }
 
-    res.status(500).json({
+    // Create branch data
+    const branchData = {
+      ...validatedData,
+      branchId: nextBranchId,
+    };
+
+    const branch = new Branch(branchData);
+    const savedBranch = await branch.save();
+
+    // Optional: Send notification email to admin about new branch
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL; // Add to your env variables
+      if (adminEmail) {
+        await sendEmail({
+          to: adminEmail,
+          subject: "New Branch Registered - Paxal PMS",
+          template: "welcome",
+          templateData: {
+            userName: "Admin",
+          }
+        });
+      }
+    } catch (emailError) {
+      console.error("Branch notification email failed:", emailError);
+      // Continue with success response even if email fails
+    }
+
+    // Success Response
+    res.status(201).json({
+      status: "success",
+      message: "Branch registered successfully",
+      data: {
+        branchId: savedBranch.branchId,
+        location: savedBranch.location,
+        contact: savedBranch.contact,
+        createdAt: savedBranch.createdAt,
+      },
+    });
+  } catch (error) {
+    // Error Classification
+    let statusCode = 500;
+    let errorMessage = "Internal server error";
+    let errorCode = "SERVER_ERROR";
+
+    // Handle specific error types
+    if (error.name === "ValidationError") {
+      statusCode = 400;
+      errorMessage = Object.values(error.errors)
+        .map((val) => val.message)
+        .join(", ");
+      errorCode = "VALIDATION_ERROR";
+    } else if (error.code === 11000) {
+      statusCode = 409;
+      const duplicateField = Object.keys(error.keyPattern)[0];
+      errorMessage = `Branch with this ${duplicateField} already exists`;
+      errorCode = "DUPLICATE_BRANCH";
+    } else if (error.message.includes("Invalid branch ID")) {
+      statusCode = 500;
+      errorMessage = "Database inconsistency detected";
+      errorCode = "DB_INCONSISTENCY";
+    }
+
+    // Secure Logging
+    console.error(`[${new Date().toISOString()}] Branch Registration Error:`, {
+      code: errorCode,
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      requestBody:
+        process.env.NODE_ENV === "development" ? req.body : undefined,
+    });
+
+    // Client Response
+    res.status(statusCode).json({
       status: "error",
-      message: "Server error while creating branch",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: errorMessage,
+      code: errorCode,
+      ...(process.env.NODE_ENV === "development" && {
+        debug: {
+          message: error.message,
+          stack: error.stack,
+        },
+      }),
     });
   }
 };
-// const Branch = require("../../../models/BranchesModel");
-// const { body, validationResult } = require("express-validator");
-
-// const validateBranch = [
-//   body("location")
-//     .notEmpty()
-//     .withMessage("Branch location is required.")
-//     .isLength({ min: 2 })
-//     .withMessage("Branch location must be at least 2 characters long."),
-
-//   body("contact")
-//     .notEmpty()
-//     .withMessage("Contact number is required.")
-//     .isMobilePhone()
-//     .withMessage("Invalid contact number format."),
-// ];
-
-// const addBranch = async (req, res) => {
-//   const errors = validationResult(req);
-//   if (!errors.isEmpty()) {
-//     return res.status(422).json({ errors: errors.array() });
-//   }
-//   try {
-//     const branchData = req.body;
-//     console.log(branchData);
-//     const newBranch = new Branch(branchData);
-//     const savedBranch = await newBranch.save();
-//     res
-//       .status(201)
-//       .json({
-//         status: "success",
-//         message: "Branch added successfully",
-//         branch: savedBranch,
-//       });
-//     console.log(req.data);
-//   } catch (error) {
-//     console.error("Error adding branch:", error);
-//     res
-//       .status(500)
-//       .json({ message: "Server error. Could not add branch.", error });
-//   }
-// };
-
-//BULK BRANCHES ADDING
-// try {
-//     const branchDataArray = req.body;
-
-//     // Validate input is an array
-//     if (!Array.isArray(branchDataArray)) {
-//       return res.status(400).json({ message: "Input should be an array of branches." });
-//     }
-
-//     // Insert all branches
-//     const savedBranches = await Branch.insertMany(branchDataArray);
-
-//     res.status(201).json({
-//       status: "success",
-//       message: `${savedBranches.length} branches added successfully`,
-//       branches: savedBranches,
-//     });
-
-//   } catch (error) {
-//     console.error("Error adding branches:", error);
-//     res.status(500).json({ message: "Server error. Could not add branches.", error });
-//   }
 
 module.exports = {
-  validateBranch,
   addBranch,
 };

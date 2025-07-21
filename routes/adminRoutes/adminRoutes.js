@@ -3,6 +3,9 @@ const router = express.Router();
 
 // Middleware
 const {authenticateAdmin} = require("../../middleware/adminMiddleware/authMiddleware");
+const { validateAdminRegistration } = require("../../middleware/adminMiddleware/adminValidationMiddleware");
+const { validateDriverRegistration } = require("../../middleware/adminMiddleware/driverValidationMiddleware");
+const { validateStaffRegistration } = require("../../middleware/adminMiddleware/staffValidationMiddleware");
 
 
 // Admin Controllers
@@ -112,9 +115,9 @@ router.get("/bar/data", authenticateAdmin, barChart);
 router.get("/user/count", authenticateAdmin, fetchNoOfUsers);
 
 //Registration
-router.post("/register", authenticateAdmin, registerAdmin);
-router.post("/driver/register", authenticateAdmin, registerDriver);
-router.post("/staff/register", authenticateAdmin, registerStaff);
+router.post("/register", authenticateAdmin, validateAdminRegistration, registerAdmin);
+router.post("/driver/register", authenticateAdmin, validateDriverRegistration, registerDriver);
+router.post("/staff/register", authenticateAdmin, validateStaffRegistration, registerStaff);
 
 //Tables
 router.get("/customer/all", authenticateAdmin, fetchAllCustomers);
