@@ -214,7 +214,8 @@ const fetchBranchCompleteData = async (req, res) => {
     console.log(`- Shipments found: ${shipments.length}`);
     console.log(`- Driver stats:`, driverStats);
     console.log(`- Staff stats:`, staffStats);
-    console.log(`- Vehicle stats:`, vehicleStats);
+    console.log(`- Vehicle stats RAW:`, JSON.stringify(vehicleStats, null, 2));
+    console.log(`- Vehicles list sample:`, vehicles.slice(0, 3).map(v => ({ id: v._id, available: v.available, vehicleId: v.vehicleId })));
 
     // Get today's schedule summary with enhanced data
     const todayScheduleSummary = {
@@ -257,16 +258,40 @@ const fetchBranchCompleteData = async (req, res) => {
       inactiveCount: staffStats.find(s => s._id === 'inactive')?.count || 0
     };
 
-    // Format vehicle statistics
+    // Format vehicle statistics with improved logic
     const vehicleStatistics = {
       total: vehicles.length,
-      available: vehicleStats.find(v => v._id === true)?.count || 0,
-      inUse: vehicleStats.find(v => v._id === false)?.count || 0,
+      available: 0,
+      inUse: 0,
       totalCapacity: {
-        volume: vehicleStats.reduce((sum, stat) => sum + (stat.totalVolume || 0), 0),
-        weight: vehicleStats.reduce((sum, stat) => sum + (stat.totalWeight || 0), 0)
+        volume: 0,
+        weight: 0
       }
     };
+
+    // Process vehicle stats more carefully
+    if (vehicleStats && vehicleStats.length > 0) {
+      vehicleStats.forEach(stat => {
+        if (stat._id === true) {
+          vehicleStatistics.available = stat.count || 0;
+        } else if (stat._id === false) {
+          vehicleStatistics.inUse = stat.count || 0;
+        }
+        vehicleStatistics.totalCapacity.volume += stat.totalVolume || 0;
+        vehicleStatistics.totalCapacity.weight += stat.totalWeight || 0;
+      });
+    }
+
+    // Fallback: count manually from vehicles array if aggregation didn't work
+    if (vehicleStatistics.available === 0 && vehicleStatistics.inUse === 0 && vehicles.length > 0) {
+      console.log('Aggregation failed, counting manually...');
+      vehicleStatistics.available = vehicles.filter(v => v.available === true).length;
+      vehicleStatistics.inUse = vehicles.filter(v => v.available === false).length;
+      vehicleStatistics.totalCapacity.volume = vehicles.reduce((sum, v) => sum + (v.capableVolume || 0), 0);
+      vehicleStatistics.totalCapacity.weight = vehicles.reduce((sum, v) => sum + (v.capableWeight || 0), 0);
+    }
+
+    console.log('Processed vehicle statistics:', vehicleStatistics);
 
     // Calculate branch performance metrics with correct ObjectId usage
     const performanceMetrics = {
