@@ -1,10 +1,10 @@
-const nodemailer = require("nodemailer");
+const nodemailer = require('nodemailer');
 const path = require("path");
 const fs = require("fs");
 
-require("dotenv").config();
+require('dotenv').config();
 
-const sender = process.env.EMAIL_USER;
+const sender = process.env.EMAIL;
 
 // Setup email transport
 const transporter = nodemailer.createTransport({
@@ -235,3 +235,4 @@ module.exports = {
   sendCollectionCenterArrivedEmail,
   sendParcelDeliveredEmail
 };
+
