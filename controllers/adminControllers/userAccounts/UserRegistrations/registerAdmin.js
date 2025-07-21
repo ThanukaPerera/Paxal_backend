@@ -1,7 +1,8 @@
 const Admin = require("../../../../models/AdminModel");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../../../../utils/admin/sendEmail");
-const { default: generateRandomPassword } = require("../../../../utils/admin/genPassword");
+//const { default: generateRandomPassword } = require("../../../../utils/admin/genPassword");
+const generateRandomPassword = require("../../../../utils/admin/genPassword");
 
 const registerAdmin = async (req, res) => {
   console.log("Registering admin...", req.body);
