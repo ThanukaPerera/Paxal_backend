@@ -80,7 +80,7 @@ const shipmentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Verified', 'In Transit', 'Completed'],
+        enum: ['Pending', 'Verified', 'In Transit','Dispatched', 'Completed'],
         default: 'Pending'
     },
     parcels: [{

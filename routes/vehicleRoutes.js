@@ -4,6 +4,7 @@ const {
     assignVehicle, 
     findVehicleForShipment, 
     getPendingB2BShipments,
+    getShipmentsByBranch,
     assignVehicleManual,
     assignVehicleSmart,
     confirmVehicleAssignment,
@@ -66,6 +67,9 @@ router.post("/assignVehicleToShipment/:id/:deliveryType", async (req, res) => {
     });
   }
 });
+
+// Route to get shipments by branch ID directly (for ViewShipmentsPage) - MUST come before :staffId route
+router.get("/b2b/shipments/branch/:branchId", getShipmentsByBranch);
 
 // Route to get pending B2B shipments for a specific staff member's center
 router.get("/b2b/shipments/:staffId", getPendingB2BShipments);

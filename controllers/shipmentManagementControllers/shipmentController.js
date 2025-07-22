@@ -126,9 +126,9 @@ const bufferTimeConfig = {
 
 
 const sizeSpecs = {
-  small: { weight: 2, volume: 0.2 },
-  medium: { weight: 5, volume: 0.5 },
-  large: { weight: 10, volume: 1 },
+    small: { weight: 2, volume: 0.2 },
+    medium: { weight: 5, volume: 0.5 },
+    large: { weight: 10, volume: 1 }
 };
 
 
@@ -178,6 +178,30 @@ function calculateArrivalTimes(route, deliveryType, timeMatrix) {
 }
 
 
+// Helper function to get the next available sequence number atomically
+async function getNextShipmentSequence(sourceCenterId, deliveryType, sourceLocation) {
+    const prefix = deliveryType === 'express' ? 'EX' : 'ST';
+    
+    // Use a more atomic approach - find the latest and increment
+    const latestShipment = await B2BShipment.findOne({
+        sourceCenter: sourceCenterId,
+        shipmentId: { $regex: `^${prefix}-S\\d+-${sourceLocation}` }
+    })
+    .select('shipmentId')
+    .sort({ createdAt: -1, _id: -1 }) // Sort by both creation time and _id for consistency
+    .lean();
+
+    let nextSequence = 1;
+    if (latestShipment) {
+        const match = latestShipment.shipmentId.match(/-S(\d+)-/);
+        if (match) {
+            nextSequence = parseInt(match[1], 10) + 1;
+        }
+    }
+
+    return nextSequence;
+}
+
 async function processShipments(deliveryType, parcels, sourceCenterId, staffId, matrices) {
     console.log(`Processing ${deliveryType} shipments from ${sourceCenterId}`);
     const { distanceMatrix, timeMatrix, branchMap, idToLocationMap } = matrices;
@@ -186,75 +210,31 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
     let shipments = [];
     let lastShipmentNumber = 0;
 
-    const lastShipment = await B2BShipment.findOne({ sourceCenter: sourceCenterId })
-        .sort({ shipmentId: -1 })
-        .select('shipmentId')
-        .lean();
+    // Get the source location for building the shipment ID pattern
+    const sourceLocation = idToLocationMap[sourceCenterIdStr] || 'Unknown';
+    const prefix = deliveryType === 'express' ? 'EX' : 'ST';
 
-  if (lastShipment) {
-    const match = lastShipment.shipmentId.match(/-S(\d+)-/);
-    if (match) lastShipmentNumber = parseInt(match[1]);
-  }
+    // Find the latest shipment number for this specific center, delivery type, and location
+    const allShipments = await B2BShipment.find({
+        sourceCenter: sourceCenterId,
+        shipmentId: { $regex: `^${prefix}-S\\d+-${sourceLocation}` }
+    })
+    .select('shipmentId')
+    .sort({ createdAt: -1 })
+    .lean();
 
-  // Process parcels and group by destination
-  const processedParcels = await Promise.all(
-    parcels.map(async (parcel) => {
-      const { sourceDistrict, destDistrict } = await getDistrictInfo(parcel);
-      if (!sourceDistrict || !destDistrict) {
-        console.log(`Parcel ${parcel._id} missing district info`);
-        return null;
-      }
-
-      return {
-        ...parcel.toObject(),
-        sourceDistrict,
-        destDistrict,
-        weight: sizeSpecs[parcel.itemSize].weight,
-        volume: sizeSpecs[parcel.itemSize].volume,
-      };
-    }),
-  );
-
-  // Filter valid parcels and group by destination
-  const validParcels = processedParcels.filter((p) => p !== null);
-
-  // Group parcels by destination, excluding the source center itself
-  const destinationGroups = validParcels.reduce((groups, parcel) => {
-    // Skip parcels destined for source center
-    if (parcel.destDistrict === sourceCenter) return groups;
-
-    const key = parcel.destDistrict;
-    if (!groups[key]) {
-      groups[key] = { parcels: [], totalWeight: 0, totalVolume: 0 };
+    // Extract the highest sequence number
+    for (const shipment of allShipments) {
+        const match = shipment.shipmentId.match(/-S(\d+)-/);
+        if (match) {
+            const sequenceNumber = parseInt(match[1], 10);
+            if (sequenceNumber > lastShipmentNumber) {
+                lastShipmentNumber = sequenceNumber;
+            }
+        }
     }
-    groups[key].parcels.push(parcel._id);
-    groups[key].totalWeight += parcel.weight;
-    groups[key].totalVolume += parcel.volume;
-    return groups;
-  }, {});
 
-  console.log(
-    "Destination Groups:",
-    JSON.stringify(destinationGroups, null, 2),
-  );
-
-  // Generate optimized route from source to all destinations
-  const destinations = Object.keys(destinationGroups);
-  const route = optimizeRoute(sourceCenter, destinations);
-  console.log(`Optimized Route: ${route.join(" -> ")}`);
-
-  let currentShipment = null;
-  let shipmentCount = lastShipmentNumber + 1;
-
-  // Process each destination in the optimized route (excluding source center)
-  for (let i = 1; i < route.length; i++) {
-    const destination = route[i];
-    const group = destinationGroups[destination];
-
-    if (!group) {
-      console.log(`No parcels for destination: ${destination}`);
-      continue;
-    }
+    console.log(`Found ${allShipments.length} existing shipments for ${prefix} at ${sourceLocation}, last sequence: ${lastShipmentNumber}`);
     //console.log(parcels);
     const processedParcels = parcels.map(parcel => {
         // Validate that parcel has required fields
@@ -332,7 +312,7 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
             continue;
         }
         if (!currentShipment) {
-            currentShipment = createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
+            currentShipment = await createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
         }
 
         const prevCenter = currentShipment.route.length === 1 ?
@@ -353,7 +333,7 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
         if (!canAddToShipment(currentShipment, destination, group, additionalTime, deliveryType, prevCenter, distanceMatrix)) {
             await finalizeShipment(currentShipment, deliveryType, timeMatrix);
             shipments.push(currentShipment);
-            currentShipment = createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
+            currentShipment = await createNewShipment(deliveryType, sourceCenterId, staffId, shipmentCount++, idToLocationMap);
             const directTravelTime = timeMatrix[sourceCenterIdStr][destination];
             const directAdditionalTime = directTravelTime + constraints[deliveryType].firstBuffer;
             try {
@@ -390,94 +370,7 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
         shipments.push(currentShipment);
     }
 
-    // Apply the firstBuffer (4 hours) for the first leg from source center to first destination
-    const isFirstLeg = currentShipment.route.length === 1;
-    const bufferTime = isFirstLeg
-      ? constraints[deliveryType].firstBuffer
-      : constraints[deliveryType].buffer;
-    const additionalTime = travelTime + bufferTime;
-
-    console.log(
-      `From ${prevCenter} to ${destination}: Travel time ${travelTime}h + Buffer ${bufferTime}h = ${additionalTime}h`,
-    );
-
-    // Check if current shipment can accommodate this group
-    if (
-      !canAddToShipment(
-        currentShipment,
-        destination,
-        group,
-        additionalTime,
-        deliveryType,
-      )
-    ) {
-      console.log(
-        `Shipment constraints exceeded. Finalizing current shipment ${currentShipment.shipmentId}`,
-      );
-      await finalizeShipment(currentShipment, deliveryType);
-      shipments.push(currentShipment);
-      console.log(
-        `===============================Shipment finished ${currentShipment.shipmentId}==============================`,
-      );
-
-      // Create new shipment starting from source center
-      currentShipment = createNewShipment(
-        deliveryType,
-        sourceCenter,
-        staffId,
-        shipmentCount++,
-      );
-      console.log(
-        `Created new shipment ${currentShipment.shipmentId} for remaining parcels`,
-      );
-
-      // Recalculate travel time from source center to destination
-      const directTravelTime = timeMatrix[sourceCenter][destination];
-      const directAdditionalTime =
-        directTravelTime + constraints[deliveryType].firstBuffer;
-
-      // Add destination directly to new shipment (from source center)
-      console.log(
-        `Adding ${destination} to shipment ${currentShipment.shipmentId}`,
-      );
-      currentShipment.route.push(destination);
-      currentShipment.totalDistance = distanceMatrix[sourceCenter][destination];
-      currentShipment.totalTime = directAdditionalTime;
-      currentShipment.parcels.push(...group.parcels);
-      currentShipment.parcelCount = group.parcels.length;
-      currentShipment.totalWeight = group.totalWeight;
-      currentShipment.totalVolume = group.totalVolume;
-
-      console.log(
-        `Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`,
-      );
-    } else {
-      // Add destination to current shipment
-      console.log(
-        `Adding ${destination} to shipment ${currentShipment.shipmentId}`,
-      );
-      currentShipment.route.push(destination);
-      currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
-      currentShipment.totalTime += additionalTime;
-      currentShipment.parcels.push(...group.parcels);
-      currentShipment.parcelCount += group.parcels.length;
-      currentShipment.totalWeight += group.totalWeight;
-      currentShipment.totalVolume += group.totalVolume;
-
-      console.log(
-        `Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`,
-      );
-    }
-  }
-
-  // Finalize the last shipment
-  if (currentShipment) {
-    console.log(`Finalizing last shipment ${currentShipment.shipmentId}`);
-    await finalizeShipment(currentShipment, deliveryType);
-    shipments.push(currentShipment);
-  }
-
-  return shipments;
+    return shipments;
 }
 
 function optimizeRoute(source, destinations, distanceMatrix) {
@@ -514,17 +407,50 @@ function optimizeRoute(source, destinations, distanceMatrix) {
         remaining = remaining.filter(d => d !== nearest);
     }
 
-    route.push(nearest);
-    remaining = remaining.filter((d) => d !== nearest);
     return route;
-  }
+}
 
-  
-
-
-function createNewShipment(deliveryType, sourceCenterId, staffId, sequence, idToLocationMap) {
+async function createNewShipment(deliveryType, sourceCenterId, staffId, fallbackSequence, idToLocationMap) {
     const sourceLocation = idToLocationMap[sourceCenterId.toString()] || 'Unknown';
-    const shipmentId = `${deliveryType === 'express' ? 'EX' : 'ST'}-S${sequence.toString().padStart(3, '0')}-${sourceLocation}`;
+    const prefix = deliveryType === 'express' ? 'EX' : 'ST';
+    
+    // Get the next available sequence number atomically
+    let sequence;
+    try {
+        sequence = await getNextShipmentSequence(sourceCenterId, deliveryType, sourceLocation);
+    } catch (error) {
+        console.warn('Failed to get atomic sequence, using fallback:', error.message);
+        sequence = fallbackSequence;
+    }
+    
+    // Generate base shipment ID
+    let shipmentId = `${prefix}-S${sequence.toString().padStart(3, '0')}-${sourceLocation}`;
+    
+    // Double-check for uniqueness and increment if needed
+    let finalSequence = sequence;
+    let maxAttempts = 10; // Reduced attempts since we're using atomic sequence
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        const existingShipment = await B2BShipment.findOne({ shipmentId: shipmentId }).lean();
+        if (!existingShipment) {
+            console.log(`Generated unique shipment ID: ${shipmentId} (sequence: ${finalSequence})`);
+            break;
+        }
+        
+        console.warn(`Shipment ID ${shipmentId} already exists, trying next sequence...`);
+        attempts++;
+        finalSequence++;
+        shipmentId = `${prefix}-S${finalSequence.toString().padStart(3, '0')}-${sourceLocation}`;
+        
+        if (attempts >= maxAttempts) {
+            // Fallback: add timestamp to ensure uniqueness
+            const timestamp = Date.now().toString().slice(-6);
+            shipmentId = `${prefix}-S${finalSequence.toString().padStart(3, '0')}-${sourceLocation}-${timestamp}`;
+            console.warn(`Used timestamp fallback for shipment ID: ${shipmentId}`);
+            break;
+        }
+    }
 
     return new B2BShipment({
         shipmentId,
@@ -582,17 +508,42 @@ async function finalizeShipment(shipment, deliveryType, timeMatrix) {
 
         shipment.shipmentFinishTime = shipmentFinishTime;
 
-  
-         await shipment.save();
+        // Try to save the shipment
+        await shipment.save();
+        console.log(`Successfully saved shipment: ${shipment.shipmentId}`);
+        
         // await Parcel.updateMany(
         //     { _id: { $in: shipment.parcels } },
         //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
         // );
     } catch (error) {
         console.error("Error finalizing shipment:", error);
-        // Handle error but don't throw, so processing can continue
-        shipment.arrivalTimes = [];
-        shipment.shipmentFinishTime = shipment.totalTime;
+        
+        // Handle duplicate key error specifically
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.shipmentId) {
+            console.error(`Duplicate shipment ID detected: ${shipment.shipmentId}`);
+            
+            // Try to generate a new unique ID
+            try {
+                const timestamp = Date.now().toString().slice(-6);
+                const originalId = shipment.shipmentId;
+                shipment.shipmentId = `${originalId}-${timestamp}`;
+                console.log(`Retrying with new shipment ID: ${shipment.shipmentId}`);
+                
+                await shipment.save();
+                console.log(`Successfully saved shipment with fallback ID: ${shipment.shipmentId}`);
+            } catch (retryError) {
+                console.error("Failed to save shipment even with fallback ID:", retryError);
+                // Set default values to prevent null errors
+                shipment.arrivalTimes = [];
+                shipment.shipmentFinishTime = shipment.totalTime;
+                throw retryError; // Re-throw to stop processing
+            }
+        } else {
+            // Handle other errors but don't throw, so processing can continue
+            shipment.arrivalTimes = [];
+            shipment.shipmentFinishTime = shipment.totalTime;
+        }
     }
 }
 

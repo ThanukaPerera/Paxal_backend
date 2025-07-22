@@ -13,9 +13,14 @@ const generateShipmentId = async (deliveryType, sourceCenter) => {
         
         const sourceLocation = sourceBranch.location;
         
-        // Get last shipment number for the source center
-        const lastShipment = await B2BShipment.findOne({ sourceCenter })
-            .sort({ shipmentId: -1 })
+        // Get last shipment number for the source center and delivery type
+        const prefix = deliveryType === 'express' ? 'EX' : 'ST';
+        const lastShipment = await B2BShipment.findOne({ 
+            sourceCenter,
+            deliveryType,
+            shipmentId: { $regex: `^${prefix}-S\\d+-${sourceLocation}$` } // More specific regex
+        })
+            .sort({ createdAt: -1 }) // Sort by creation date instead of shipmentId string
             .select('shipmentId')
             .lean();
         
@@ -28,10 +33,44 @@ const generateShipmentId = async (deliveryType, sourceCenter) => {
             }
         }
         
+        // Get all shipments for this source center and delivery type to find the highest sequence number
+        // This ensures we don't have conflicts even if sorting by date fails
+        const allShipments = await B2BShipment.find({
+            sourceCenter,
+            deliveryType,
+            shipmentId: { $regex: `^${prefix}-S\\d+-${sourceLocation}$` } // More specific regex
+        }).select('shipmentId').lean();
+        
+        let maxSequenceNumber = 0;
+        allShipments.forEach(shipment => {
+            const match = shipment.shipmentId.match(/-S(\d+)-/);
+            if (match) {
+                const sequenceNumber = parseInt(match[1]);
+                if (sequenceNumber > maxSequenceNumber) {
+                    maxSequenceNumber = sequenceNumber;
+                }
+            }
+        });
+        
+        // Use the higher of the two methods
+        const finalSequenceNumber = Math.max(lastShipmentNumber, maxSequenceNumber);
+        
         // Generate new shipment ID
-        const newSequence = lastShipmentNumber + 1;
-        const prefix = deliveryType === 'express' ? 'EX' : 'ST';
+        const newSequence = finalSequenceNumber + 1;
         const shipmentId = `${prefix}-S${newSequence.toString().padStart(3, '0')}-${sourceLocation}`;
+        
+        console.log(`=== GENERATING SHIPMENT ID ===`);
+        console.log(`Delivery Type: ${deliveryType}`);
+        console.log(`Source Location: ${sourceLocation}`);
+        console.log(`Prefix: ${prefix}`);
+        console.log(`Found ${allShipments.length} existing shipments`);
+        console.log(`- Last shipment (by date): ${lastShipment?.shipmentId || 'None'}`);
+        console.log(`- Last sequence number (by date): ${lastShipmentNumber}`);
+        console.log(`- Max sequence number (all shipments): ${maxSequenceNumber}`);
+        console.log(`- Final sequence number: ${finalSequenceNumber}`);
+        console.log(`- New sequence number: ${newSequence}`);
+        console.log(`- Generated shipment ID: ${shipmentId}`);
+        console.log(`=== END ID GENERATION ===`);
         
         return shipmentId;
     } catch (error) {
@@ -42,7 +81,8 @@ const generateShipmentId = async (deliveryType, sourceCenter) => {
 
 const createShipment = async (req, res) => {
     try {
-        console.log('Received shipment creation request:', req.body);
+        console.log('=== SHIPMENT CREATION REQUEST ===');
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
         
         const {
             deliveryType,
@@ -88,10 +128,27 @@ const createShipment = async (req, res) => {
         // Generate proper shipment ID
         const shipmentId = await generateShipmentId(deliveryType, sourceCenter);
 
-        // Check if shipment ID already exists (should not happen with proper sequence)
-        const existingShipment = await B2BShipment.findOne({ shipmentId });
+        // Check if shipment ID already exists and retry with incremented sequence if needed
+        let finalShipmentId = shipmentId;
+        let existingShipment = await B2BShipment.findOne({ shipmentId: finalShipmentId });
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (existingShipment && attempts < maxAttempts) {
+            attempts++;
+            const retrySequence = newSequence + attempts;
+            finalShipmentId = `${prefix}-S${retrySequence.toString().padStart(3, '0')}-${sourceLocation}`;
+            existingShipment = await B2BShipment.findOne({ shipmentId: finalShipmentId });
+            
+            if (!existingShipment) {
+                console.log(`Shipment ID conflict resolved. Using: ${finalShipmentId} (attempt ${attempts})`);
+                break;
+            }
+        }
+        
         if (existingShipment) {
-            return res.status(400).json({ message: 'Shipment ID already exists' });
+            console.error(`Failed to generate unique shipment ID after ${maxAttempts} attempts`);
+            return res.status(500).json({ message: 'Failed to generate unique shipment ID. Please try again.' });
         }
 
         // Verify that all parcels exist
@@ -102,7 +159,7 @@ const createShipment = async (req, res) => {
 
         // Create new shipment
         const newShipment = new B2BShipment({
-            shipmentId,
+            shipmentId: finalShipmentId,
             deliveryType,
             sourceCenter,
             route,

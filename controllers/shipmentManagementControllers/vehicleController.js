@@ -1556,10 +1556,13 @@ const getPendingB2BShipments = async (req, res) => {
             });
         }
 
-        // Build query filter
+        // Build query filter to include shipments where branch is in the route or is the source center
         const queryFilter = {
             status: status,
-            sourceCenter: staff.branchId
+            $or: [
+                { sourceCenter: staff.branchId },  // Shipments created by this branch
+                { route: { $in: [staff.branchId] } }  // Shipments that pass through this branch
+            ]
         };
 
         // Fetch B2B shipments with the specified status for the staff's branch
@@ -1569,14 +1572,24 @@ const getPendingB2BShipments = async (req, res) => {
             .populate('currentLocation', 'location branchName')
             .populate({
                 path: 'assignedVehicle',
-                select: 'vehicleId registrationNo vehicleType currentBranch assignedBranch',
+                select: 'vehicleId registrationNo vehicleType capableWeight capableVolume currentBranch assignedBranch available',
                 populate: {
                     path: 'currentBranch assignedBranch',
                     select: 'location branchName'
                 }
             })
             .populate('assignedDriver', 'name contactNo driverId licenseId')
-            .populate('parcels', 'trackingId weight volume')
+            .populate({
+                path: 'parcels',
+                select: 'parcelId trackingNo qrCodeNo itemType itemSize shippingMethod status submittingType receivingType specialInstructions pickupInformation deliveryInformation weight volume',
+                populate: [
+                    { path: 'from', select: 'location branchId' },
+                    { path: 'to', select: 'location branchId' },
+                    { path: 'senderId', select: 'name email phone' },
+                    { path: 'receiverId', select: 'name email phone' },
+                    { path: 'paymentId', select: 'amount method status' }
+                ]
+            })
             .populate('createdByStaff', 'name staffId')
             .sort({ createdAt: -1 });
 
@@ -1589,6 +1602,66 @@ const getPendingB2BShipments = async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching pending B2B shipments:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching shipments',
+            error: error.message
+        });
+    }
+};
+
+// New function to get shipments by branch ID directly (for ViewShipmentsPage)
+const getShipmentsByBranch = async (req, res) => {
+    try {
+        const { branchId } = req.params;
+        const { status = 'Completed' } = req.query;
+
+        // Build query filter to include shipments where branch is in the route or is the source center
+        const queryFilter = {
+            status: status,
+            $or: [
+                { sourceCenter: branchId },  // Shipments created by this branch
+                { route: { $in: [branchId] } }  // Shipments that pass through this branch
+            ]
+        };
+
+        // Fetch B2B shipments with the specified status for the branch
+        const shipments = await B2BShipment.find(queryFilter)
+            .populate('sourceCenter', 'location branchName')
+            .populate('route', 'location branchName')
+            .populate('currentLocation', 'location branchName')
+            .populate({
+                path: 'assignedVehicle',
+                select: 'vehicleId registrationNo vehicleType capableWeight capableVolume currentBranch assignedBranch available',
+                populate: {
+                    path: 'currentBranch assignedBranch',
+                    select: 'location branchName'
+                }
+            })
+            .populate('assignedDriver', 'name contactNo driverId licenseId')
+            .populate({
+                path: 'parcels',
+                select: 'parcelId trackingNo qrCodeNo itemType itemSize shippingMethod status submittingType receivingType specialInstructions pickupInformation deliveryInformation weight volume',
+                populate: [
+                    { path: 'from', select: 'location branchId' },
+                    { path: 'to', select: 'location branchId' },
+                    { path: 'senderId', select: 'name email phone' },
+                    { path: 'receiverId', select: 'name email phone' },
+                    { path: 'paymentId', select: 'amount method status' }
+                ]
+            })
+            .populate('createdByStaff', 'name staffId')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: shipments.length,
+            shipments: shipments,
+            message: `Found ${shipments.length} ${status.toLowerCase()} shipments for the branch`
+        });
+
+    } catch (error) {
+        console.error('Error fetching shipments by branch:', error);
         return res.status(500).json({
             success: false,
             message: 'Internal server error while fetching shipments',
@@ -2884,6 +2957,7 @@ module.exports = {
     createVehicleTransportWithParcels, 
     createReverseShipment, 
     getPendingB2BShipments,
+    getShipmentsByBranch,
     assignVehicleManual,
     assignVehicleSmart,
     confirmVehicleAssignment,

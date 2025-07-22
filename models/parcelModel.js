@@ -74,7 +74,10 @@ const parcelSchema = new mongoose.Schema(
             ref: "B2BShipment",
             required: false,
         }, // Reference to B2B Shipment
+        intransitedDate: { type: Date, required: false },
         arrivedToCollectionCenterTime: { type: Date, required: false },
+        parcelDispatchedDate: { type: Date, required: false },
+        parcelDeliveredDate: { type: Date, required: false },
         status: {
             type: String,
             enum: [

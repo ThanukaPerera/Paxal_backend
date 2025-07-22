@@ -235,9 +235,19 @@ router.get("/:shipmentId/manifest", async (req, res) => {
         const shipment = await Shipment.findOne({
             shipmentId: req.params.shipmentId
         })
-            .populate('parcels')
-            .populate('assignedVehicle', 'vehicleNumber type capacity')
-            .populate('assignedDriver', 'name contactNumber licenseNumber')
+            .populate({
+                path: 'parcels',
+                select: 'parcelId trackingNo qrCodeNo itemType itemSize shippingMethod status submittingType receivingType specialInstructions pickupInformation deliveryInformation createdAt updatedAt',
+                populate: [
+                    { path: 'from', select: 'location branchId address contact' },
+                    { path: 'to', select: 'location branchId address contact' },
+                    { path: 'senderId', select: 'name email phone address' },
+                    { path: 'receiverId', select: 'name email phone address' },
+                    { path: 'paymentId', select: 'amount method status' }
+                ]
+            })
+            .populate('assignedVehicle', 'vehicleId registrationNo vehicleType capableWeight capableVolume available')
+            .populate('assignedDriver', 'name contactNo licenseId driverId')
             .populate('createdByCenter', 'location branchId')
             .populate('route', 'location branchId address contact');
 
@@ -248,15 +258,9 @@ router.get("/:shipmentId/manifest", async (req, res) => {
             });
         }
 
-        // Calculate total weight and volume
-        const totalWeight = shipment.parcels.reduce((total, parcel) => total + (parcel.weight || 0), 0);
-        const totalVolume = shipment.parcels.reduce((total, parcel) => {
-            if (parcel.dimensions) {
-                const volume = (parcel.dimensions.length || 0) * (parcel.dimensions.width || 0) * (parcel.dimensions.height || 0) / 1000000; // Convert cm³ to m³
-                return total + volume;
-            }
-            return total;
-        }, 0);
+        // Since parcel schema doesn't have weight/dimensions, use placeholder values from shipment totals
+        const totalWeight = shipment.totalWeight || 0;
+        const totalVolume = shipment.totalVolume || 0;
 
         // Generate estimated arrival times based on route
         const arrivalTimes = shipment.route && shipment.route.length > 0 
@@ -286,8 +290,25 @@ router.get("/:shipmentId/manifest", async (req, res) => {
                 route: shipment.route,
                 arrivalTimes: arrivalTimes,
                 parcels: shipment.parcels.map(parcel => ({
-                    ...parcel.toObject(),
-                    // Add additional calculated fields
+                    // Only include fields that exist in parcel schema
+                    _id: parcel._id,
+                    parcelId: parcel.parcelId,
+                    trackingNo: parcel.trackingNo,
+                    qrCodeNo: parcel.qrCodeNo,
+                    itemType: parcel.itemType,
+                    itemSize: parcel.itemSize,
+                    shippingMethod: parcel.shippingMethod,
+                    status: parcel.status,
+                    submittingType: parcel.submittingType,
+                    receivingType: parcel.receivingType,
+                    specialInstructions: parcel.specialInstructions,
+                    senderId: parcel.senderId,
+                    receiverId: parcel.receiverId,
+                    paymentId: parcel.paymentId,
+                    from: parcel.from,
+                    to: parcel.to,
+                    pickupInformation: parcel.pickupInformation,
+                    deliveryInformation: parcel.deliveryInformation,
                     createdAt: parcel.createdAt,
                     updatedAt: parcel.updatedAt,
                     // Add mock delivery history if not present
@@ -310,7 +331,7 @@ router.get("/:shipmentId/manifest", async (req, res) => {
                     ]
                 })),
                 totalWeight,
-                totalVolume: totalVolume.toFixed(3),
+                totalVolume: totalVolume.toString(),
                 totalDistance,
                 parcelCount: shipment.parcels.length
             }
@@ -382,6 +403,7 @@ router.get("/:shipmentId/manifest", async (req, res) => {
 //     }
 // });
 
+
 // // Update shipment details
 // router.put("/:id", async (req, res) => {
 //     try {
@@ -419,6 +441,7 @@ router.get("/:shipmentId/manifest", async (req, res) => {
 //     }
 // });
 
+
 // // Delete a shipment
 // router.delete("/:id", async (req, res) => {
 //     try {
@@ -440,8 +463,7 @@ const { processAllShipments } = require("../controllers/shipmentManagementContro
 
 // Process shipments with staff authentication
 router.post('/process/:type/:center', isStaffAuthenticated, async (req, res) => {
- try{
-       try {
+    try {
         const { parcelIds } = req.body;
         
         // Verify that the center matches staff's branch
@@ -487,63 +509,54 @@ router.post('/process/:type/:center', isStaffAuthenticated, async (req, res) => 
             error: error.message
         });
     }
-
-    res.status(201).json({
-      message: `${req.params.type} shipments processed successfully`,
-      ...result,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
 });
 
 // Get all shipments with pagination
 router.get("/", async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const shipments = await Shipment.find()
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .populate("parcels", "parcelId status")
-      .populate("createdByStaff", "name email");
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const shipments = await Shipment.find()
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .populate('parcels', 'parcelId status')
+            .populate('createdByStaff', 'name email');
 
-    const count = await Shipment.countDocuments();
+        const count = await Shipment.countDocuments();
 
-    res.status(200).json({
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      shipments,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
+        res.status(200).json({
+            totalPages: Math.ceil(count / limit),
+            currentPage: page,
+            shipments
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // Get shipments by center and type
 router.get("/:center/:type", async (req, res) => {
-  try {
-    const shipments = await Shipment.find({
-      createdByCenter: req.params.center,
-      deliveryType: req.params.type,
-    }).populate("assignedVehicle assignedDriver", "vehicleNumber name");
+    try {
+        const shipments = await Shipment.find({
+            createdByCenter: req.params.center,
+            deliveryType: req.params.type
+        }).populate('assignedVehicle assignedDriver', 'vehicleNumber name');
 
-    res.status(200).json({
-      success: true,
-      count: shipments.length,
-      shipments,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
+        res.status(200).json({
+            success: true,
+            count: shipments.length,
+            shipments
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 
@@ -587,64 +600,66 @@ router.get("/:center", async (req, res) => {
 
 // Update shipment status
 router.patch("/:shipmentId/status", async (req, res) => {
-  try {
-    const updated = await Shipment.findOneAndUpdate(
-      { shipmentId: req.params.shipmentId },
-      { status: req.body.status },
-      { new: true, runValidators: true },
-    );
+    try {
+        const updated = await Shipment.findOneAndUpdate(
+            { shipmentId: req.params.shipmentId },
+            { status: req.body.status },
+            { new: true, runValidators: true }
+        );
 
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        error: "Shipment not found",
-      });
+        if (!updated) {
+            return res.status(404).json({
+                success: false,
+                error: "Shipment not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Shipment status updated",
+            shipment: updated
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
-
-    res.status(200).json({
-      success: true,
-      message: "Shipment status updated",
-      shipment: updated,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
 });
 
 // Reset parcels in shipment
 router.patch("/:shipmentId/reset-parcels", async (req, res) => {
-  try {
-    const shipment = await Shipment.findOne({
-      shipmentId: req.params.shipmentId,
-    });
+    try {
+        const shipment = await Shipment.findOne({
+            shipmentId: req.params.shipmentId
+        });
 
-    if (!shipment) {
-      return res.status(404).json({
-        success: false,
-        error: "Shipment not found",
-      });
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                error: "Shipment not found"
+            });
+        }
+
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { $set: { shipmentId: null, status: "PendingPickup" } }
+        );
+
+        await Shipment.deleteOne({ shipmentId: req.params.shipmentId });
+
+        res.status(200).json({
+            success: true,
+            message: "Parcels reset and shipment deleted"
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
-
-    await Parcel.updateMany(
-      { _id: { $in: shipment.parcels } },
-      { $set: { shipmentId: null, status: "PendingPickup" } },
-    );
-
-    await Shipment.deleteOne({ shipmentId: req.params.shipmentId });
-
-    res.status(200).json({
-      success: true,
-      message: "Parcels reset and shipment deleted",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
 });
 
 // Verify shipment and set confirmed to true
@@ -734,30 +749,127 @@ router.delete("/:shipmentId", async (req, res) => {
 
 // Get shipment details
 router.get("/:shipmentId", async (req, res) => {
-  try {
-    const shipment = await Shipment.findOne({
-      shipmentId: req.params.shipmentId,
-    })
-      .populate("parcels")
-      .populate("assignedVehicle assignedDriver");
+    try {
+        const shipment = await Shipment.findOne({
+            shipmentId: req.params.shipmentId
+        })
+            .populate('parcels')
+            .populate('assignedVehicle assignedDriver');
 
-    if (!shipment) {
-      return res.status(404).json({
-        success: false,
-        error: "Shipment not found",
-      });
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                error: "Shipment not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            shipment
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
+});
 
-    res.status(200).json({
-      success: true,
-      shipment,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
+// Route to dispatch a shipment (First branch action)
+router.put("/:id/dispatch", async (req, res) => {
+    try {
+        const shipmentId = req.params.id;
+
+        // Validate shipment ID format
+        if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid shipment ID format'
+            });
+        }
+
+        // Find and update the shipment
+        const shipment = await Shipment.findByIdAndUpdate(
+            shipmentId,
+            { 
+                status: 'Dispatched',
+                dispatchedAt: new Date()
+            },
+            { new: true }
+        ).populate('sourceCenter', 'location branchName')
+         .populate('route', 'location branchName')
+         .populate('assignedVehicle', 'vehicleId registrationNo')
+         .populate('assignedDriver', 'name contactNo');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                error: 'Shipment not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Shipment dispatched successfully',
+            shipment
+        });
+
+    } catch (error) {
+        console.error('Error dispatching shipment:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Route to complete a shipment (Last branch action)
+router.put("/:id/complete", async (req, res) => {
+    try {
+        const shipmentId = req.params.id;
+
+        // Validate shipment ID format
+        if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid shipment ID format'
+            });
+        }
+
+        // Find and update the shipment
+        const shipment = await Shipment.findByIdAndUpdate(
+            shipmentId,
+            { 
+                status: 'Completed',
+                completedAt: new Date()
+            },
+            { new: true }
+        ).populate('sourceCenter', 'location branchName')
+         .populate('route', 'location branchName')
+         .populate('assignedVehicle', 'vehicleId registrationNo')
+         .populate('assignedDriver', 'name contactNo');
+
+        if (!shipment) {
+            return res.status(404).json({
+                success: false,
+                error: 'Shipment not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Shipment completed successfully',
+            shipment
+        });
+
+    } catch (error) {
+        console.error('Error completing shipment:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 module.exports = router;
