@@ -69,6 +69,7 @@ const updateParcelStatusToDeliveryDispatched = async (req, res) => {
       {
         $set: {
           status: "DeliveryDispatched",
+          parcelDispatchedDate: new Date(),
           "deliveryInformation.staffId": staff_id,
         },
       },
@@ -102,6 +103,7 @@ const updateParcelAsDelivered = async (req, res) => {
 
     const parcelData = {
       status: "Delivered",
+       parcelDeliveredDate: new Date(),
     };
 
     //Find the parcel and update the status.
