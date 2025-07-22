@@ -1,21 +1,22 @@
 const express = require("express");
 const router = express.Router();
-
-
-const Shipment = require("../models/B2BShipmentModel");
-const Parcel = require("../models/parcelModel.js");
-const Branch = require("../models/BranchesModel");
-
+const {
+  notifyNextCenter,
+} = require("../controllers/shipmentManagementControllers/standardShipmentNotificationController");
 const { addParcel } = require("../controllers/parcelController.js");
-const  isAuthenticated= require("../middleware/isAuthenticated.js");
-const isStaffAuthenticated = require("../middleware/staffAuth.js");
-const {getUserParcels}=require("../controllers/parcelController.js");
+const isAuthenticated = require("../middleware/isAuthenticated.js");
+const { getUserParcels } = require("../controllers/parcelController.js");
+const {
+  getParcelByTrackingNumber,
+} = require("../controllers/parcelController.js");
+const {getParcelById } = require("../controllers/parcelController.js");
 
 
 // Define routes
-router.post("/addparcel",isAuthenticated, addParcel); // Add a new parcel
+router.post("/addparcel", isAuthenticated, addParcel); // Add a new parcel
 router.get("/user_parcels", isAuthenticated, getUserParcels);
-
+router.get("/track/:trackingNo", getParcelByTrackingNumber);
+router.get("/:id", getParcelById);
 
 
 
@@ -654,6 +655,5 @@ router.get("/debug/parcels", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 
 module.exports = router;

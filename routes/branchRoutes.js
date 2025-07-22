@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const branchesController = require('../controllers/branchesController');
 const Branch = require('../models/BranchesModel');

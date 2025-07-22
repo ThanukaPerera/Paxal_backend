@@ -126,9 +126,9 @@ const bufferTimeConfig = {
 
 
 const sizeSpecs = {
-    small: { weight: 2, volume: 0.2 },
-    medium: { weight: 5, volume: 0.5 },
-    large: { weight: 10, volume: 1 }
+  small: { weight: 2, volume: 0.2 },
+  medium: { weight: 5, volume: 0.5 },
+  large: { weight: 10, volume: 1 },
 };
 
 
@@ -191,9 +191,69 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
         .select('shipmentId')
         .lean();
 
-    if (lastShipment) {
-        const match = lastShipment.shipmentId.match(/-S(\d+)-/);
-        if (match) lastShipmentNumber = parseInt(match[1]);
+  if (lastShipment) {
+    const match = lastShipment.shipmentId.match(/-S(\d+)-/);
+    if (match) lastShipmentNumber = parseInt(match[1]);
+  }
+
+  // Process parcels and group by destination
+  const processedParcels = await Promise.all(
+    parcels.map(async (parcel) => {
+      const { sourceDistrict, destDistrict } = await getDistrictInfo(parcel);
+      if (!sourceDistrict || !destDistrict) {
+        console.log(`Parcel ${parcel._id} missing district info`);
+        return null;
+      }
+
+      return {
+        ...parcel.toObject(),
+        sourceDistrict,
+        destDistrict,
+        weight: sizeSpecs[parcel.itemSize].weight,
+        volume: sizeSpecs[parcel.itemSize].volume,
+      };
+    }),
+  );
+
+  // Filter valid parcels and group by destination
+  const validParcels = processedParcels.filter((p) => p !== null);
+
+  // Group parcels by destination, excluding the source center itself
+  const destinationGroups = validParcels.reduce((groups, parcel) => {
+    // Skip parcels destined for source center
+    if (parcel.destDistrict === sourceCenter) return groups;
+
+    const key = parcel.destDistrict;
+    if (!groups[key]) {
+      groups[key] = { parcels: [], totalWeight: 0, totalVolume: 0 };
+    }
+    groups[key].parcels.push(parcel._id);
+    groups[key].totalWeight += parcel.weight;
+    groups[key].totalVolume += parcel.volume;
+    return groups;
+  }, {});
+
+  console.log(
+    "Destination Groups:",
+    JSON.stringify(destinationGroups, null, 2),
+  );
+
+  // Generate optimized route from source to all destinations
+  const destinations = Object.keys(destinationGroups);
+  const route = optimizeRoute(sourceCenter, destinations);
+  console.log(`Optimized Route: ${route.join(" -> ")}`);
+
+  let currentShipment = null;
+  let shipmentCount = lastShipmentNumber + 1;
+
+  // Process each destination in the optimized route (excluding source center)
+  for (let i = 1; i < route.length; i++) {
+    const destination = route[i];
+    const group = destinationGroups[destination];
+
+    if (!group) {
+      console.log(`No parcels for destination: ${destination}`);
+      continue;
     }
     //console.log(parcels);
     const processedParcels = parcels.map(parcel => {
@@ -330,7 +390,94 @@ async function processShipments(deliveryType, parcels, sourceCenterId, staffId, 
         shipments.push(currentShipment);
     }
 
-    return shipments;
+    // Apply the firstBuffer (4 hours) for the first leg from source center to first destination
+    const isFirstLeg = currentShipment.route.length === 1;
+    const bufferTime = isFirstLeg
+      ? constraints[deliveryType].firstBuffer
+      : constraints[deliveryType].buffer;
+    const additionalTime = travelTime + bufferTime;
+
+    console.log(
+      `From ${prevCenter} to ${destination}: Travel time ${travelTime}h + Buffer ${bufferTime}h = ${additionalTime}h`,
+    );
+
+    // Check if current shipment can accommodate this group
+    if (
+      !canAddToShipment(
+        currentShipment,
+        destination,
+        group,
+        additionalTime,
+        deliveryType,
+      )
+    ) {
+      console.log(
+        `Shipment constraints exceeded. Finalizing current shipment ${currentShipment.shipmentId}`,
+      );
+      await finalizeShipment(currentShipment, deliveryType);
+      shipments.push(currentShipment);
+      console.log(
+        `===============================Shipment finished ${currentShipment.shipmentId}==============================`,
+      );
+
+      // Create new shipment starting from source center
+      currentShipment = createNewShipment(
+        deliveryType,
+        sourceCenter,
+        staffId,
+        shipmentCount++,
+      );
+      console.log(
+        `Created new shipment ${currentShipment.shipmentId} for remaining parcels`,
+      );
+
+      // Recalculate travel time from source center to destination
+      const directTravelTime = timeMatrix[sourceCenter][destination];
+      const directAdditionalTime =
+        directTravelTime + constraints[deliveryType].firstBuffer;
+
+      // Add destination directly to new shipment (from source center)
+      console.log(
+        `Adding ${destination} to shipment ${currentShipment.shipmentId}`,
+      );
+      currentShipment.route.push(destination);
+      currentShipment.totalDistance = distanceMatrix[sourceCenter][destination];
+      currentShipment.totalTime = directAdditionalTime;
+      currentShipment.parcels.push(...group.parcels);
+      currentShipment.parcelCount = group.parcels.length;
+      currentShipment.totalWeight = group.totalWeight;
+      currentShipment.totalVolume = group.totalVolume;
+
+      console.log(
+        `Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`,
+      );
+    } else {
+      // Add destination to current shipment
+      console.log(
+        `Adding ${destination} to shipment ${currentShipment.shipmentId}`,
+      );
+      currentShipment.route.push(destination);
+      currentShipment.totalDistance += distanceMatrix[prevCenter][destination];
+      currentShipment.totalTime += additionalTime;
+      currentShipment.parcels.push(...group.parcels);
+      currentShipment.parcelCount += group.parcels.length;
+      currentShipment.totalWeight += group.totalWeight;
+      currentShipment.totalVolume += group.totalVolume;
+
+      console.log(
+        `Updated shipment: Distance ${currentShipment.totalDistance}km, Time ${currentShipment.totalTime}h, Weight ${currentShipment.totalWeight}kg, Volume ${currentShipment.totalVolume}m³`,
+      );
+    }
+  }
+
+  // Finalize the last shipment
+  if (currentShipment) {
+    console.log(`Finalizing last shipment ${currentShipment.shipmentId}`);
+    await finalizeShipment(currentShipment, deliveryType);
+    shipments.push(currentShipment);
+  }
+
+  return shipments;
 }
 
 function optimizeRoute(source, destinations, distanceMatrix) {
@@ -367,8 +514,12 @@ function optimizeRoute(source, destinations, distanceMatrix) {
         remaining = remaining.filter(d => d !== nearest);
     }
 
-    return route;
-}
+    route.push(nearest);
+    remaining = remaining.filter((d) => d !== nearest);
+  }
+
+  return route;
+
 
 function createNewShipment(deliveryType, sourceCenterId, staffId, sequence, idToLocationMap) {
     const sourceLocation = idToLocationMap[sourceCenterId.toString()] || 'Unknown';

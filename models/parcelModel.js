@@ -25,7 +25,7 @@ const deliverySchema = new mongoose.Schema({
 
 const parcelSchema = new mongoose.Schema(
     {
-        parcelId: { type: String, required: true, unique: true },
+        parcelId: { type: String, required: false },
         trackingNo: { type: String, required: false, unique: true },
         qrCodeNo: { type: String, required: false, unique: true },
         itemType: { type: String, enum: ["Glass", "Flowers", 'Document', 'Clothing', 'Electronics', 'Food', 'Other'], required: true },

@@ -37,7 +37,7 @@ const getResetEmail = (resetCode) => {
   const resetEmailPath = path.join(
     "emails",
     "templates",
-    "passwordResetEmail.html"
+    "passwordResetEmail.html",
   );
 
   let htmlContent = fs.readFileSync(resetEmailPath, "utf8");
@@ -73,7 +73,7 @@ const getTrackingNumberEmail = (parcelId, trackingNumber) => {
   const trackingNumberEmailPath = path.join(
     "emails",
     "templates",
-    "trackingNumberEmail.html"
+    "trackingNumberEmail.html",
   );
 
   let htmlContent = fs.readFileSync(trackingNumberEmailPath, "utf8");
@@ -103,6 +103,7 @@ const sendTrackingNumberEmail = async (email, parcelId, trackingNumber) => {
     return { success: false, error: error.message,};
   }
 };
+
 
 
 // get collection center arrived email template
@@ -245,5 +246,14 @@ module.exports = {
   sendTrackingNumberEmail,
   sendInquiryReplyEmail,
   sendCollectionCenterArrivedEmail,
-  sendParcelDeliveredEmail
+  sendParcelDeliveredEmail,
+  getResetEmail,
+  transporter,
+  sendPasswordResetEmail,
+  sendTrackingNumberEmail,
+  getTrackingNumberEmail,
+  getCollectionCenterArrivedEmail,
+  getParcelDeliveredEmail,
+  getInquiryReplyEmail,
+  sendInquiryReplyEmail
 };
