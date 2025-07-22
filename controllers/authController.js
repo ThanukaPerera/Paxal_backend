@@ -84,6 +84,10 @@ const createSendToken = (user, statusCode, res, message) => {
 };
 
 exports.signup = catchAscync(async (req, res, next) => {
+
+  if (!req.body.email || !req.body.password || !req.body.passwordconfirm) {
+    return next(new AppError("Please provide all required fields", 400));
+  }
   const {
     email,
     password,
@@ -110,6 +114,7 @@ exports.signup = catchAscync(async (req, res, next) => {
   const otpExpires = Date.now() + 24 * 60 * 60 * 1000;
 
   const newUser = await User.create({
+    userId: `user-${Date.now()}`,
     fName,
     lName,
     email,
