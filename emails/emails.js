@@ -1,22 +1,34 @@
-const nodemailer = require("nodemailer");
+
+const nodemailer = require('nodemailer');
 const path = require("path");
 const fs = require("fs");
 
+require('dotenv').config();
+
+const sender = process.env.EMAIL;
+
+
+
+
 require("dotenv").config();
 
-const sender = process.env.EMAIL_USER;
+
+
 
 // Setup email transport
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: sender,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+    port: 587,
+    secure: false, 
+    auth: {
+      user: sender,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+
+
 
 // get password reset email template 
 const getResetEmail = (resetCode) => {
