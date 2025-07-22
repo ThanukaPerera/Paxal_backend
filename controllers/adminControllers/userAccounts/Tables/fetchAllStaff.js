@@ -1,4 +1,4 @@
-const  Staff  = require("../../../../models/StaffModel");
+const Staff = require("../../../../models/StaffModel");
 
 const fetchAllStaff = async (req, res) => {
   try {
@@ -7,12 +7,12 @@ const fetchAllStaff = async (req, res) => {
       .populate("branchId", "-branchId -__v")
       .populate(
         "adminId",
-        "-adminId -password -email -contactNo -createdAt -profilePicLink -__v -updatedAt -nic"
+        "-adminId -password -email -contactNo -createdAt -profilePicLink -__v -updatedAt -nic",
       )
       .exec();
     const filteredData = staffs.map((staff) => ({
       _id: staff._id,
-      staffId:staff.staffId,
+      staffId: staff.staffId,
       name: staff.name,
       nic: staff.nic,
       email: staff.email,

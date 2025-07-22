@@ -1,6 +1,5 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const validator = require("validator");
-
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,10 +36,7 @@ const userSchema = new mongoose.Schema(
     province: { type: String, required: false },
     city: { type: String, required: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-
-module.exports=mongoose.model("User",userSchema);
-
-
+module.exports = mongoose.model("User", userSchema);

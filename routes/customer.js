@@ -16,15 +16,10 @@
 //   Branch,
 // } = require("../models/models");
 
-
 // const jwt=require('jsonwebtoken');
 // require('dotenv').config();
 // const LOGIN_KEY=process.env.LOGIN_KEY;
 // //LOgin
-
-
-
-
 
 // // Parcels
 // // Get all parcels
@@ -66,8 +61,6 @@
 //   }
 // });
 
-
-
 // // Update a parcel by parcelId
 // router.put("/parcelUpdate/:parcelId", async (req, res) => {
 //   try {
@@ -108,10 +101,6 @@
 //   }
 // });
 
-
-
-
-
 // //Customer
 // //get all customers
 // router.get("/customers", async (req, res) => {
@@ -139,7 +128,6 @@
 //     res.status(500).json({message:"Error fetching parcel",error})
 //   }
 // })
-
 
 // // add Customer
 // router.post("/customer/save", async (req, res) => {
@@ -198,7 +186,6 @@
 //   }
 // });
 
-
 // router.post("/parcelsBulk/save", async (req, res) => {
 //   try {
 //     if (!Array.isArray(req.body) || req.body.length === 0) {
@@ -211,11 +198,6 @@
 //     return res.status(400).json({ message: "Error inserting parcels", error });
 //   }
 // });
-
-
-
-
-
 
 // // Update a customer by customerId
 // router.put("/customerUpdate/:customerId",async(req,res)=>{
@@ -234,14 +216,12 @@
 //   }
 // });
 
-
-
 // //Customer delete
 
 // router.delete("/customerDelete/:customerId",async(req,res)=>{
 //   try{
 //     const customerId=req.params.customerId;
-    
+
 //     const result = await Customer.deleteOne({customerId});
 //     if (result.deletedCount === 0) {
 //       return res.status(404).json({ message: "Customer not found" });
@@ -253,7 +233,6 @@
 //     res.status(404).json({message:"Error deleting customer",error:error.message})
 //   }
 // });
-
 
 // //Shipping
 // //get all shipping
@@ -381,7 +360,6 @@
 //   }
 // });
 
-
 // //Deliver CRUD Operations
 // //Get all deliveries
 // router.get("/deliveries", async (req, res) => {
@@ -405,7 +383,6 @@
 //     res.status(500).json({ message: "Error fetching delivery", error });
 //   }
 // });
-
 
 // //Add a new delivery
 // router.post("/delivery/save", async (req, res) => {
@@ -585,7 +562,6 @@
 //   }
 // });
 
-
 // //Delete a staff by staffId
 // router.delete("/staffDelete/:staffId", async (req, res) => {
 //   try {
@@ -650,7 +626,6 @@
 //   }
 // });
 
-
 // //Delete a B2B shipment by shipmentId
 
 // router.delete("/b2bShipmentDelete/:shipmentId", async (req, res) => {
@@ -675,7 +650,6 @@
 //     res.status(500).json({ message: "Error fetching payments", error });
 //   }
 // });
-
 
 // //Get a payment by paymentId
 // router.get("/payment/:paymentId", async (req, res) => {
@@ -727,8 +701,6 @@
 //     res.status(500).json({ message: "Error deleting payment", error });
 //   }
 // });
-
-
 
 // // Inquiry CRUD Operations
 // // Get all inquiries
@@ -805,7 +777,6 @@
 //   }
 // });
 
-
 // //Get a branch by branchId
 // router.get("/branch/:branchId", async (req, res) => {
 //   try {
@@ -818,7 +789,6 @@
 //     res.status(500).json({ message: "Error fetching branch", error });
 //   }
 // });
-
 
 // // Add a new branch
 // router.post("/branch/save", async (req, res) => {
@@ -859,8 +829,6 @@
 //   }
 // });
 
-
-
 // // Add a new driver
 
 // router.post("/driver/save", async (req, res) => {
@@ -872,7 +840,6 @@
 //     res.status(500).json({ message: "Error saving driver", error });
 //   }
 // });
-
 
 // // Update a driver by driverId
 // router.put("/driverUpdate/:driverId", async (req, res) => {
@@ -901,6 +868,5 @@
 //     res.status(500).json({ message: "Error deleting driver", error });
 //   }
 // });
-
 
 // module.exports = router;

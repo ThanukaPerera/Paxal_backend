@@ -1,4 +1,3 @@
-
 const nodemailer = require('nodemailer');
 const path = require("path");
 const fs = require("fs");
@@ -7,28 +6,17 @@ require('dotenv').config();
 
 const sender = process.env.EMAIL;
 
-
-
-
-require("dotenv").config();
-
-
-
-
 // Setup email transport
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: "smtp.gmail.com",
-    port: 587,
-    secure: false, 
-    auth: {
-      user: sender,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-
-
+  port: 587,
+  secure: false,
+  auth: {
+    user: sender,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // get password reset email template 
 const getResetEmail = (resetCode) => {
@@ -37,7 +25,7 @@ const getResetEmail = (resetCode) => {
   const resetEmailPath = path.join(
     "emails",
     "templates",
-    "passwordResetEmail.html",
+    "passwordResetEmail.html"
   );
 
   let htmlContent = fs.readFileSync(resetEmailPath, "utf8");
@@ -73,7 +61,7 @@ const getTrackingNumberEmail = (parcelId, trackingNumber) => {
   const trackingNumberEmailPath = path.join(
     "emails",
     "templates",
-    "trackingNumberEmail.html",
+    "trackingNumberEmail.html"
   );
 
   let htmlContent = fs.readFileSync(trackingNumberEmailPath, "utf8");
@@ -103,7 +91,6 @@ const sendTrackingNumberEmail = async (email, parcelId, trackingNumber) => {
     return { success: false, error: error.message,};
   }
 };
-
 
 
 // get collection center arrived email template
@@ -246,14 +233,6 @@ module.exports = {
   sendTrackingNumberEmail,
   sendInquiryReplyEmail,
   sendCollectionCenterArrivedEmail,
-  sendParcelDeliveredEmail,
-  getResetEmail,
-  transporter,
-  sendPasswordResetEmail,
-  sendTrackingNumberEmail,
-  getTrackingNumberEmail,
-  getCollectionCenterArrivedEmail,
-  getParcelDeliveredEmail,
-  getInquiryReplyEmail,
-  sendInquiryReplyEmail
+  sendParcelDeliveredEmail
 };
+

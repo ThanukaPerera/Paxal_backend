@@ -37,7 +37,6 @@ const validateProfileUpdate = [
 // Update profile handler (named export)
 const updateMyData = async (req, res) => {
   try {
-    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -71,7 +70,7 @@ const updateMyData = async (req, res) => {
     const updatedAdmin = await Admin.findByIdAndUpdate(
       userId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("-password -__v");
 
     if (!updatedAdmin) {
