@@ -29,15 +29,18 @@ router.get("/", async (req, res) => {
 router.get("/stats/:center/:date", async (req, res) => {
     try {
         const center = req.params.center;
-        const date = new Date(req.params.date);
-        const nextDay = new Date(date);
-        nextDay.setDate(date.getDate() + 1);
+        
+        // Parse date properly to avoid timezone issues
+        const dateStr = req.params.date;
+        const [year, month, day] = dateStr.split('-');
+        const date = new Date(year, month - 1, day, 0, 0, 0, 0); // Local timezone
+        const nextDay = new Date(year, month - 1, day, 23, 59, 59, 999); // End of day
         
         console.log("=== DRIVER STATS API CALLED ===");
         console.log("Center:", center);
         console.log("Date received:", req.params.date);
-        console.log("Date parsed:", date);
-        console.log("Next day:", nextDay);
+        console.log("Date parsed (start):", date);
+        console.log("Date parsed (end):", nextDay);
         
         // Check if selected date is today
         const today = new Date();
@@ -47,21 +50,15 @@ router.get("/stats/:center/:date", async (req, res) => {
         console.log("Today:", today.toDateString());
         console.log("Selected date:", date.toDateString());
         
+        // 5. Dispatched Parcels & Driver Details: arrivedToCollectionCenterTime === clickedDate && status === "DeliveryDispatched"
         let query = {
-            $or: [{ from: center }, { to: center }],
-            parcelDispatchedDate: {
+            to: center,
+            arrivedToCollectionCenterTime: {
                 $gte: date,
-                $lt: nextDay
-            }
+                $lte: nextDay
+            },
+            status: "DeliveryDispatched" // Only parcels currently dispatched for delivery
         };
-
-        if (isToday) {
-            // For today: show dispatched parcels (currently out for delivery)
-            query.status = "DeliveryDispatched";
-        } else {
-            // For past dates: show failed delivery attempts
-            query.status = { $in: ["NotAccepted", "WrongAddress", "Return"] };
-        }
         
         console.log("Query constructed:", JSON.stringify(query, null, 2));
 
