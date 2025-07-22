@@ -5,7 +5,7 @@ const cookieParser = require("cookie-parser");
 
 require("dotenv").config();
 
-const startServer = require("./config/startServer");
+// const startServer = require("./config/startServer");
 
 // Import routes
 const shipmentRoutes = require("./routes/shipmentRoutes");
@@ -23,7 +23,7 @@ const pickupRoutes = require("./routes/staff/pickupRoutes");
 const dropoffRoutes = require("./routes/staff/dropOffRoutes");
 const userRoutes = require("./routes/staff/userRoutes");
 const pickupScheduleRoutes = require("./routes/staff/pickupScheduleRoutes");
-const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes")
+const deliveryScheduleRoutes = require("./routes/staff/deliveryScheduleRoutes");
 const uiRoutes = require("./routes/staff/uiRoutes");
 const parcelDeliveryRoutes = require("./routes/staff/parcelDeliveryRoutes");
 const staffInquiryRoutes = require("./routes/staff/inquiryRoutes");
@@ -38,21 +38,19 @@ const paymentRouter = require("./routes/paymentRoutes");
 const inquiryRoutes = require("./routes/inquiryRoutes");
 const AppError = require("./utils/appError");
 const branchRoutes = require("./routes/branchRoutes");
-const userNotificationRoutes = require('./routes/userNotificationRoutes');
+const userNotificationRoutes = require("./routes/userNotificationRoutes");
 
 const app = express();
-
-
 
 // Middleware
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      'https://frontend-vite-6ned.vercel.app', // Your frontend URL
+      "https://frontend-vite-6ned.vercel.app", // Your frontend URL
       "http://localhost:19006", // Expo dev server
-      "exp://10.10.28.96:19000",//  physical device
-    ], 
+      "exp://10.10.28.96:19000", //  physical device
+    ],
     credentials: true, // Allow credentials (cookies)
   })
 );
@@ -60,13 +58,10 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 
-
-app.use(bodyParser.json({ limit: "50mb" })); 
+app.use(bodyParser.json({ limit: "50mb" }));
 
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 // app.use(routes);
-
-
 
 // Route mounting
 app.use("/shipments", shipmentRoutes);
@@ -85,7 +80,7 @@ app.use("/staff/lodging-management", pickupRoutes);
 app.use("/staff/lodging-management", dropoffRoutes);
 app.use("/staff/vehicle-schedules", pickupScheduleRoutes);
 app.use("/staff/delivery-schedules", deliveryScheduleRoutes);
-app.use("/staff/collection-management", parcelDeliveryRoutes)
+app.use("/staff/collection-management", parcelDeliveryRoutes);
 app.use("/staff/inquiry-management", staffInquiryRoutes);
 app.use("/staff/collection-management/qr-code", qrCodeRoutes);
 app.use("/staff/ui", uiRoutes);
@@ -99,15 +94,26 @@ app.use("/api/parcels", parcelRoutes); // Use parcel routes
 app.use("/api/payment", paymentRouter);
 app.use("/api/inquiries", inquiryRoutes);
 app.use("/api/branches", branchRoutes);
-app.use('/api/notifications',userNotificationRoutes); 
-
-
+app.use("/api/notifications", userNotificationRoutes);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server !`, 404));
-})
+});
 
 app.use(globalErrorHandler);
 
+const connectDB = require("./config/db");
+const serverlessHttp = require('serverless-http');
 
-startServer(app);
+(async () => {
+  try {
+    await connectDB();
+    console.log("Database connected successfully");
+  } catch (err) {
+    console.error("Failed to connect to database:", err);
+    process.exit(1);
+  }
+})();
+
+// startServer(app);
+module.exports = serverlessHttp(app);
