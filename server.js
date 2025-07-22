@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const serverlessHttp = require('serverless-http');
 
 require("dotenv").config();
 
@@ -100,10 +101,12 @@ app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server !`, 404));
 });
 
+// Add a comment to trigger a new commit
+console.log('Starting server...');
 app.use(globalErrorHandler);
 
 const connectDB = require("./config/db");
-const serverlessHttp = require('serverless-http');
+
 
 (async () => {
   try {
