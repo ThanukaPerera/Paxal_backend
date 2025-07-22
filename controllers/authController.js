@@ -1,7 +1,7 @@
 const catchAscync = require("../utils/catchAscync");
 const generateOtp = require("../utils/generateOtp");
 const jwt = require("jsonwebtoken");
-const sendEmail = require("../utils/email");
+const sendEmail = require("../utils/staff/email.js");
 const User = require("../models/userModel.js");
 const user = require("../models/userModel.js");
 const AppError = require("../utils/appError.js");
@@ -130,7 +130,7 @@ exports.signup = catchAscync(async (req, res, next) => {
   });
 
   try {
-    await sendEmail({
+    const emailResult = await sendEmail({
       email: newUser.email,
       subject: "OTP For Email Verification",
       html: `<h1>Your OTP is: ${otp}</h1>`,
