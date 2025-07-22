@@ -516,9 +516,10 @@ function optimizeRoute(source, destinations, distanceMatrix) {
 
     route.push(nearest);
     remaining = remaining.filter((d) => d !== nearest);
+    return route;
   }
 
-  return route;
+  
 
 
 function createNewShipment(deliveryType, sourceCenterId, staffId, sequence, idToLocationMap) {

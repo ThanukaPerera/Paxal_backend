@@ -64,7 +64,8 @@ const fetchNoOfUsers = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 
-    const count = await getCount(Schema);
+   try{
+     const count = await getCount(Schema);
 
     // Find the earliest record and get its creation date
     const earliestUser = await Schema.findOne()
@@ -81,7 +82,8 @@ const fetchNoOfUsers = async (req, res) => {
         count: count,
         since: since,
       });
-  } catch (error) {
+   }
+   catch (error) {
     console.error("Error fetching user count:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }

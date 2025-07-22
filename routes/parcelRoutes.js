@@ -5,11 +5,16 @@ const {
 } = require("../controllers/shipmentManagementControllers/standardShipmentNotificationController");
 const { addParcel } = require("../controllers/parcelController.js");
 const isAuthenticated = require("../middleware/isAuthenticated.js");
+const isStaffAuthenticated = require("../middleware/staffAuth.js");
 const { getUserParcels } = require("../controllers/parcelController.js");
 const {
   getParcelByTrackingNumber,
 } = require("../controllers/parcelController.js");
 const {getParcelById } = require("../controllers/parcelController.js");
+
+// Models
+const Parcel = require("../models/parcelModel");
+const Shipment = require("../models/B2BShipmentModel");
 
 
 // Define routes
