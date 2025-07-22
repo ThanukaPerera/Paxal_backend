@@ -60,18 +60,20 @@ const adminLogin = async (req, res) => {
       { expiresIn: REFRESH_TOKEN_EXPIRY }
     );
 
+
+    const isProduction = process.env.NODE_ENV === 'production';
     // Set cookies
     res.cookie('AdminToken', accessToken, { 
       httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', 
-      sameSite: 'strict', 
+      secure: true, 
+      sameSite: 'none', 
       maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE
     });
     
     res.cookie('AdminRefreshToken', refreshToken, { 
       httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', 
-      sameSite: 'strict', 
+      secure: true, 
+      sameSite: 'none', 
       maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE
     });
 

@@ -4,10 +4,7 @@ const { safeValidate } = require('../../../../middleware/adminMiddleware/validat
 
 const fetchAllAdmin = async (req, res) => {
   try {
-    console.log("=== FETCH ALL ADMINS START ===");
-    console.log("Query params received:", req.query);
-    console.log("Request method:", req.method);
-    console.log("Request path:", req.path);
+    
     
     // Use validated data from middleware or fallback to manual parsing
     const page = req.query.page || 1;
