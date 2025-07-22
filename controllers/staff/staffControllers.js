@@ -43,8 +43,8 @@ const staffLogin = async (req, res) => {
 
     res.cookie("StaffToken", token, {
       httpOnly: true, 
-      secure:false, //  In production, set this to true to allow only HTTPS . 
-      sameSite: "Lax",
+      secure:true, //  In production, set this to true to allow only HTTPS . 
+      sameSite: "none",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 

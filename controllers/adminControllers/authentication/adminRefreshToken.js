@@ -40,8 +40,8 @@ const adminRefreshToken = (req, res) => {
     // Set the new access token as a cookie
     res.cookie('AdminToken', newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure:true,
+      sameSite: 'none',
       maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE
     });
     console.log("Token refreshed")
