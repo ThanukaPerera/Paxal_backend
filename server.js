@@ -57,11 +57,11 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "7mb" }));
 
-app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.json({ limit: "7mb" }));
 
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.urlencoded({ limit: "7mb", extended: true }));
 // app.use(routes);
 
 // Route mounting
@@ -113,8 +113,8 @@ const connectDB = require("./config/db");
     await connectDB();
     console.log("Database connected successfully");
   } catch (err) {
-    console.error("Failed to connect to database:", err);
-    process.exit(1);
+    console.error("Failed to connect to database:", err.message);
+    
   }
 })();
 
