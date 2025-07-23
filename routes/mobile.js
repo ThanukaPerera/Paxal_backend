@@ -236,7 +236,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
 
     const updateData = {
       status,
-      ...(status === 'Delivered' && { deliveredAt: new Date() })
+      ...(status === 'Delivered' && { parcelDeliveredDate: new Date() })
     };
 
     const updatedParcel = await Parcel.findOneAndUpdate(
