@@ -498,6 +498,20 @@ async function assignVehicle(shipmentId, shipmentType) {
             shipment.status = shipmentType.toLowerCase() === "express" ? "Verified" : "In Transit";
             shipment.isVehicleTransport = false;
             
+            // Update parcels to 'ShipmentAssigned' status when shipment goes to 'In Transit'
+            if (shipment.status === "In Transit") {
+                await Parcel.updateMany(
+                    { _id: { $in: shipment.parcels } },
+                    { 
+                        $set: { 
+                            status: 'ShipmentAssigned',
+                            updatedAt: new Date()
+                        }
+                    }
+                );
+                console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
+            }
+            
             // Update the vehicle status
             vehicle.available = false;
             await vehicle.save();
@@ -932,7 +946,17 @@ async function findAvailableParcelsForRoute(vehicleCurrentCenter, destinationCen
                 weight: sizeSpec.weight,
                 volume: sizeSpec.volume,
                 status: parcel.status,
-                shippingMethod: parcel.shippingMethod
+                shippingMethod: parcel.shippingMethod,
+                from: {
+                    _id: parcel.from._id,
+                    location: parcel.from.location,
+                    branchId: parcel.from.branchId
+                },
+                to: {
+                    _id: parcel.to._id,
+                    location: parcel.to.location,
+                    branchId: parcel.to.branchId
+                }
             });
 
             parcelGroups[destinationId].totalWeight += sizeSpec.weight;
@@ -1543,7 +1567,7 @@ async function createReverseShipment(params) {
 const getPendingB2BShipments = async (req, res) => {
     try {
         const { staffId } = req.params;
-        const { status = 'Pending' } = req.query;
+        const { status, all } = req.query;
 
         // Find the staff to get their branch ID
         const Staff = require('../../models/StaffModel');
@@ -1556,14 +1580,19 @@ const getPendingB2BShipments = async (req, res) => {
             });
         }
 
-        // Build query filter to include shipments where branch is in the route or is the source center
+        // Build base query filter to include shipments where branch is in the route or is the source center
         const queryFilter = {
-            status: status,
             $or: [
                 { sourceCenter: staff.branchId },  // Shipments created by this branch
                 { route: { $in: [staff.branchId] } }  // Shipments that pass through this branch
             ]
         };
+
+        // Only add status filter if status is provided and all is not requested
+        if (status && !all) {
+            queryFilter.status = status;
+        }
+        // If 'all' parameter is true, don't add any status filter to get all shipments
 
         // Fetch B2B shipments with the specified status for the staff's branch
         const shipments = await B2BShipment.find(queryFilter)
@@ -1597,7 +1626,7 @@ const getPendingB2BShipments = async (req, res) => {
             success: true,
             count: shipments.length,
             shipments: shipments,
-            message: `Found ${shipments.length} ${status.toLowerCase()} shipments for the center`
+            message: all ? `Found ${shipments.length} shipments (all stages) for the center` : `Found ${shipments.length} ${status?.toLowerCase() || ''} shipments for the center`
         });
 
     } catch (error) {
@@ -1614,18 +1643,31 @@ const getPendingB2BShipments = async (req, res) => {
 const getShipmentsByBranch = async (req, res) => {
     try {
         const { branchId } = req.params;
-        const { status = 'Completed' } = req.query;
+        const { status, all } = req.query;
 
-        // Build query filter to include shipments where branch is in the route or is the source center
+        // Build query filter with different logic for own center vs other centers in route
         const queryFilter = {
-            status: status,
             $or: [
-                { sourceCenter: branchId },  // Shipments created by this branch
-                { route: { $in: [branchId] } }  // Shipments that pass through this branch
+                // Case 1: Shipments created by this branch (show all statuses based on filter)
+                (() => {
+                    const ownCenterQuery = { sourceCenter: branchId };
+                    // Apply status filter for own center shipments if specified
+                    if (status && !all) {
+                        ownCenterQuery.status = status;
+                    }
+                    return ownCenterQuery;
+                })(),
+                
+                // Case 2: Shipments that pass through this branch (only show Dispatched status)
+                {
+                    route: { $in: [branchId] },
+                    sourceCenter: { $ne: branchId }, // Not created by this branch
+                    status: 'Dispatched' // Only show dispatched shipments to other centers in route
+                }
             ]
         };
 
-        // Fetch B2B shipments with the specified status for the branch
+        // Fetch B2B shipments with the specified criteria for the branch
         const shipments = await B2BShipment.find(queryFilter)
             .populate('sourceCenter', 'location branchName')
             .populate('route', 'location branchName')
@@ -1657,7 +1699,7 @@ const getShipmentsByBranch = async (req, res) => {
             success: true,
             count: shipments.length,
             shipments: shipments,
-            message: `Found ${shipments.length} ${status.toLowerCase()} shipments for the branch`
+            message: all ? `Found ${shipments.length} shipments (all stages) for the branch` : `Found ${shipments.length} ${status?.toLowerCase() || ''} shipments for the branch`
         });
 
     } catch (error) {
@@ -1765,6 +1807,19 @@ const assignVehicleManual = async (req, res) => {
 
         // Always set status to "In Transit" when vehicle is assigned, regardless of location
         shipment.status = "In Transit";
+        
+        // Update all parcels in this shipment to 'ShipmentAssigned' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'ShipmentAssigned',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
         
         // Check if vehicle is at source center
         const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter._id);
@@ -2319,7 +2374,9 @@ async function findAvailableParcelsForRoute(vehicleCenterId, shipmentRoute, deli
                     itemSize: parcel.itemSize,
                     itemType: parcel.itemType,
                     shippingMethod: parcel.shippingMethod,
-                    status: parcel.status
+                    status: parcel.status,
+                    from: parcel.from,
+                    to: parcel.to
                 });
 
                 groupedParcels[destId].totalWeight += sizeSpec.weight;
@@ -2428,6 +2485,19 @@ const confirmVehicleAssignment = async (req, res) => {
 
         // Always set status to "In Transit" when vehicle is assigned, regardless of location
         shipment.status = "In Transit";
+        
+        // Update all parcels in this shipment to 'ShipmentAssigned' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'ShipmentAssigned',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
         
         const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter);
         

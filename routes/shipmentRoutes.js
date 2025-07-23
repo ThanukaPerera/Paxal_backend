@@ -6,6 +6,7 @@ const isStaffAuthenticated = require("../middleware/staffAuth");
 const Shipment = require("../models/B2BShipmentModel");
 const Parcel = require("../models/parcelModel");
 const Branch = require("../models/BranchesModel");
+const Vehicle = require("../models/vehicleModel");
 
 
 
@@ -729,12 +730,21 @@ router.delete("/:shipmentId", async (req, res) => {
             }
         );
 
+        // Free up the assigned vehicle if there is one
+        if (shipment.assignedVehicle) {
+            await Vehicle.updateOne(
+                { _id: shipment.assignedVehicle },
+                { $set: { available: true } }
+            );
+            console.log(`Vehicle ${shipment.assignedVehicle} made available after shipment deletion`);
+        }
+
         // Then delete the shipment
         await Shipment.findByIdAndDelete(shipment._id);
 
         res.status(200).json({
             success: true,
-            message: "Shipment deleted successfully and parcels updated",
+            message: "Shipment deleted successfully, parcels updated, and vehicle made available",
             deletedShipmentId: shipment.shipmentId,
             updatedParcelsCount: shipment.parcels.length
         });
@@ -809,9 +819,31 @@ router.put("/:id/dispatch", async (req, res) => {
             });
         }
 
+        // Update all parcels in this shipment to 'InTransit' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'InTransit',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        // Update vehicle's current branch to the source center when dispatching
+        if (shipment.assignedVehicle && shipment.sourceCenter) {
+            await Vehicle.updateOne(
+                { _id: shipment.assignedVehicle },
+                { $set: { currentBranch: shipment.sourceCenter } }
+            );
+            console.log(`Vehicle ${shipment.assignedVehicle} current branch updated to source center ${shipment.sourceCenter} for dispatch`);
+        }
+
+        console.log(`Updated ${shipment.parcels.length} parcels to InTransit status for shipment ${shipmentId}`);
+
         res.status(200).json({
             success: true,
-            message: 'Shipment dispatched successfully',
+            message: 'Shipment dispatched successfully and parcels updated to InTransit',
             shipment
         });
 
@@ -857,9 +889,40 @@ router.put("/:id/complete", async (req, res) => {
             });
         }
 
+        // Update all parcels in this shipment to 'ArrivedAtCollectionCenter' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'ArrivedAtCollectionCenter',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        // Make the assigned vehicle available again and update its current branch to the last branch in route
+        if (shipment.assignedVehicle) {
+            const updateData = { available: true };
+            
+            // Set current branch to the last branch in the route (destination)
+            if (shipment.route && shipment.route.length > 0) {
+                const lastBranch = shipment.route[shipment.route.length - 1];
+                updateData.currentBranch = lastBranch;
+                console.log(`Vehicle ${shipment.assignedVehicle} current branch updated to ${lastBranch}`);
+            }
+            
+            await Vehicle.updateOne(
+                { _id: shipment.assignedVehicle },
+                { $set: updateData }
+            );
+            console.log(`Vehicle ${shipment.assignedVehicle} marked as available after shipment completion`);
+        }
+
+        console.log(`Updated ${shipment.parcels.length} parcels to ArrivedAtCollectionCenter status for shipment ${shipmentId}`);
+
         res.status(200).json({
             success: true,
-            message: 'Shipment completed successfully',
+            message: 'Shipment completed successfully, parcels updated to ArrivedAtCollectionCenter, and vehicle made available',
             shipment
         });
 

@@ -512,10 +512,10 @@ async function finalizeShipment(shipment, deliveryType, timeMatrix) {
         await shipment.save();
         console.log(`Successfully saved shipment: ${shipment.shipmentId}`);
         
-        // await Parcel.updateMany(
-        //     { _id: { $in: shipment.parcels } },
-        //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
-        // );
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { shipmentId: shipment._id, status: 'ShipmentAssigned' }
+        );
     } catch (error) {
         console.error("Error finalizing shipment:", error);
         
