@@ -1,5 +1,5 @@
 
-const Driver = require("../../../../models/DriverModel")
+const Driver = require("../../../../models/driverModel")
 
 const fetchAllDrivers = async (req, res) => {
 

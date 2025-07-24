@@ -3,7 +3,7 @@
 
 //http://localhost:8000/vehicles/assignVehicleToShipment/68136ad65f32baa9ccd2e923/express
 
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
 const Parcel = require('../../models/parcelModel');
 const Branch = require('../../models/BranchesModel');

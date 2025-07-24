@@ -1,5 +1,5 @@
 const express = require("express");
-const Driver = require("../models/DriverModel");
+const Driver = require("../models/driverModel");
 const Parcel = require("../models/parcelModel");
 
 const router = express.Router();

@@ -4,7 +4,7 @@ const {
   driverRegistrationSchema, 
   driverUpdateSchema 
 } = require('../../validations/adminValidation');
-const Driver = require('../../models/DriverModel');
+const Driver = require('../../models/driverModel');
 
 // Generic validation middleware factory
 const validateRequest = (schema) => {

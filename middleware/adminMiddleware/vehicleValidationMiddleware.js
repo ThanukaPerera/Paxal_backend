@@ -4,7 +4,7 @@ const {
   vehicleRegistrationSchema, 
   vehicleUpdateSchema 
 } = require('../../validations/adminValidation');
-const Vehicle = require('../../models/VehicleModel');
+const Vehicle = require('../../models/vehicleModel');
 const Branch = require('../../models/BranchesModel');
 
 // Helper function to format validation errors for user-friendly messages

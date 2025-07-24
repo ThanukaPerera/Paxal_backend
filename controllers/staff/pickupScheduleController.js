@@ -1,6 +1,6 @@
 const VehicleSchedule = require("../../models/VehicleScheduleModel");
 const Parcel = require("../../models/ParcelModel");
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const Staff = require("../../models/StaffModel");
 const getParcelProperties = require("../../utils/parcelDetails");
 

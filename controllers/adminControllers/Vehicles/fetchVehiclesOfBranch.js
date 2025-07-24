@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Vehicle = require("../../../models/VehicleModel");
-const Driver = require("../../../models/DriverModel");
+const Driver = require("../../../models/driverModel");
 
 const fetchVehiclesOfBranch = async (req, res) => {
   try {

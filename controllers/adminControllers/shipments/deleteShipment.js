@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Shipment = require("../../../models/B2BShipmentModel"); // Adjust the path if needed
-const Vehicle = require("../../../models/vehicleModel");
+const Vehicle = require("../../../models/VehicleModel");
 
 const deleteShipment = async (req, res) => {
   try {

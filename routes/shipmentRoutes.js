@@ -6,7 +6,7 @@ const isStaffAuthenticated = require("../middleware/staffAuth");
 const Shipment = require("../models/B2BShipmentModel");
 const Parcel = require("../models/parcelModel");
 const Branch = require("../models/BranchesModel");
-const Vehicle = require("../models/vehicleModel");
+const Vehicle = require("../models/VehicleModel");
 
 
 
