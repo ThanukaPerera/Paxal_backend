@@ -564,8 +564,8 @@ async function processParcelsAtCenter(shipment, centerIndex) {
         let addedCount = 0;
         for (const parcel of parcelsToProcess) {
             // Calculate weight and volume based on item size
-            const weightMap = { small: 1, medium: 3, large: 8 };
-            const volumeMap = { small: 0.1, medium: 0.3, large: 0.8 };
+            const weightMap = { small: 2, medium: 5, large: 10 };
+            const volumeMap = { small: 0.2, medium: 0.5, large: 1.0 };
 
             const parcelWeight = weightMap[parcel.itemSize] || 1;
             const parcelVolume = volumeMap[parcel.itemSize] || 0.1;
@@ -643,10 +643,12 @@ module.exports = { processStandardShipment };
  * @param {String} shipmentId - The MongoDB ObjectId of the shipment
  * @returns {Promise<Object>} - Response object with success/error status and data
  */
-async function addMoreParcelsToStandardShipment(shipmentId) {
+async function addMoreParcelsToStandardShipment(shipmentId, searchOnly = false, inputParcelIds = null) {
     try {
         console.log(`\n=== STARTING addMoreParcelsToStandardShipment ===`);
         console.log(`Shipment ID: ${shipmentId}`);
+        console.log(`Search Only: ${searchOnly}`);
+        console.log(`Input Parcel IDs:`, inputParcelIds);
 
         // Find the shipment by ID and populate necessary fields
         console.log('Step 1: Finding and populating shipment...');
@@ -757,8 +759,8 @@ async function addMoreParcelsToStandardShipment(shipmentId) {
 
         // Process each center in the route starting from current location
         const parcelsToAdd = [];
-        const weightMap = { small: 1, medium: 3, large: 8 };
-        const volumeMap = { small: 0.1, medium: 0.3, large: 0.8 };
+        const weightMap = { small: 2, medium: 5, large: 10 };
+        const volumeMap = { small: 0.2, medium: 0.5, large: 1.0 };
 
         console.log('\nStep 7: Iterating through route centers to find parcels...');
         
@@ -887,6 +889,52 @@ async function addMoreParcelsToStandardShipment(shipmentId) {
         console.log('\nStep 9: Adding parcels to shipment...');
         const parcelIds = parcelsToAdd.map(item => item.parcel._id);
         console.log('Parcel IDs to add:', parcelIds.map(id => id.toString()));
+
+        // If searchOnly is true, return results without updating database
+        if (searchOnly) {
+            console.log('\n=== SEARCH ONLY MODE - Not updating database ===');
+            // Prepare response data with center information
+            const addedParcelsInfo = parcelsToAdd.map(item => ({
+                parcelId: item.parcel.parcelId,
+                trackingNo: item.parcel.trackingNo,
+                itemSize: item.parcel.itemSize,
+                itemType: item.parcel.itemType,
+                from: item.parcel.from.location,
+                to: item.parcel.to.location,
+                weight: item.weight,
+                volume: item.volume,
+                pickedUpFrom: item.fromCenter,
+                _id: item.parcel._id // Include _id for frontend use
+            }));
+
+            // Group parcels by pickup center for summary
+            const parcelsByCenter = {};
+            parcelsToAdd.forEach(item => {
+                if (!parcelsByCenter[item.fromCenter]) {
+                    parcelsByCenter[item.fromCenter] = [];
+                }
+                parcelsByCenter[item.fromCenter].push(item.parcel);
+            });
+
+            return {
+                success: true,
+                message: `Found ${parcelsToAdd.length} parcels available to add to shipment from ${Object.keys(parcelsByCenter).length} centers`,
+                statusCode: 200,
+                data: {
+                    addedParcels: addedParcelsInfo,
+                    newTotals: {
+                        weight: currentWeight,
+                        volume: currentVolume,
+                        parcelCount: shipment.parcelCount + parcelsToAdd.length
+                    },
+                    summary: {
+                        centersProcessed: Object.keys(parcelsByCenter),
+                        weightAdded: parcelsToAdd.reduce((sum, item) => sum + item.weight, 0),
+                        volumeAdded: parcelsToAdd.reduce((sum, item) => sum + item.volume, 0)
+                    }
+                }
+            };
+        }
 
         shipment.parcels.push(...parcelIds);
         shipment.totalWeight = currentWeight;

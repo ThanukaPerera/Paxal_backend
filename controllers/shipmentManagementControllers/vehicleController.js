@@ -895,9 +895,16 @@ async function findAvailableParcelsForRoute(vehicleCurrentCenter, destinationCen
         const availableParcels = await Parcel.find({
             from: vehicleObjectId,
             to: { $in: destinationObjectIds },
-            shipmentId: null,
-            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') },
-            status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter', 'ArrivedAtCollectionCenter'] }
+            $or: [
+                // Parcels that arrived at collection center are available regardless of shipmentId
+                { status: 'ArrivedAtCollectionCenter' },
+                // Other status parcels must have no shipment assigned
+                { 
+                    shipmentId: null,
+                    status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter'] }
+                }
+            ],
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }
         })
         .populate('to', 'location branchId')
         .populate('from', 'location branchId');
@@ -2316,15 +2323,16 @@ async function findAvailableParcelsForRoute(vehicleCenterId, shipmentRoute, deli
         const availableParcels = await Parcel.find({
             from: vehicleObjectId,                                    // Parcel source center
             to: { $in: destinationCenters },                        // Parcel destinations in route
-            shipmentId: null,                                       // Not assigned to any shipment
-            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }, // Case-insensitive matching
-            status: { $in: [
-                'OrderPlaced', 
-                'PendingPickup',        // Added missing status from debug output
-                'PickedUp', 
-                'ArrivedAtDistributionCenter',
-                'ArrivedAtCollectionCenter'
-            ]}  // Using broader status range
+            $or: [
+                // Parcels that arrived at collection center are available regardless of shipmentId
+                { status: 'ArrivedAtCollectionCenter' },
+                // Other status parcels must have no shipment assigned
+                { 
+                    shipmentId: null,
+                    status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter'] }
+                }
+            ],
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') } // Case-insensitive matching
         }).populate('to', 'location branchId')
           .populate('from', 'location branchId');
 

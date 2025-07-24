@@ -18,6 +18,7 @@ router.post("/create", isStaffAuthenticated, createShipment);
 router.post("/b2b/standard-shipments/:id/add-more", async (req, res) => {
     try {
         const shipmentId = req.params.id;
+        const { searchOnly, parcelIds } = req.body; // Extract searchOnly and parcelIds from request body
 
         // Validate shipment ID format
         if (!shipmentId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -27,8 +28,8 @@ router.post("/b2b/standard-shipments/:id/add-more", async (req, res) => {
             });
         }
 
-        // Call the controller function
-        const result = await addMoreParcelsToStandardShipment(shipmentId);
+        // Call the controller function with the new parameters
+        const result = await addMoreParcelsToStandardShipment(shipmentId, searchOnly, parcelIds);
 
         // Return response based on result
         return res.status(result.statusCode).json({
@@ -487,7 +488,8 @@ router.post('/process/:type/:center', isStaffAuthenticated, async (req, res) => 
         const result = await processAllShipments(
             req.params.type,  // 'Express' or 'Standard'
             req.params.center,
-            parcelIds  // Pass the parcel IDs to the controller
+            parcelIds,  // Pass the parcel IDs to the controller
+            req.staff._id  // Pass the staff ID for createdByStaff field
         );
 
         if (!result.success) {
@@ -721,12 +723,12 @@ router.delete("/:shipmentId", async (req, res) => {
             });
         }
 
-        // First, update all parcels in this shipment - set shipmentId to null and status to PendingPickup
+        // First, update all parcels in this shipment - set shipmentId to null and status to ArrivedAtCollectionCenter
         await Parcel.updateMany(
             { _id: { $in: shipment.parcels } },
             { 
                 $unset: { shipmentId: "" },
-                $set: { status: "PendingPickup" }
+                $set: { status: "ArrivedAtCollectionCenter" }
             }
         );
 
