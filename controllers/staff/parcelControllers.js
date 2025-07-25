@@ -65,6 +65,7 @@ const registerParcel = async (req, res) => {
       qrCodeNo: qrCodeString,
       submittingType: "branch",
       status: "ArrivedAtDistributionCenter",
+      arrivedToDistributionCenterTime: new Date(),
       orderPlacedStaffId: staff_id,
     };
     const parcel = new Parcel(parcelData);
