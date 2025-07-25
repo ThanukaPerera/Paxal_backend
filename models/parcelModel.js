@@ -80,6 +80,7 @@ const parcelSchema = new mongoose.Schema(
         arrivedToCollectionCenterTime: { type: Date, required: false },
         parcelDispatchedDate: { type: Date, required: false },
         parcelDeliveredDate: { type: Date, required: false },
+
         status: {
             type: String,
             enum: [
