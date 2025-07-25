@@ -80,11 +80,11 @@ const getDashboardAnalytics = async (req, res) => {
 
 /**
  * Get Key Performance Indicators
- */
-async function getKPIMetrics(dateFilter) {
+ */async function getKPIMetrics(dateFilter) {
   const [
     totalParcels,
     totalRevenue,
+    paidPaymentsAmount,
     pendingPayments,
     totalShipments,
     activeVehicles,
@@ -95,12 +95,16 @@ async function getKPIMetrics(dateFilter) {
   ] = await Promise.all([
     Parcel.countDocuments(dateFilter),
     Payment.aggregate([
+      { $match: { ...dateFilter } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]),
+    Payment.aggregate([
       { $match: { ...dateFilter, paymentStatus: "paid" } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]),
     Payment.aggregate([
       { $match: { ...dateFilter, paymentStatus: "pending" } },
-      { $group: { _id: null, count: { $sum: "$amount" } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } }
     ]),
     B2BShipment.countDocuments(dateFilter),
     Vehicle.countDocuments({ available: true }),
@@ -112,7 +116,6 @@ async function getKPIMetrics(dateFilter) {
       { $match: dateFilter },
       { $group: { _id: "$paymentStatus", count: { $sum: 1 } } }
     ]),
-    // Previous period for comparison
     Parcel.countDocuments({
       createdAt: {
         $gte: new Date(dateFilter.createdAt.$gte.getTime() - (dateFilter.createdAt.$lte.getTime() - dateFilter.createdAt.$gte.getTime())),
@@ -134,12 +137,7 @@ async function getKPIMetrics(dateFilter) {
   ]);
 
   const revenue = totalRevenue[0]?.total || 0;
-  // Get previous month's data for comparison
-  const previousMonthStart = new Date(dateFilter.createdAt.$gte);
-  previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
-  const previousMonthEnd = new Date(dateFilter.createdAt.$gte);
-  previousMonthEnd.setDate(previousMonthEnd.getDate() - 1);
-
+  const paidAmount = paidPaymentsAmount[0]?.total || 0;
   const previousRevenue = previousPeriodRevenue[0]?.total || 0;
   
   // Calculate percentage changes
@@ -169,15 +167,20 @@ async function getKPIMetrics(dateFilter) {
       trend: revenueChange >= 0 ? "up" : "down",
       formatted: `Rs. ${revenue.toLocaleString()}`
     },
-    pendingPayments: {
-      value: pendingPayments[0]?.count || 0,
+    paidPaymentsAmount: {
+      value: paidAmount,
       change: 0,
-      trend: "up"
+      trend: "stable"
+    },
+    pendingPayments: {
+      value: pendingPayments[0]?.total || 0,
+      change: 0,
+      trend: "stable"
     },
     totalShipments: {
       value: totalShipments,
-      change: 0, // Would need previous period calculation
-      trend: "up"
+      change: 0,
+      trend: "stable"
     },
     activeVehicles: {
       value: activeVehicles,

@@ -1279,6 +1279,17 @@ async function generateComprehensiveReport(
     getBranchPerformance(parcelFilter),
   ]);
 
+
+  console.log("Generated comprehensive report with parts:", {
+    systemOverview,
+    parcelAnalytics,
+    shipmentAnalytics,
+    userAnalytics,
+    financialAnalytics,
+    operationalAnalytics,
+    branchPerformance,
+    trends: await getTrendAnalysis(startDate, endDate, null, parcelFilter),
+  });
   return {
     systemOverview,
     parcelAnalytics,
