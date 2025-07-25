@@ -13,18 +13,9 @@ const addReceiver = async (receiverData, session) => {
     } 
     
 
-    // Find last receiver ID and generate the next one.
-    const lastreceiver = await Receiver.findOne().sort({ receiverId: -1 }).session(session).lean();
-    let nextReceiverId = "RECEIVER001"; // Default ID if no receiver exists.
-
-    if (lastreceiver) {
-      const lastIdNumber = parseInt(lastreceiver.receiverId.replace("RECEIVER", ""),1);
-      nextReceiverId = `RECEIVER${String(lastIdNumber + 1).padStart(3, "0")}`;
-            
-      // Create new receiver with the generated ID.
+    
       const newReceiver = {
         ...receiverData,
-        receiverId: nextReceiverId,
       };
 
       const receiver = new Receiver(newReceiver);
@@ -32,7 +23,7 @@ const addReceiver = async (receiverData, session) => {
       console.log("------A new receiver registered------");
     
       return savedReceiver._id; 
-    }
+    
     
   } catch (error) {
     console.error("Error in adding a new receiver:", error);

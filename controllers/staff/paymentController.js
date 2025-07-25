@@ -63,14 +63,7 @@ const calculatePayment = async(req, res) => {
 const savePayment = async (paymentData, session) => {
   try {
 
-    // Find last payment ID and generate the next one.
-    const lastPayment = await Payment.findOne().sort({ paymentId: -1 }).lean();
-    let nextPaymentId = "PAYMENT001"; // Default ID if no payment exists.
-
-    if (lastPayment) {
-      const lastIdNumber = parseInt(lastPayment.paymentId.replace("PAYMENT", ""),10);
-      nextPaymentId = `PAYMENT${String(lastIdNumber + 1).padStart(3, "0")}`;
-    }
+  
 
     const {paymentMethod} = paymentData;
     let paidBy, paymentStatus, paymentDate;
@@ -90,7 +83,6 @@ const savePayment = async (paymentData, session) => {
     // create the payment.
     const newPayment = {
       ...paymentData,
-      paymentId: nextPaymentId,
       paidBy,
       paymentStatus,
       paymentDate,
