@@ -64,6 +64,7 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
       trackingNo: trackingNumber,
       qrCodeNo: qrCodeString,
       status: "ArrivedAtDistributionCenter",
+      arrivedToDistributionCenterTime:new Date(),
       orderPlacedStaffId: staff_id,
     };
 
