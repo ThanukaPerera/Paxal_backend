@@ -1,7 +1,7 @@
 //mobile.js
 const express = require("express");
 const Driver = require("../models/driverModel");
-const Parcel  = require("../models/ParcelModel");
+const Parcel  = require("../models/parcelModel");
 //const Pickup  = require("../models/PickupSchema");
 const  VehicleSchedule  = require("../models/VehicleScheduleModel");
 const  Vehicle = require("../models/VehicleModel");  
@@ -236,6 +236,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
 
     const updateData = {
       status,
+      ...(status === 'PickedUp' && { parcelPickedUpDate: new Date() }),
       ...(status === 'Delivered' && { parcelDeliveredDate: new Date() })
     };
 
