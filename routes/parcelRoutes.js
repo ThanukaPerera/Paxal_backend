@@ -34,7 +34,7 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
             from: req.staff.branchId._id,
             shipmentId: null,
             $expr: { $ne: ["$from", "$to"] } ,// Exclude parcels where from equals to
-            status: { $in: "ArrivedAtCollectionCenter" } // Exclude delivered parcels
+            status: { $in: "ArrivedAtDistributionCenter" } // Exclude delivered parcels
         }).populate('from', 'location')
           .populate('to', 'location');
 
@@ -48,6 +48,8 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
                 branchId: req.staff.branchId._id
             }
         });
+        console.log("Staff parcels fetched:", parcels.length, "parcels found.");
+        console.log("Staff parcels fetched successfully.");
 
     } catch (error) {
         console.error("Error fetching staff parcels:", error);
