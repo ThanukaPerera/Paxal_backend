@@ -872,14 +872,28 @@ exports.addParcel = catchAsync(async (req, res, next) => {
   }
 
   // Find or create receiver
-  let receiver = await Receiver.findOne({ receiverEmail });
-  if (!receiver) {
-    receiver = await Receiver.create({
-      receiverFullName,
-      receiverContact,
-      receiverEmail,
-    });
-  }
+  // let receiver = await Receiver.findOne({ receiverEmail });
+  // if (!receiver) {
+  //   receiver = await Receiver.create({
+  //     receiverFullName,
+  //     receiverContact,
+  //     receiverEmail,
+  //   });
+  // }
+  let receiver = await Receiver.findOne({
+  receiverEmail,
+  receiverFullName,
+  receiverContact,
+});
+
+if (!receiver) {
+  receiver = await Receiver.create({
+    receiverFullName,
+    receiverContact,
+    receiverEmail,
+  });
+}
+
 
   // Calculate distance between branches
   const distance = getBranchDistance(fromBranch.branchId, toBranch.branchId);
