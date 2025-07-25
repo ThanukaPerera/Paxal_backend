@@ -1,6 +1,6 @@
 //mobile.js
 const express = require("express");
-const Driver = require("../models/DriverModel");
+const Driver = require("../models/driverModel");
 const Parcel  = require("../models/ParcelModel");
 //const Pickup  = require("../models/PickupSchema");
 const  VehicleSchedule  = require("../models/VehicleScheduleModel");

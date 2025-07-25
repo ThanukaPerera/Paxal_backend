@@ -33,7 +33,8 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
         const parcels = await Parcel.find({
             from: req.staff.branchId._id,
             shipmentId: null,
-            $expr: { $ne: ["$from", "$to"] } // Exclude parcels where from equals to
+            $expr: { $ne: ["$from", "$to"] } ,// Exclude parcels where from equals to
+            status: { $in: "ArrivedAtCollectionCenter" } // Exclude delivered parcels
         }).populate('from', 'location')
           .populate('to', 'location');
 
@@ -413,7 +414,7 @@ router.patch("/:shipmentId/reset-parcels", async (req, res) => {
 
         await Parcel.updateMany(
             { _id: { $in: shipment.parcels } },
-            { $set: { shipmentId: null, status: "PendingPickup" } }
+            { $set: { shipmentId: null, status: "ArrivedAtCollectionCenter" } }
         );
 
         await Shipment.deleteOne({ shipmentId: req.params.shipmentId });

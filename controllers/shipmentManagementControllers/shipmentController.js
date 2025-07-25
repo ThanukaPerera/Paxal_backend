@@ -512,10 +512,10 @@ async function finalizeShipment(shipment, deliveryType, timeMatrix) {
         await shipment.save();
         console.log(`Successfully saved shipment: ${shipment.shipmentId}`);
         
-        // await Parcel.updateMany(
-        //     { _id: { $in: shipment.parcels } },
-        //     { shipmentId: shipment._id, status: 'ShipmentAssigned' }
-        // );
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { shipmentId: shipment._id, status: 'ShipmentAssigned' }
+        );
     } catch (error) {
         console.error("Error finalizing shipment:", error);
         
@@ -548,7 +548,7 @@ async function finalizeShipment(shipment, deliveryType, timeMatrix) {
 }
 
 // Main controller function
-exports.processAllShipments = async (deliveryType, sourceCenterId, parcelIds) => {
+exports.processAllShipments = async (deliveryType, sourceCenterId, parcelIds, staffId) => {
     try {
 
         console.log(`Processing ${deliveryType} shipments for source center: ${sourceCenterId}`);
@@ -570,11 +570,15 @@ exports.processAllShipments = async (deliveryType, sourceCenterId, parcelIds) =>
         }
 
         // Fetch only the specific parcels that match the IDs provided
-        // Fetch parcels by their IDs without additional filtering
         const parcels = await Parcel.find({
              _id: { $in: parcelObjectIds },
             from: sourceCenterId,
-            shipmentId: null // Ensure these parcels are not already assigned to a shipment
+            $or: [
+                // Parcels that arrived at collection center are available regardless of shipmentId
+                { status: 'ArrivedAtCollectionCenter' },
+                // Other status parcels must have no shipment assigned
+                { shipmentId: null }
+            ]
         }).populate('to').populate('from');
 
         // Validate shipping method compatibility
@@ -607,8 +611,8 @@ exports.processAllShipments = async (deliveryType, sourceCenterId, parcelIds) =>
         console.log(`Found ${parcels.length} parcels for processing`);
         //console.log(parcels);
 
-        // Get the staff ID from one of the parcels or set a default
-        const staffId = parcels[0].registeredBy || new mongoose.Types.ObjectId();
+        // Use the staffId parameter passed from the route
+        console.log(`Using staffId from authenticated user: ${staffId}`);
 
         // Process the shipments using ObjectIds
         const shipments = await processShipments(deliveryType, parcels, sourceCenterId, staffId, matrices);

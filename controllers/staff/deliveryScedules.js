@@ -1,7 +1,7 @@
 const VehicleSchedule = require("../../models/VehicleScheduleModel");
 const Staff = require("../../models/StaffModel");
 const Parcel = require("../../models/ParcelModel");
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const getParcelProperties = require("../../utils/parcelDetails");
 
 // get all delivery schedules created from the branch
