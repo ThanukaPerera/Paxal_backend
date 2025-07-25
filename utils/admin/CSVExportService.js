@@ -35,25 +35,81 @@ class CSVExportService {
       csvContent += '\n\n';
     }
     
-    // Add detailed data sections
+    // Add detailed data sections based on what's available
     if (reportData.parcels) {
       csvContent += this.generateParcelSection(reportData.parcels);
       csvContent += '\n\n';
+      
+      // Add detailed parcel data if available
+      if (reportData.parcels.details && reportData.parcels.details.length > 0) {
+        csvContent += this.generateDetailedParcelData(reportData.parcels.details);
+        csvContent += '\n\n';
+      }
     }
     
     if (reportData.users) {
       csvContent += this.generateUserSection(reportData.users);
       csvContent += '\n\n';
+      
+      // Add detailed user data if available
+      if (reportData.users.details && reportData.users.details.length > 0) {
+        csvContent += this.generateDetailedUserData(reportData.users.details);
+        csvContent += '\n\n';
+      }
     }
     
     if (reportData.payments) {
       csvContent += this.generatePaymentSection(reportData.payments);
       csvContent += '\n\n';
+      
+      // Add detailed payment data if available
+      if (reportData.payments.details && reportData.payments.details.length > 0) {
+        csvContent += this.generateDetailedPaymentData(reportData.payments.details);
+        csvContent += '\n\n';
+      }
+    }
+    
+    if (reportData.b2bShipments) {
+      csvContent += this.generateShipmentSection(reportData.b2bShipments);
+      csvContent += '\n\n';
+      
+      // Add detailed shipment data if available
+      if (reportData.b2bShipments.details && reportData.b2bShipments.details.length > 0) {
+        csvContent += this.generateDetailedShipmentData(reportData.b2bShipments.details);
+        csvContent += '\n\n';
+      }
     }
     
     if (reportData.branches) {
       csvContent += this.generateBranchSection(reportData.branches);
       csvContent += '\n\n';
+      
+      // Add detailed branch data if available
+      if (reportData.branches.details && reportData.branches.details.length > 0) {
+        csvContent += this.generateDetailedBranchData(reportData.branches.details);
+        csvContent += '\n\n';
+      }
+    }
+    
+    // Handle single-section reports
+    if (reportData.financial && reportData.financial.payments) {
+      csvContent += this.generatePaymentSection(reportData.financial.payments);
+      csvContent += '\n\n';
+      
+      if (reportData.financial.payments.details && reportData.financial.payments.details.length > 0) {
+        csvContent += this.generateDetailedPaymentData(reportData.financial.payments.details);
+        csvContent += '\n\n';
+      }
+    }
+    
+    if (reportData.shipments) {
+      csvContent += this.generateShipmentSection(reportData.shipments);
+      csvContent += '\n\n';
+      
+      if (reportData.shipments.details && reportData.shipments.details.length > 0) {
+        csvContent += this.generateDetailedShipmentData(reportData.shipments.details);
+        csvContent += '\n\n';
+      }
     }
     
     // Add AI insights if available
@@ -450,6 +506,133 @@ class CSVExportService {
     value = value.replace(/"/g, '""');
     
     return value;
+  }
+
+  /**
+   * Generate detailed parcel data section
+   */
+  generateDetailedParcelData(parcels) {
+    let section = 'DETAILED PARCEL DATA\n';
+    section += 'Tracking Number,Status,Sender Name,Sender Email,Receiver Name,Receiver Email,From Branch,To Branch,Item Type,Item Weight,Item Size,Total Amount,Shipping Method,Created Date,Delivery Date,Days to Deliver\n';
+    
+    parcels.forEach(parcel => {
+      const senderName = parcel.senderId ? `${parcel.senderId.firstName || ''} ${parcel.senderId.lastName || ''}`.trim() : 'N/A';
+      const senderEmail = parcel.senderId?.email || 'N/A';
+      const receiverName = parcel.receiverId ? `${parcel.receiverId.firstName || ''} ${parcel.receiverId.lastName || ''}`.trim() : 'N/A';
+      const receiverEmail = parcel.receiverId?.email || 'N/A';
+      const fromBranch = parcel.from?.branchName || 'N/A';
+      const toBranch = parcel.to?.branchName || 'N/A';
+      const createdDate = parcel.createdAt ? new Date(parcel.createdAt).toLocaleDateString() : 'N/A';
+      const deliveryDate = parcel.parcelDeliveredDate ? new Date(parcel.parcelDeliveredDate).toLocaleDateString() : 'N/A';
+      const daysToDeliver = (parcel.parcelDeliveredDate && parcel.createdAt) 
+        ? Math.ceil((new Date(parcel.parcelDeliveredDate) - new Date(parcel.createdAt)) / (1000 * 60 * 60 * 24))
+        : 'N/A';
+      
+      section += `"${parcel.trackingNumber || 'N/A'}","${parcel.status || 'N/A'}","${senderName}","${senderEmail}","${receiverName}","${receiverEmail}","${fromBranch}","${toBranch}","${parcel.itemType || 'N/A'}","${parcel.itemWeight || 'N/A'}","${parcel.itemSize || 'N/A'}","${parcel.totalAmount || 'N/A'}","${parcel.shippingMethod || 'N/A'}","${createdDate}","${deliveryDate}","${daysToDeliver}"\n`;
+    });
+    
+    return section;
+  }
+
+  /**
+   * Generate detailed user data section
+   */
+  generateDetailedUserData(users) {
+    let section = 'DETAILED USER DATA\n';
+    section += 'First Name,Last Name,Email,Phone,Role,Status,Verified,Created Date,Last Login,Address\n';
+    
+    users.forEach(user => {
+      const createdDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A';
+      const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A';
+      const address = user.address ? `${user.address.street || ''}, ${user.address.city || ''}, ${user.address.state || ''} ${user.address.zipCode || ''}`.trim() : 'N/A';
+      
+      section += `"${user.firstName || 'N/A'}","${user.lastName || 'N/A'}","${user.email || 'N/A'}","${user.phone || 'N/A'}","${user.role || 'N/A'}","${user.status || 'N/A'}","${user.isVerify ? 'Yes' : 'No'}","${createdDate}","${lastLogin}","${address}"\n`;
+    });
+    
+    return section;
+  }
+
+  /**
+   * Generate detailed payment data section
+   */
+  generateDetailedPaymentData(payments) {
+    let section = 'DETAILED PAYMENT DATA\n';
+    section += 'Payment ID,Amount,Payment Method,Payment Status,Parcel Tracking,Payer Name,Payer Email,Created Date,Updated Date\n';
+    
+    payments.forEach(payment => {
+      const payerName = payment.paidBy ? `${payment.paidBy.firstName || ''} ${payment.paidBy.lastName || ''}`.trim() : 'N/A';
+      const payerEmail = payment.paidBy?.email || 'N/A';
+      const parcelTracking = payment.parcelId?.trackingNumber || 'N/A';
+      const createdDate = payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'N/A';
+      const updatedDate = payment.updatedAt ? new Date(payment.updatedAt).toLocaleDateString() : 'N/A';
+      
+      section += `"${payment._id || 'N/A'}","${payment.amount || 'N/A'}","${payment.paymentMethod || 'N/A'}","${payment.paymentStatus || 'N/A'}","${parcelTracking}","${payerName}","${payerEmail}","${createdDate}","${updatedDate}"\n`;
+    });
+    
+    return section;
+  }
+
+  /**
+   * Generate detailed shipment data section
+   */
+  generateDetailedShipmentData(shipments) {
+    let section = 'DETAILED SHIPMENT DATA\n';
+    section += 'Shipment ID,Status,Source Center,Destination Center,Vehicle Number,Driver Name,Total Amount,Total Weight,Total Volume,Created Date,Estimated Delivery\n';
+    
+    shipments.forEach(shipment => {
+      const sourceCenter = shipment.sourceCenter?.branchName || 'N/A';
+      const destinationCenter = shipment.destinationCenter?.branchName || 'N/A';
+      const vehicleNumber = shipment.assignedVehicle?.vehicleNumber || 'N/A';
+      const driverName = shipment.assignedDriver ? `${shipment.assignedDriver.firstName || ''} ${shipment.assignedDriver.lastName || ''}`.trim() : 'N/A';
+      const createdDate = shipment.createdAt ? new Date(shipment.createdAt).toLocaleDateString() : 'N/A';
+      const estimatedDelivery = shipment.estimatedDeliveryDate ? new Date(shipment.estimatedDeliveryDate).toLocaleDateString() : 'N/A';
+      
+      section += `"${shipment._id || 'N/A'}","${shipment.status || 'N/A'}","${sourceCenter}","${destinationCenter}","${vehicleNumber}","${driverName}","${shipment.totalAmount || 'N/A'}","${shipment.totalWeight || 'N/A'}","${shipment.totalVolume || 'N/A'}","${createdDate}","${estimatedDelivery}"\n`;
+    });
+    
+    return section;
+  }
+
+  /**
+   * Generate detailed branch data section
+   */
+  generateDetailedBranchData(branches) {
+    let section = 'DETAILED BRANCH DATA\n';
+    section += 'Branch Name,Location,City,State,Phone,Email,Manager,Status,Created Date,Total Staff\n';
+    
+    branches.forEach(branch => {
+      const createdDate = branch.createdAt ? new Date(branch.createdAt).toLocaleDateString() : 'N/A';
+      const location = `${branch.address || ''}, ${branch.city || ''}, ${branch.state || ''}`.trim();
+      
+      section += `"${branch.branchName || 'N/A'}","${location}","${branch.city || 'N/A'}","${branch.state || 'N/A'}","${branch.phone || 'N/A'}","${branch.email || 'N/A'}","${branch.manager || 'N/A'}","${branch.isActive ? 'Active' : 'Inactive'}","${createdDate}","${branch.totalStaff || 'N/A'}"\n`;
+    });
+    
+    return section;
+  }
+
+  /**
+   * Generate shipment section (for backward compatibility)
+   */
+  generateShipmentSection(shipmentData) {
+    let section = 'SHIPMENT ANALYSIS\n';
+    section += 'Metric,Value\n';
+    
+    section += `"Total Shipments","${shipmentData.total || 0}"\n`;
+    section += `"Total Value","$${(shipmentData.totalValue || 0).toLocaleString()}"\n`;
+    
+    // Status breakdown
+    if (shipmentData.byStatus) {
+      section += '\nShipment Status Breakdown\n';
+      section += 'Status,Count,Percentage\n';
+      
+      const total = shipmentData.total || 1;
+      Object.entries(shipmentData.byStatus).forEach(([status, count]) => {
+        const percentage = ((count / total) * 100).toFixed(1);
+        section += `"${this.formatStatus(status)}","${count}","${percentage}%"\n`;
+      });
+    }
+    
+    return section;
   }
 }
 

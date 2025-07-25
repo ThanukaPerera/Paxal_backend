@@ -20,31 +20,9 @@ const VehicleSchedule = require("../../../models/VehicleScheduleModel");
  */
 const getDashboardAnalytics = async (req, res) => {
   try {
-    const { period } = req.query; // 1d, 7d, 30d, 90d, 1y
-
-    // Calculate date ranges
     const endDate = new Date();
-    const startDate = new Date();
-    
-    switch (period) {
-      case "1d":
-        startDate.setDate(startDate.getDate() - 1);
-        break;
-      case "7d":
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(startDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(startDate.getDate() - 90);
-        break;
-      case "1y":
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        break;
-      default:
-        startDate.setDate(startDate.getDate() - 7);
-    }
+    const startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
 
     const dateFilter = {
       createdAt: { $gte: startDate, $lte: endDate }
@@ -60,23 +38,23 @@ const getDashboardAnalytics = async (req, res) => {
       alertsAndNotifications
     ] = await Promise.all([
       getKPIMetrics(dateFilter),
-      getChartData(startDate, endDate, period),
+      getChartData(startDate, endDate),
       getRecentActivities(),
       getSystemHealth(),
       getBranchMetrics(dateFilter),
       getAlertsAndNotifications()
     ]);
 
-    console.log("Chart Data:", chartData);
-
     const response = {
       status: "success",
       message: "Dashboard analytics fetched successfully",
       data: {
-        period,
+        period:"current-month",
         dateRange: {
           startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
+          endDate: endDate.toISOString(),
+          month: new Date().toLocaleString('default', { month: 'long' }),
+          year: new Date().getFullYear()
         },
         kpi: kpiMetrics,
         charts: chartData,
@@ -107,6 +85,7 @@ async function getKPIMetrics(dateFilter) {
   const [
     totalParcels,
     totalRevenue,
+    pendingPayments,
     totalShipments,
     activeVehicles,
     parcelStatus,
@@ -118,6 +97,10 @@ async function getKPIMetrics(dateFilter) {
     Payment.aggregate([
       { $match: { ...dateFilter, paymentStatus: "paid" } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]),
+    Payment.aggregate([
+      { $match: { ...dateFilter, paymentStatus: "pending" } },
+      { $group: { _id: null, count: { $sum: "$amount" } } }
     ]),
     B2BShipment.countDocuments(dateFilter),
     Vehicle.countDocuments({ available: true }),
@@ -151,6 +134,12 @@ async function getKPIMetrics(dateFilter) {
   ]);
 
   const revenue = totalRevenue[0]?.total || 0;
+  // Get previous month's data for comparison
+  const previousMonthStart = new Date(dateFilter.createdAt.$gte);
+  previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+  const previousMonthEnd = new Date(dateFilter.createdAt.$gte);
+  previousMonthEnd.setDate(previousMonthEnd.getDate() - 1);
+
   const previousRevenue = previousPeriodRevenue[0]?.total || 0;
   
   // Calculate percentage changes
@@ -179,6 +168,11 @@ async function getKPIMetrics(dateFilter) {
       change: revenueChange,
       trend: revenueChange >= 0 ? "up" : "down",
       formatted: `Rs. ${revenue.toLocaleString()}`
+    },
+    pendingPayments: {
+      value: pendingPayments[0]?.count || 0,
+      change: 0,
+      trend: "up"
     },
     totalShipments: {
       value: totalShipments,

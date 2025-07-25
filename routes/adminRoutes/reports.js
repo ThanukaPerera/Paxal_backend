@@ -7,13 +7,8 @@ const { authenticateAdmin } = require("../../middleware/adminMiddleware/authMidd
 // Report Controllers
 const { generateReport } = require("../../controllers/adminControllers/reports/generateReport");
 const { getDashboardAnalytics } = require("../../controllers/adminControllers/reports/getDashboardAnalytics");
-const { generateAIReport, getAIInsights } = require("../../controllers/adminControllers/aiReportController");
-const { 
-  exportReportPDF, 
-  exportReportCSV, 
-  exportDataCSV, 
-  getExportOptions 
-} = require("../../controllers/adminControllers/exportController");
+const { exportReportCSV } = require("../../controllers/adminControllers/exportController");
+const { exportComprehensiveReportCSV } = require("../../controllers/adminControllers/reports/exportComprehensiveCSV");
 
 // Dashboard Analytics Route
 router.get("/dashboard", authenticateAdmin, getDashboardAnalytics);
@@ -21,19 +16,11 @@ router.get("/dashboard", authenticateAdmin, getDashboardAnalytics);
 // Standard Report Generation Routes
 router.get("/generate", authenticateAdmin, generateReport);
 
-// AI-Powered Report Generation Routes
-router.get("/ai-report", authenticateAdmin, generateAIReport);
-router.post("/ai-insights", authenticateAdmin, getAIInsights);
-
 // Export Routes
-router.get("/export/options", authenticateAdmin, getExportOptions);
-router.get("/export/pdf", authenticateAdmin, exportReportPDF);
 router.get("/export/csv", authenticateAdmin, exportReportCSV);
-router.get("/export/data/:dataType", authenticateAdmin, exportDataCSV);
+router.get("/export/comprehensive-csv", authenticateAdmin, exportComprehensiveReportCSV);
 
-// Export Report Routes (Future implementation)
-// router.get("/export/csv", authenticateAdmin, exportCSV);
-// router.get("/export/pdf", authenticateAdmin, exportPDF);
-// router.get("/export/excel", authenticateAdmin, exportExcel);
+
+
 
 module.exports = router;

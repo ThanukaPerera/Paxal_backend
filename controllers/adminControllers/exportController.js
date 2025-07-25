@@ -17,11 +17,10 @@ const NotificationModel = require("../../models/Notification");
  */
 const exportReportPDF = catchAsync(async (req, res, next) => {
   try {
-    const { reportType = "comprehensive", includeAI = "false" } = req.query;
+    const { reportType = "comprehensive", includeAI = "false", reportPart } = req.query;
     
     // Parse date range and branch filter
     let dateFilter = {};
-    let branchFilter = {};
     
     if (req.query.dateRange) {
       const { startDate, endDate } = JSON.parse(req.query.dateRange);
@@ -34,13 +33,17 @@ const exportReportPDF = catchAsync(async (req, res, next) => {
     }
     
     if (req.query.branchId && req.query.branchId !== "all") {
-      branchFilter = { branch: req.query.branchId };
+      // For parcels, filter by either 'from' or 'to' branch  
+      dateFilter.$or = [
+        { from: req.query.branchId },
+        { to: req.query.branchId }
+      ];
     }
     
-    const filters = { ...dateFilter, ...branchFilter };
+    const filters = dateFilter;
     
     // Collect report data
-    const reportData = await collectReportData(filters, reportType);
+    const reportData = await collectReportData(filters, reportType, reportPart);
     
     // Generate AI insights if requested
     let aiInsights = null;
@@ -80,11 +83,10 @@ const exportReportPDF = catchAsync(async (req, res, next) => {
  */
 const exportReportCSV = catchAsync(async (req, res, next) => {
   try {
-    const { reportType = "comprehensive", includeAI = "false" } = req.query;
+    const { reportType = "comprehensive", includeAI = "false", reportPart } = req.query;
     
     // Parse date range and branch filter
     let dateFilter = {};
-    let branchFilter = {};
     
     if (req.query.dateRange) {
       const { startDate, endDate } = JSON.parse(req.query.dateRange);
@@ -97,13 +99,17 @@ const exportReportCSV = catchAsync(async (req, res, next) => {
     }
     
     if (req.query.branchId && req.query.branchId !== "all") {
-      branchFilter = { branch: req.query.branchId };
+      // For parcels, filter by either 'from' or 'to' branch
+      dateFilter.$or = [
+        { from: req.query.branchId },
+        { to: req.query.branchId }
+      ];
     }
     
-    const filters = { ...dateFilter, ...branchFilter };
+    const filters = dateFilter;
     
     // Collect report data
-    const reportData = await collectReportData(filters, reportType);
+    const reportData = await collectReportData(filters, reportType, reportPart);
     
     // Generate AI insights if requested
     let aiInsights = null;
@@ -188,7 +194,7 @@ const exportDataCSV = catchAsync(async (req, res, next) => {
         
       case 'payments':
         data = await PaymentModel.find(filters)
-          .populate("parcel", "trackingNumber")
+          .populate("parcelId", "trackingNumber")
           .populate("paidBy", "firstName lastName email")
           .limit(parseInt(limit))
           .lean();
@@ -348,12 +354,59 @@ const getExportOptions = catchAsync(async (req, res, next) => {
 /**
  * Helper function to collect comprehensive report data
  */
-async function collectReportData(filters, reportType) {
+async function collectReportData(filters, reportType, reportPart) {
   const data = {};
 
   try {
-    // Parcels Data
-    const parcels = await ParcelModel.find(filters)
+    // If reportPart is specified, only collect that part
+    if (reportPart && reportPart !== 'all') {
+      switch (reportPart) {
+        case 'parcels':
+          return await getParcelData(filters);
+        case 'shipments':
+          return await getShipmentData(filters);
+        case 'users':
+          return await getUserData(filters);
+        case 'financial':
+          return await getFinancialData(filters);
+        case 'operational':
+          return await getOperationalData(filters);
+        case 'branches':
+          return await getBranchData(filters);
+        default:
+          break;
+      }
+    }
+
+    // Collect all data for comprehensive report
+    return await getAllReportData(filters);
+  } catch (error) {
+    console.error("Error collecting report data:", error);
+    throw error;
+  }
+}
+
+// Helper function to get all report data
+async function getAllReportData(filters) {
+  const data = {};
+
+  try {
+    // Create different filters for different models
+    const dateOnlyFilter = {
+      createdAt: filters.createdAt
+    };
+    
+    // For parcels, use the full filter with branch condition
+    const parcelFilter = filters;
+    
+    // For branch-specific filtering of other models, extract branchId if exists
+    let branchId = null;
+    if (filters.$or && filters.$or.length > 0) {
+      branchId = filters.$or[0].from; // Extract branchId from the $or condition
+    }
+
+    // Parcels Data - use full filter with branch conditions
+    const parcels = await ParcelModel.find(parcelFilter)
       .populate("senderId", "firstName lastName email phone")
       .populate("receiverId", "firstName lastName email phone address")
       .populate("from", "branchName city")
@@ -373,45 +426,81 @@ async function collectReportData(filters, reportType) {
         .map(p => ({
           days: Math.ceil((new Date(p.parcelDeliveredDate) - new Date(p.createdAt)) / (1000 * 60 * 60 * 24)),
           status: p.status
-        }))
+        })),
+      details: parcels // Include full parcel details for CSV export
     };
 
-    // Users Data
-    const users = await UserModel.find(filters).lean();
+    // Users Data - use date filter only for users
+    const users = await UserModel.find(dateOnlyFilter).lean();
     data.users = {
       total: users.length,
       active: users.filter(u => u.isActive).length,
       byRole: groupBy(users, "role"),
       newUsers: users.filter(u => 
         new Date(u.createdAt) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      ).length
+      ).length,
+      details: users // Include full user details for CSV export
     };
 
-    // Branches Data
+    // Branches Data - no filtering needed for branches
     const branches = await BranchModel.find().lean();
     data.branches = {
       total: branches.length,
       active: branches.filter(b => b.isActive).length,
       byCity: groupBy(branches, "city"),
-      performance: await getBranchPerformance(branches, filters)
+      performance: await getBranchPerformance(branches, parcelFilter),
+      details: branches // Include full branch details for CSV export
     };
 
-    // Payments Data
-    const payments = await PaymentModel.find(filters).lean();
+    // Payments Data - filter by date and link to parcels if branch is specified
+    let paymentFilter = dateOnlyFilter;
+    if (branchId) {
+      // Get payment IDs related to parcels from the selected branch
+      const parcelIds = parcels.map(p => p._id);
+      paymentFilter = {
+        ...dateOnlyFilter,
+        parcelId: { $in: parcelIds }
+      };
+    }
+    
+    const payments = await PaymentModel.find(paymentFilter)
+      .populate("parcelId", "trackingNumber")
+      .populate("paidBy", "firstName lastName email")
+      .lean();
+    
     data.payments = {
       total: payments.length,
       totalAmount: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
       byStatus: groupBy(payments, "paymentStatus"),
       byMethod: groupBy(payments, "paymentMethod"),
-      averageAmount: calculateAverage(payments, "amount")
+      averageAmount: calculateAverage(payments, "amount"),
+      details: payments // Include full payment details for CSV export
     };
 
-    // B2B Shipments Data
-    const b2bShipments = await B2BShipmentModel.find(filters).lean();
+    // B2B Shipments Data - filter by date and source/destination branch if specified
+    let shipmentFilter = dateOnlyFilter;
+    if (branchId) {
+      shipmentFilter = {
+        ...dateOnlyFilter,
+        $or: [
+          { sourceCenter: branchId },
+          { destinationCenter: branchId }
+        ]
+      };
+    }
+    
+    const b2bShipments = await B2BShipmentModel.find(shipmentFilter)
+      .populate("sourceCenter", "branchName city")
+      .populate("destinationCenter", "branchName city")
+      .populate("assignedVehicle", "vehicleNumber")
+      .populate("assignedDriver", "firstName lastName")
+      .lean();
+      
     data.b2bShipments = {
       total: b2bShipments.length,
       byStatus: groupBy(b2bShipments, "status"),
-      totalValue: b2bShipments.reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+      totalValue: b2bShipments.reduce((sum, s) => sum + (s.totalAmount || 0), 0),
+      details: b2bShipments // Include full shipment details for CSV export
     };
 
     // Calculate KPIs
@@ -499,6 +588,169 @@ function calculateOperationalEfficiency(data) {
     ? ((data.payments.byStatus.completed || 0) / data.payments.total * 100)
     : 0;
   return Math.round((parcelEfficiency + paymentEfficiency) / 2);
+}
+
+// Helper functions for specific data parts
+async function getParcelData(filters) {
+  // Create proper filter for parcels
+  const parcelFilter = filters;
+  
+  const parcels = await ParcelModel.find(parcelFilter)
+    .populate("senderId", "firstName lastName email phone")
+    .populate("receiverId", "firstName lastName email phone address")
+    .populate("from", "branchName city")
+    .populate("to", "branchName city")
+    .lean();
+
+  return {
+    parcels: {
+      total: parcels.length,
+      byStatus: groupBy(parcels, "status"),
+      byType: groupBy(parcels, "itemType"),
+      bySize: groupBy(parcels, "itemSize"),
+      byShippingMethod: groupBy(parcels, "shippingMethod"),
+      deliveryTimes: parcels
+        .filter(p => p.parcelDeliveredDate && p.createdAt)
+        .map(p => ({
+          days: Math.ceil((new Date(p.parcelDeliveredDate) - new Date(p.createdAt)) / (1000 * 60 * 60 * 24)),
+          status: p.status
+        })),
+      details: parcels
+    }
+  };
+}
+
+async function getUserData(filters) {
+  // Use date-only filter for users
+  const dateOnlyFilter = {
+    createdAt: filters.createdAt
+  };
+  
+  const users = await UserModel.find(dateOnlyFilter).lean();
+  return {
+    users: {
+      total: users.length,
+      byRole: groupBy(users, "role"),
+      byStatus: groupBy(users, "status"),
+      registrationTrend: users.map(u => ({
+        date: u.createdAt,
+        count: 1
+      })),
+      details: users
+    }
+  };
+}
+
+async function getFinancialData(filters) {
+  // Create proper filter for payments
+  let paymentFilter = {
+    createdAt: filters.createdAt
+  };
+  
+  // If branch filtering is needed, link through parcels
+  if (filters.$or) {
+    const branchId = filters.$or[0].from;
+    const parcels = await ParcelModel.find(filters).select('_id').lean();
+    const parcelIds = parcels.map(p => p._id);
+    paymentFilter = {
+      ...paymentFilter,
+      parcelId: { $in: parcelIds }
+    };
+  }
+  
+  const payments = await PaymentModel.find(paymentFilter)
+    .populate("parcelId", "trackingNumber")
+    .populate("paidBy", "firstName lastName email")
+    .lean();
+    
+  const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  return {
+    financial: {
+      payments: {
+        total: payments.length,
+        byStatus: groupBy(payments, "paymentStatus"),
+        byMethod: groupBy(payments, "paymentMethod"),
+        totalRevenue,
+        averageAmount: payments.length > 0 ? totalRevenue / payments.length : 0,
+        details: payments
+      }
+    }
+  };
+}
+
+async function getShipmentData(filters) {
+  // Create proper filter for shipments
+  let shipmentFilter = {
+    createdAt: filters.createdAt
+  };
+  
+  // If branch filtering is needed
+  if (filters.$or) {
+    const branchId = filters.$or[0].from;
+    shipmentFilter = {
+      ...shipmentFilter,
+      $or: [
+        { sourceCenter: branchId },
+        { destinationCenter: branchId }
+      ]
+    };
+  }
+  
+  const shipments = await B2BShipmentModel.find(shipmentFilter)
+    .populate("sourceCenter", "branchName city")
+    .populate("destinationCenter", "branchName city")
+    .populate("assignedVehicle", "vehicleNumber")
+    .populate("assignedDriver", "firstName lastName")
+    .lean();
+    
+  return {
+    shipments: {
+      total: shipments.length,
+      byStatus: groupBy(shipments, "status"),
+      byType: groupBy(shipments, "shipmentType"),
+      details: shipments
+    }
+  };
+}
+
+async function getOperationalData(filters) {
+  // Use date-only filter for operational data
+  const dateOnlyFilter = {
+    createdAt: filters.createdAt
+  };
+  
+  return {
+    operational: {
+      message: "Operational data collection to be implemented",
+      details: []
+    }
+  };
+}
+
+async function getBranchData(filters) {
+  // Get all branches (no filtering needed)
+  const branches = await BranchModel.find({}).lean();
+  
+  return {
+    branches: {
+      total: branches.length,
+      byRegion: groupBy(branches, "region"),
+      byStatus: groupBy(branches, "status"),
+      details: branches
+    }
+  };
+}
+
+async function getBranchData(filters) {
+  const branches = await BranchModel.find({}).lean();
+  return {
+    branches: {
+      total: branches.length,
+      byRegion: groupBy(branches, "region"),
+      byStatus: groupBy(branches, "status")
+    }
+  };
 }
 
 module.exports = {
