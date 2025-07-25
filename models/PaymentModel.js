@@ -20,6 +20,7 @@
 
 const mongoose=require('mongoose');
 
+<<<<<<< Updated upstream
 const paymentSchema = new mongoose.Schema({
     
     parcelId: { 
@@ -28,6 +29,17 @@ const paymentSchema = new mongoose.Schema({
       required: function() {
         return this.paymentMethod !== 'physicalPayment';
       } 
+=======
+const paymentSchema = new mongoose.Schema(
+  {
+    paymentId: { type: String, required: false },
+    parcelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Parcel",
+      required: function () {
+        return this.paymentMethod === "online";
+      },
+>>>>>>> Stashed changes
     },
     paymentMethod: { 
       type: String, 
