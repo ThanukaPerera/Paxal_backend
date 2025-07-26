@@ -728,7 +728,7 @@ router.delete("/:shipmentId", async (req, res) => {
             { _id: { $in: shipment.parcels } },
             { 
                 $unset: { shipmentId: "" },
-                $set: { status: "ArrivedAtCollectionCenter" }
+                $set: { status: "ArrivedAtDistributionCenter" }
             }
         );
 
