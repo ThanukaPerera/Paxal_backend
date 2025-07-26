@@ -728,7 +728,7 @@ router.delete("/:shipmentId", async (req, res) => {
             { _id: { $in: shipment.parcels } },
             { 
                 $unset: { shipmentId: "" },
-                $set: { status: "ArrivedAtDistributionCenter" }
+                $set: { status: "ArrivedAtCollectionCenter" }
             }
         );
 
@@ -827,8 +827,8 @@ router.put("/:id/dispatch", async (req, res) => {
             { 
                 $set: { 
                     status: 'InTransit',
-                    updatedAt: new Date(),
-                    intransitedDate: new Date() // Set intransited date to now
+                    intransitedDate: new Date(),
+                    updatedAt: new Date()
                 }
             }
         );
@@ -896,7 +896,7 @@ router.put("/:id/complete", async (req, res) => {
         await Parcel.updateMany(
             { _id: { $in: shipment.parcels } },
             { 
-                $set: {
+                $set: { 
                     updatedAt: new Date()
                 }
             }
