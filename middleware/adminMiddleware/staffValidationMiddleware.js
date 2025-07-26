@@ -211,8 +211,9 @@ const validateStaffUpdate = async (req, res, next) => {
       }
     }
 
-    // Replace req.body with validated and transformed data
+    // Replace req.body with validated and transformed data and also set req.validatedData
     req.body = validatedData;
+    req.validatedData = validatedData;
     next();
   } catch (error) {
     console.error('Staff update validation error:', error);

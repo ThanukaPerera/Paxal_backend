@@ -6,12 +6,22 @@ const updateStaffById = async (req, res) => {
   try {
     const staffId = req.params.id;
     console.log("Updating staff with ID:", staffId);
+    console.log("Request body:", req.body);
+    console.log("Validated data:", req.validatedData);
     
-    // 1. Validate update data using Zod schema (validation already done by middleware)
-    const updateData = req.validatedData;
+    // 1. Get update data - fallback to req.body if req.validatedData is not available
+    const updateData = req.validatedData || req.body;
+    
+    if (!updateData || Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        status: "error",
+        message: "No update data provided",
+        code: "NO_UPDATE_DATA",
+      });
+    }
 
     // 2. Check if staff exists
-    const existingStaff = await Staff.findOne({ _id:staffId });
+    const existingStaff = await Staff.findOne({ _id: staffId });
     if (!existingStaff) {
       return res.status(404).json({
         status: "error",
@@ -20,41 +30,9 @@ const updateStaffById = async (req, res) => {
       });
     }
 
-    // 3. Check for email uniqueness if email is being updated
-    if (updateData.email && updateData.email !== existingStaff.email) {
-      const existingStaffByEmail = await Staff.findOne({ 
-        email: updateData.email,
-        staffId: { $ne: staffId }
-      });
-      
-      if (existingStaffByEmail) {
-        return res.status(409).json({
-          status: "error",
-          message: "Staff member with this email already exists",
-          code: "DUPLICATE_EMAIL",
-        });
-      }
-    }
-
-    // 4. Check for NIC uniqueness if NIC is being updated
-    if (updateData.nic && updateData.nic !== existingStaff.nic) {
-      const existingStaffByNic = await Staff.findOne({ 
-        nic: updateData.nic,
-        staffId: { $ne: staffId }
-      });
-      
-      if (existingStaffByNic) {
-        return res.status(409).json({
-          status: "error",
-          message: "Staff member with this NIC already exists",
-          code: "DUPLICATE_NIC",
-        });
-      }
-    }
-
-    // 5. Update staff data
+    // 3. Update staff data (uniqueness checks already done by middleware)
     const updatedStaff = await Staff.findOneAndUpdate(
-      { staffId },
+      { _id: staffId },
       { 
         $set: {
           ...updateData,

@@ -26,4 +26,25 @@ function convertUTCToColomboTime(utcDate, formatString = false) {
   return colomboDate;
 }
 
-module.exports = { convertUTCToColomboTime };
+const safeConvertDate = (dateValue) => {
+      if (!dateValue) return null;
+
+      try {
+        // Ensure we have a valid Date object
+        const date =
+          dateValue instanceof Date ? dateValue : new Date(dateValue);
+
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          console.warn("Invalid date found:", dateValue);
+          return null;
+        }
+
+        return convertUTCToColomboTime(date, false);
+      } catch (error) {
+        console.error("Error converting date:", dateValue, error.message);
+        return null;
+      }
+    };
+
+module.exports = { convertUTCToColomboTime, safeConvertDate };

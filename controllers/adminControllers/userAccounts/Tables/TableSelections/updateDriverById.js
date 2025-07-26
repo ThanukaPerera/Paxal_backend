@@ -6,11 +6,21 @@ const updateDriverById = async (req, res) => {
   try {
     const driverId = req.params.id;
     
-    // 1. Validate update data using Zod schema (validation already done by middleware)
-    const updateData = req.validatedData;
+    // 1. Validate update data using Zod schema
+    const validationResult = safeValidate(driverUpdateSchema, req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        status: "error",
+        message: "Validation failed",
+        code: "VALIDATION_ERROR",
+        errors: validationResult.errors
+      });
+    }
+    
+    const updateData = validationResult.data;
 
     // 2. Check if driver exists
-    const existingDriver = await Driver.findOne({ driverId });
+    const existingDriver = await Driver.findOne({ _id:driverId });
     if (!existingDriver) {
       return res.status(404).json({
         status: "error",
@@ -23,7 +33,7 @@ const updateDriverById = async (req, res) => {
     if (updateData.email && updateData.email !== existingDriver.email) {
       const existingDriverByEmail = await Driver.findOne({ 
         email: updateData.email,
-        driverId: { $ne: driverId }
+        _id: { $ne: driverId }
       });
       
       if (existingDriverByEmail) {
@@ -39,7 +49,7 @@ const updateDriverById = async (req, res) => {
     if (updateData.nic && updateData.nic !== existingDriver.nic) {
       const existingDriverByNic = await Driver.findOne({ 
         nic: updateData.nic,
-        driverId: { $ne: driverId }
+        _id: { $ne: driverId }
       });
       
       if (existingDriverByNic) {
@@ -55,7 +65,7 @@ const updateDriverById = async (req, res) => {
     if (updateData.licenseId && updateData.licenseId !== existingDriver.licenseId) {
       const existingDriverByLicense = await Driver.findOne({ 
         licenseId: updateData.licenseId,
-        driverId: { $ne: driverId }
+        _id: { $ne: driverId }
       });
       
       if (existingDriverByLicense) {
@@ -69,7 +79,7 @@ const updateDriverById = async (req, res) => {
 
     // 6. Update driver data
     const updatedDriver = await Driver.findOneAndUpdate(
-      { driverId },
+      { _id: driverId },
       { 
         $set: {
           ...updateData,
@@ -94,22 +104,22 @@ const updateDriverById = async (req, res) => {
 
     // 7. Return success response
     return res.status(200).json({
-      status: "success",
+      success: true,
       message: "Driver updated successfully",
-      data: {
-        driver: {
-          driverId: updatedDriver.driverId,
-          name: updatedDriver.name,
-          email: updatedDriver.email,
-          nic: updatedDriver.nic,
-          contactNo: updatedDriver.contactNo,
-          licenseId: updatedDriver.licenseId,
-          branch: updatedDriver.branchId,
-          admin: updatedDriver.adminId,
-          vehicle: updatedDriver.vehicleId,
-          createdAt: updatedDriver.createdAt,
-          updatedAt: updatedDriver.updatedAt
-        }
+      driver: {
+        _id: updatedDriver._id,
+        driverId: updatedDriver.driverId,
+        name: updatedDriver.name,
+        email: updatedDriver.email,
+        nic: updatedDriver.nic,
+        contactNo: updatedDriver.contactNo,
+        licenseId: updatedDriver.licenseId,
+        status: updatedDriver.status,
+        branchId: updatedDriver.branchId,
+        adminId: updatedDriver.adminId,
+        vehicleId: updatedDriver.vehicleId,
+        createdAt: updatedDriver.createdAt,
+        updatedAt: updatedDriver.updatedAt
       }
     });
 
