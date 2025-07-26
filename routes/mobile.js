@@ -150,9 +150,21 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
       });
     }
 
-    const formattedParcels = schedules.flatMap((schedule) =>
-      schedule.assignedParcels.map((parcel) => {
-        const isPickup = parcel.status === 'PendingPickup';
+    const formattedParcels = schedules.flatMap((schedule) => {
+      const scheduleType = schedule.type.toLowerCase();
+
+      // Filter parcels according to schedule type
+      const filteredParcels = schedule.assignedParcels.filter((parcel) => {
+        const parcelStatus = (parcel.status || '').toLowerCase();
+        return (
+          (scheduleType === 'pickup' && parcelStatus === 'pendingpickup') ||
+          (scheduleType === 'delivery' && parcelStatus === 'deliverydispatched')
+        );
+      });
+
+      return filteredParcels.map((parcel) => {
+        const isPickup = scheduleType === 'pickup';
+
         const userData = isPickup
           ? {
               name: `${parcel.senderId?.fName || ''} ${parcel.senderId?.lName || ''}`.trim(),
@@ -182,8 +194,8 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
             paymentStatus: parcel.paymentId?.paymentStatus || 'pending',
           },
         };
-      })
-    );
+      });
+    });
 
     const morningParcels = formattedParcels.filter((p) =>
       String(p.timeSlot).includes('08:00 - 12:00')
@@ -206,6 +218,7 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
     });
   }
 });
+
 
 
 router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
