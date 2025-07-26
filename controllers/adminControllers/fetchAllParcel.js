@@ -1,5 +1,6 @@
 const Parcel = require("../../models/parcelModel");
 const Receiver = require("../../models/receiverModel"); // Assuming you have a Receiver model
+const { convertUTCToColomboTime } = require("../../utils/admin/convertUTCToColomboTime");
 
 const fetchAllParcel = async (req, res) => {
   console.log("Fetching all parcels...");
@@ -31,6 +32,7 @@ const fetchAllParcel = async (req, res) => {
       })
       .populate("orderPlacedStaffId", "-__v")
       .populate("shipmentId", "-__v");
+      
 
     const filteredData = parcels.map((parcel) => ({
       ...parcel,
@@ -46,8 +48,10 @@ const fetchAllParcel = async (req, res) => {
       deliveryAddress: parcel.deliveryInformation,
       itemSize: parcel.parcelSize || parcel.itemSize,
       shipmentMethod: parcel.shipmentMethod || parcel.shippingMethod,
+      // createdAt: convertUTCToColomboTime(parcel.createdAt, false),
+      // updatedAt: convertUTCToColomboTime(parcel.updatedAt, false),
+     
     }));
-
     res.status(200).json(filteredData);
   } catch (error) {
     console.log("Error fetching", error);
