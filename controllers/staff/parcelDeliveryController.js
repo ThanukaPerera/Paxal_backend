@@ -2,6 +2,7 @@ const Parcel = require("../../models/ParcelModel");
 const Staff = require("../../models/StaffModel");
 const User = require("../../models/userModel");
 const Receiver = require("../../models/ReceiverModel");
+const Payment = require("../../models/PaymentModel");
 const notificationController = require("../notificationController");
 const { sendParcelDeliveredEmail } = require("../../emails/emails");
 
@@ -112,6 +113,15 @@ const updateParcelAsDelivered = async (req, res) => {
       new: true,
     });
 
+    // Mark the COD payment as collected.
+    const paymentData = {
+      paymentStatus :"paid",
+      paymentDate : new Date().setHours(0, 0, 0, 0)
+    }
+    const payment = await Payment.findByIdAndUpdate(updatedParcel.paymentId, paymentData, {
+      new:true,
+    })
+    
     // Send a notification to the user in the application
     await notificationController.createNotification(
       updatedParcel.senderId,

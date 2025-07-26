@@ -1,4 +1,4 @@
-const Driver = require("../../../../../models/DriverModel");
+const Driver = require("../../../../../models/driverModel");
 const Vehicle = require("../../../../../models/vehicleModel");
 const VehicleSchedule = require("../../../../../models/VehicleScheduleModel");
 const B2BShipment = require("../../../../../models/B2BShipmentModel");
@@ -117,7 +117,7 @@ const fetchDriverById = catchAsync(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Driver details fetched successfully",
-      userData: responseData
+      driver: responseData
     });
 
   } catch (error) {

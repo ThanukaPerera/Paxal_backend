@@ -693,6 +693,196 @@ const vehicleUpdateSchema = z.object({
   return Object.keys(data).length > 0;
 }, "At least one field must be provided for update");
 
+// Customer validation schemas
+const baseCustomerSchema = {
+  fName: z
+    .string()
+    .min(1, "First name is required")
+    .max(50, "First name must not exceed 50 characters")
+    .transform(val => val.trim().replace(/\s+/g, ' '))
+    .refine(name => {
+      // Allow letters, spaces, and some common name characters
+      const namePattern = /^[a-zA-Z\s\.\'-]+$/;
+      return namePattern.test(name);
+    }, "First name can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .refine(name => {
+      return name.length >= 1;
+    }, "First name must contain at least 1 non-space character"),
+  
+  lName: z
+    .string()
+    .min(1, "Last name is required")
+    .max(50, "Last name must not exceed 50 characters")
+    .transform(val => val.trim().replace(/\s+/g, ' '))
+    .refine(name => {
+      // Allow letters, spaces, and some common name characters
+      const namePattern = /^[a-zA-Z\s\.\'-]+$/;
+      return namePattern.test(name);
+    }, "Last name can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .refine(name => {
+      return name.length >= 1;
+    }, "Last name must contain at least 1 non-space character"),
+  
+  email: z
+    .string()
+    .min(5, "Email must be at least 5 characters long")
+    .max(100, "Email must not exceed 100 characters")
+    .transform(val => val.toLowerCase().trim())
+    .refine(email => {
+      // Basic email format validation
+      const strictEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return strictEmailRegex.test(email);
+    }, "Invalid email format")
+    .refine(email => {
+      // More strict email validation - check for valid domain extensions
+      const validDomainExtensions = /\.(com|org|net|edu|gov|co\.uk|ac\.uk|in|lk|io|dev|tech|info|biz)$/i;
+      return validDomainExtensions.test(email);
+    }, "Please enter a valid email address with a proper domain (e.g., .com, .org, .net)"),
+
+  contact: z
+    .string()
+    .min(10, "Contact number must be at least 10 digits")
+    .max(15, "Contact number must not exceed 15 digits")
+    .transform(val => val.replace(/[\s\-\(\)]/g, '').trim())
+    .refine(contact => {
+      // Sri Lankan mobile numbers: 07XXXXXXXX or +947XXXXXXXX
+      const sriLankanMobile = /^(07[0-9]{8}|947[0-9]{8}|\+947[0-9]{8})$/;
+      const generalMobile = /^[0-9]{10,15}$/;
+      return sriLankanMobile.test(contact) || generalMobile.test(contact);
+    }, "Invalid contact number format. Use Sri Lankan format (07XXXXXXXX) or international format"),
+
+  nic: z
+    .string()
+    .transform(val => val.trim().toUpperCase())
+    .refine(nic => {
+      // Sri Lankan NIC validation with exact patterns
+      const oldFormat = /^[0-9]{9}[VX]$/; // Exactly 9 digits + V or X
+      const newFormat = /^[0-9]{12}$/;    // Exactly 12 digits
+      return oldFormat.test(nic) || newFormat.test(nic);
+    }, "Invalid NIC format. Use old format (123456789V) or new format (200203601188)")
+    .refine(nic => {
+      return nic.length === 10 || nic.length === 12;
+    }, "NIC must be exactly 10 characters (old format) or 12 characters (new format)")
+    .refine(nic => {
+      // Additional validation for Sri Lankan NIC logic
+      if (nic.length === 12) {
+        // New format NIC validation
+        const year = parseInt(nic.substring(0, 4));
+        const dayOfYear = parseInt(nic.substring(4, 7));
+        
+        // Basic year validation (should be realistic birth year)
+        if (year < 1900 || year > new Date().getFullYear()) {
+          return false;
+        }
+        
+        // Day of year validation (1-366 for males, 501-866 for females)
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      } else if (nic.length === 10) {
+        // Old format NIC validation
+        const dayOfYear = parseInt(nic.substring(2, 5));
+        
+        // Day of year validation for old format
+        if ((dayOfYear >= 1 && dayOfYear <= 366) || (dayOfYear >= 501 && dayOfYear <= 866)) {
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }, "Invalid NIC number - please check the format and validity"),
+
+  address: z
+    .string()
+    .max(255, "Address must not exceed 255 characters")
+    .transform(val => val.trim())
+    .optional(),
+
+  city: z
+    .string()
+    .max(100, "City must not exceed 100 characters")
+    .transform(val => val.trim())
+    .refine(city => {
+      if (city && city.length > 0) {
+        const cityPattern = /^[a-zA-Z\s\.\'-]+$/;
+        return cityPattern.test(city);
+      }
+      return true;
+    }, "City can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .optional(),
+
+  district: z
+    .string()
+    .max(100, "District must not exceed 100 characters")
+    .transform(val => val.trim())
+    .refine(district => {
+      if (district && district.length > 0) {
+        const districtPattern = /^[a-zA-Z\s\.\'-]+$/;
+        return districtPattern.test(district);
+      }
+      return true;
+    }, "District can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .optional(),
+
+  province: z
+    .string()
+    .max(100, "Province must not exceed 100 characters")
+    .transform(val => val.trim())
+    .refine(province => {
+      if (province && province.length > 0) {
+        const provincePattern = /^[a-zA-Z\s\.\'-]+$/;
+        return provincePattern.test(province);
+      }
+      return true;
+    }, "Province can only contain letters, spaces, periods, apostrophes, and hyphens")
+    .optional(),
+};
+
+// Customer update validation schema (all fields optional for updates)
+const customerUpdateSchema = z.object({
+  fName: baseCustomerSchema.fName.optional(),
+  lName: baseCustomerSchema.lName.optional(),
+  email: baseCustomerSchema.email.optional(),
+  contact: baseCustomerSchema.contact.optional(),
+  nic: baseCustomerSchema.nic.optional(),
+  address: baseCustomerSchema.address,
+  city: baseCustomerSchema.city,
+  district: baseCustomerSchema.district,
+  province: baseCustomerSchema.province,
+}).strict().refine(
+  (data) => {
+    // At least one field should be provided for update
+    const updateFields = ['fName', 'lName', 'email', 'contact', 'nic', 'address', 'city', 'district', 'province'];
+    return updateFields.some(field => data[field] !== undefined);
+  },
+  {
+    message: "At least one field must be provided for update",
+    path: ["update"]
+  }
+);
+
+// Customer registration validation schema (for reference)
+const customerRegistrationSchema = z.object({
+  fName: baseCustomerSchema.fName,
+  lName: baseCustomerSchema.lName,
+  email: baseCustomerSchema.email,
+  contact: baseCustomerSchema.contact,
+  nic: baseCustomerSchema.nic,
+  address: baseCustomerSchema.address,
+  city: baseCustomerSchema.city,
+  district: baseCustomerSchema.district,
+  province: baseCustomerSchema.province,
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters long")
+    .max(128, "Password must not exceed 128 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    ),
+}).strict();
+
 module.exports = {
   adminRegistrationSchema,
   adminUpdateSchema,
@@ -714,4 +904,7 @@ module.exports = {
   vehicleRegistrationSchema,
   vehicleUpdateSchema,
   baseVehicleSchema,
+  customerUpdateSchema,
+  customerRegistrationSchema,
+  baseCustomerSchema,
 };
