@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const branchesController = require('../controllers/branchesController');
 const Branch = require('../models/BranchesModel');
+const isStaffAuthenticated = require("../middleware/staffAuth");
 
 // Import new branch-specific controllers
 const fetchParcelsByBranchId = require('../controllers/adminControllers/branches/fetchParcelsByBranchId');
@@ -13,13 +14,13 @@ const fetchBranchCompleteData = require('../controllers/adminControllers/branche
 // const authenticateAdmin = require('../middleware/auth');
 
 // Basic branch routes
-router.get('/', branchesController.getAllBranches); // GET /api/branches
+router.get('/', branchesController.getAllBranches); // GET /api/branches - Public for dropdown population
 
-// Branch-specific data endpoints
-router.get('/:id/parcels', fetchParcelsByBranchId); // GET /api/branches/:id/parcels
-router.get('/:id/drivers', fetchDriversByBranchId); // GET /api/branches/:id/drivers  
-router.get('/:id/staff', fetchStaffByBranchId); // GET /api/branches/:id/staff
-router.get('/:id/complete', fetchBranchCompleteData); // GET /api/branches/:id/complete
+// Branch-specific data endpoints - Staff only
+router.get('/:id/parcels', isStaffAuthenticated, fetchParcelsByBranchId); // GET /api/branches/:id/parcels
+router.get('/:id/drivers', isStaffAuthenticated, fetchDriversByBranchId); // GET /api/branches/:id/drivers  
+router.get('/:id/staff', isStaffAuthenticated, fetchStaffByBranchId); // GET /api/branches/:id/staff
+router.get('/:id/complete', isStaffAuthenticated, fetchBranchCompleteData); // GET /api/branches/:id/complete
 
 // Get parcels by center a
 router.get("/all-branches", async (req, res) => {

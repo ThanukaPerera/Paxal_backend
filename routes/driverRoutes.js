@@ -1,6 +1,7 @@
 const express = require("express");
 const Driver = require("../models/driverModel");
 const Parcel = require("../models/parcelModel");
+const isStaffAuthenticated = require("../middleware/staffAuth");
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get driver parcel statistics for a specific date
-router.get("/stats/:center/:date", async (req, res) => {
+router.get("/stats/:center/:date", isStaffAuthenticated, async (req, res) => {
     try {
         const center = req.params.center;
         
