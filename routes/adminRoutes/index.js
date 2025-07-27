@@ -12,6 +12,7 @@ const shipmentRoutes = require("./shipments");
 const profileRoutes = require("./profile");
 const branchRoutes = require("./branches");
 const vehicleRoutes = require("./vehicles");
+const vehicleScheduleRoutes = require("./vehicleSchedules");
 const adminManagementRoutes = require("./adminManagement");
 const reportRoutes = require("./reports");
 
@@ -25,6 +26,7 @@ router.use("/shipments", shipmentRoutes);
 router.use("/profile", profileRoutes);
 router.use("/branches", branchRoutes);
 router.use("/vehicles", vehicleRoutes);
+router.use("/vehicle-schedules", vehicleScheduleRoutes);
 router.use("/management", adminManagementRoutes);
 router.use("/reports",reportRoutes); // Import reports routes
 
