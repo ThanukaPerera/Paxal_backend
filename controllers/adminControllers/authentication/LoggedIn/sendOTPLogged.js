@@ -1,5 +1,5 @@
 const Admin = require("../../../../models/AdminModel");
-const sendEmail = require("../../../../utils/sendEmail");
+const sendEmail = require("../../../../utils/admin/sendEmail");
 
 const sendOTPLogged = async (req, res) => {
   const email = req.admin.email;
