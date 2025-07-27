@@ -1,7 +1,7 @@
 //mobile.js
 const express = require("express");
-const Driver = require("../models/DriverModel");
-const Parcel  = require("../models/ParcelModel");
+const Driver = require("../models/driverModel");
+const Parcel  = require("../models/parcelModel");
 //const Pickup  = require("../models/PickupSchema");
 const  VehicleSchedule  = require("../models/VehicleScheduleModel");
 const  Vehicle = require("../models/VehicleModel");  
@@ -150,9 +150,21 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
       });
     }
 
-    const formattedParcels = schedules.flatMap((schedule) =>
-      schedule.assignedParcels.map((parcel) => {
-        const isPickup = parcel.status === 'PendingPickup';
+    const formattedParcels = schedules.flatMap((schedule) => {
+      const scheduleType = schedule.type.toLowerCase();
+
+      // Filter parcels according to schedule type
+      const filteredParcels = schedule.assignedParcels.filter((parcel) => {
+        const parcelStatus = (parcel.status || '').toLowerCase();
+        return (
+          (scheduleType === 'pickup' && parcelStatus === 'pendingpickup') ||
+          (scheduleType === 'delivery' && parcelStatus === 'deliverydispatched')
+        );
+      });
+
+      return filteredParcels.map((parcel) => {
+        const isPickup = scheduleType === 'pickup';
+
         const userData = isPickup
           ? {
               name: `${parcel.senderId?.fName || ''} ${parcel.senderId?.lName || ''}`.trim(),
@@ -182,8 +194,8 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
             paymentStatus: parcel.paymentId?.paymentStatus || 'pending',
           },
         };
-      })
-    );
+      });
+    });
 
     const morningParcels = formattedParcels.filter((p) =>
       String(p.timeSlot).includes('08:00 - 12:00')
@@ -206,6 +218,7 @@ router.get('/vehicle-parcels', authMiddleware, async (req, res) => {
     });
   }
 });
+
 
 
 router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
@@ -236,7 +249,8 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
 
     const updateData = {
       status,
-      ...(status === 'Delivered' && { deliveredAt: new Date() })
+      ...(status === 'PickedUp' && { parcelPickedUpDate: new Date() }),
+      ...(status === 'Delivered' && { parcelDeliveredDate: new Date() })
     };
 
     const updatedParcel = await Parcel.findOneAndUpdate(
@@ -254,7 +268,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
           payment = await Payment.findById(parcel.paymentId);
           if (payment) {
             payment.paymentStatus = 'paid';
-            payment.paidAt = new Date();
+            payment.paymentDate = new Date();
             payment.paymentMethod = paymentMethod || payment.paymentMethod;
             payment.amount = amount || payment.amount;
             payment.parcelId = payment.parcelId || parcel._id;
@@ -265,7 +279,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
             paymentMethod: 'COD',
             paymentStatus: 'paid',
             amount: amount,
-            paidAt: new Date(),
+            paymentDate: new Date(),
             parcelId: parcel._id
           });
           await payment.save();
@@ -284,9 +298,9 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
       }
     }
 
-    // Notification logic added here
+
     try {
-      const userId = parcel.senderId; // Sender is the customer
+      const userId = parcel.senderId; 
       let message = '';
       let type = '';
 
@@ -383,7 +397,7 @@ router.get('/pickup-summary',authMiddleware, async (req, res) => {
   try {
     const { driverId } = req.query;
     
-    // 1. First validate the ID format
+   
     if (!mongoose.Types.ObjectId.isValid(driverId)) {
       return res.status(400).json({ 
         success: false,
@@ -392,12 +406,12 @@ router.get('/pickup-summary',authMiddleware, async (req, res) => {
       });
     }
 
-    // 2. Use new keyword with ObjectId
+   
     const pickups = await Pickup.find({ 
       driverId: new mongoose.Types.ObjectId(driverId) 
     }).populate('parcelId', 'status');
 
-    // 3. Calculate counts
+   
     const assignedCount = pickups.length;
     const pickedUpCount = pickups.filter(p => 
       p.pickedUpTime || p.parcelId?.status === 'PickedUp'

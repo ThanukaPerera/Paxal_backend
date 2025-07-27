@@ -21,6 +21,7 @@ const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema(
   {
+    paymentId: { type: String },
     parcelId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Parcel",
@@ -59,4 +60,5 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-module.exports = mongoose.model("Payment", paymentSchema);
+module.exports = mongoose.models.Payment || mongoose.model("Payment", paymentSchema);
+

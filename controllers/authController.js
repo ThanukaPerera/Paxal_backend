@@ -1,7 +1,7 @@
 const catchAscync = require("../utils/catchAscync");
 const generateOtp = require("../utils/generateOtp");
 const jwt = require("jsonwebtoken");
-const sendEmail = require("../utils/staff/email.js");
+const sendEmail = require("../utils/email.js");
 const User = require("../models/userModel.js");
 const user = require("../models/userModel.js");
 const AppError = require("../utils/appError.js");
@@ -129,6 +129,7 @@ exports.signup = catchAscync(async (req, res, next) => {
     city,
   });
 
+  console.log("New user created:", newUser);
   try {
     const emailResult = await sendEmail({
       email: newUser.email,
@@ -139,6 +140,7 @@ exports.signup = catchAscync(async (req, res, next) => {
     createSendToken(newUser, 200, res, "Registration Successful!");
   } catch (error) {
     await User.findByIdAndDelete(newUser._id);
+    console.error("Error sending email:", error);
     return next(new AppError("There was an error sending the email.", 500));
   }
 });

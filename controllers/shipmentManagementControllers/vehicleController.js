@@ -3,7 +3,7 @@
 
 //http://localhost:8000/vehicles/assignVehicleToShipment/68136ad65f32baa9ccd2e923/express
 
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const B2BShipment = require("../../models/B2BShipmentModel");
 const Parcel = require('../../models/parcelModel');
 const Branch = require('../../models/BranchesModel');
@@ -498,6 +498,20 @@ async function assignVehicle(shipmentId, shipmentType) {
             shipment.status = shipmentType.toLowerCase() === "express" ? "Verified" : "In Transit";
             shipment.isVehicleTransport = false;
             
+            // Update parcels to 'ShipmentAssigned' status when shipment goes to 'In Transit'
+            if (shipment.status === "In Transit") {
+                await Parcel.updateMany(
+                    { _id: { $in: shipment.parcels } },
+                    { 
+                        $set: { 
+                            status: 'ShipmentAssigned',
+                            updatedAt: new Date()
+                        }
+                    }
+                );
+                console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
+            }
+            
             // Update the vehicle status
             vehicle.available = false;
             await vehicle.save();
@@ -881,9 +895,16 @@ async function findAvailableParcelsForRoute(vehicleCurrentCenter, destinationCen
         const availableParcels = await Parcel.find({
             from: vehicleObjectId,
             to: { $in: destinationObjectIds },
-            shipmentId: null,
-            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') },
-            status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter', 'ArrivedAtCollectionCenter'] }
+            $or: [
+                // Parcels that arrived at collection center are available regardless of shipmentId
+                { status: 'ArrivedAtCollectionCenter' },
+                // Other status parcels must have no shipment assigned
+                { 
+                    shipmentId: null,
+                    status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter'] }
+                }
+            ],
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }
         })
         .populate('to', 'location branchId')
         .populate('from', 'location branchId');
@@ -932,7 +953,17 @@ async function findAvailableParcelsForRoute(vehicleCurrentCenter, destinationCen
                 weight: sizeSpec.weight,
                 volume: sizeSpec.volume,
                 status: parcel.status,
-                shippingMethod: parcel.shippingMethod
+                shippingMethod: parcel.shippingMethod,
+                from: {
+                    _id: parcel.from._id,
+                    location: parcel.from.location,
+                    branchId: parcel.from.branchId
+                },
+                to: {
+                    _id: parcel.to._id,
+                    location: parcel.to.location,
+                    branchId: parcel.to.branchId
+                }
             });
 
             parcelGroups[destinationId].totalWeight += sizeSpec.weight;
@@ -1543,7 +1574,7 @@ async function createReverseShipment(params) {
 const getPendingB2BShipments = async (req, res) => {
     try {
         const { staffId } = req.params;
-        const { status = 'Pending' } = req.query;
+        const { status, all } = req.query;
 
         // Find the staff to get their branch ID
         const Staff = require('../../models/StaffModel');
@@ -1556,11 +1587,19 @@ const getPendingB2BShipments = async (req, res) => {
             });
         }
 
-        // Build query filter
+        // Build base query filter to include shipments where branch is in the route or is the source center
         const queryFilter = {
-            status: status,
-            sourceCenter: staff.branchId
+            $or: [
+                { sourceCenter: staff.branchId },  // Shipments created by this branch
+                { route: { $in: [staff.branchId] } }  // Shipments that pass through this branch
+            ]
         };
+
+        // Only add status filter if status is provided and all is not requested
+        if (status && !all) {
+            queryFilter.status = status;
+        }
+        // If 'all' parameter is true, don't add any status filter to get all shipments
 
         // Fetch B2B shipments with the specified status for the staff's branch
         const shipments = await B2BShipment.find(queryFilter)
@@ -1569,14 +1608,24 @@ const getPendingB2BShipments = async (req, res) => {
             .populate('currentLocation', 'location branchName')
             .populate({
                 path: 'assignedVehicle',
-                select: 'vehicleId registrationNo vehicleType currentBranch assignedBranch',
+                select: 'vehicleId registrationNo vehicleType capableWeight capableVolume currentBranch assignedBranch available',
                 populate: {
                     path: 'currentBranch assignedBranch',
                     select: 'location branchName'
                 }
             })
             .populate('assignedDriver', 'name contactNo driverId licenseId')
-            .populate('parcels', 'trackingId weight volume')
+            .populate({
+                path: 'parcels',
+                select: 'parcelId trackingNo qrCodeNo itemType itemSize shippingMethod status submittingType receivingType specialInstructions pickupInformation deliveryInformation weight volume',
+                populate: [
+                    { path: 'from', select: 'location branchId' },
+                    { path: 'to', select: 'location branchId' },
+                    { path: 'senderId', select: 'name email phone' },
+                    { path: 'receiverId', select: 'name email phone' },
+                    { path: 'paymentId', select: 'amount method status' }
+                ]
+            })
             .populate('createdByStaff', 'name staffId')
             .sort({ createdAt: -1 });
 
@@ -1584,11 +1633,84 @@ const getPendingB2BShipments = async (req, res) => {
             success: true,
             count: shipments.length,
             shipments: shipments,
-            message: `Found ${shipments.length} ${status.toLowerCase()} shipments for the center`
+            message: all ? `Found ${shipments.length} shipments (all stages) for the center` : `Found ${shipments.length} ${status?.toLowerCase() || ''} shipments for the center`
         });
 
     } catch (error) {
         console.error('Error fetching pending B2B shipments:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching shipments',
+            error: error.message
+        });
+    }
+};
+
+// New function to get shipments by branch ID directly (for ViewShipmentsPage)
+const getShipmentsByBranch = async (req, res) => {
+    try {
+        const { branchId } = req.params;
+        const { status, all } = req.query;
+
+        // Build query filter with different logic for own center vs other centers in route
+        const queryFilter = {
+            $or: [
+                // Case 1: Shipments created by this branch (show all statuses based on filter)
+                (() => {
+                    const ownCenterQuery = { sourceCenter: branchId };
+                    // Apply status filter for own center shipments if specified
+                    if (status && !all) {
+                        ownCenterQuery.status = status;
+                    }
+                    return ownCenterQuery;
+                })(),
+                
+                // Case 2: Shipments that pass through this branch (only show Dispatched status)
+                {
+                    route: { $in: [branchId] },
+                    sourceCenter: { $ne: branchId }, // Not created by this branch
+                    status: 'Dispatched' // Only show dispatched shipments to other centers in route
+                }
+            ]
+        };
+
+        // Fetch B2B shipments with the specified criteria for the branch
+        const shipments = await B2BShipment.find(queryFilter)
+            .populate('sourceCenter', 'location branchName')
+            .populate('route', 'location branchName')
+            .populate('currentLocation', 'location branchName')
+            .populate({
+                path: 'assignedVehicle',
+                select: 'vehicleId registrationNo vehicleType capableWeight capableVolume currentBranch assignedBranch available',
+                populate: {
+                    path: 'currentBranch assignedBranch',
+                    select: 'location branchName'
+                }
+            })
+            .populate('assignedDriver', 'name contactNo driverId licenseId')
+            .populate({
+                path: 'parcels',
+                select: 'parcelId trackingNo qrCodeNo itemType itemSize shippingMethod status submittingType receivingType specialInstructions pickupInformation deliveryInformation weight volume',
+                populate: [
+                    { path: 'from', select: 'location branchId' },
+                    { path: 'to', select: 'location branchId' },
+                    { path: 'senderId', select: 'name email phone' },
+                    { path: 'receiverId', select: 'name email phone' },
+                    { path: 'paymentId', select: 'amount method status' }
+                ]
+            })
+            .populate('createdByStaff', 'name staffId')
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            count: shipments.length,
+            shipments: shipments,
+            message: all ? `Found ${shipments.length} shipments (all stages) for the branch` : `Found ${shipments.length} ${status?.toLowerCase() || ''} shipments for the branch`
+        });
+
+    } catch (error) {
+        console.error('Error fetching shipments by branch:', error);
         return res.status(500).json({
             success: false,
             message: 'Internal server error while fetching shipments',
@@ -1692,6 +1814,19 @@ const assignVehicleManual = async (req, res) => {
 
         // Always set status to "In Transit" when vehicle is assigned, regardless of location
         shipment.status = "In Transit";
+        
+        // Update all parcels in this shipment to 'ShipmentAssigned' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'ShipmentAssigned',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
         
         // Check if vehicle is at source center
         const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter._id);
@@ -2188,15 +2323,16 @@ async function findAvailableParcelsForRoute(vehicleCenterId, shipmentRoute, deli
         const availableParcels = await Parcel.find({
             from: vehicleObjectId,                                    // Parcel source center
             to: { $in: destinationCenters },                        // Parcel destinations in route
-            shipmentId: null,                                       // Not assigned to any shipment
-            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') }, // Case-insensitive matching
-            status: { $in: [
-                'OrderPlaced', 
-                'PendingPickup',        // Added missing status from debug output
-                'PickedUp', 
-                'ArrivedAtDistributionCenter',
-                'ArrivedAtCollectionCenter'
-            ]}  // Using broader status range
+            $or: [
+                // Parcels that arrived at collection center are available regardless of shipmentId
+                { status: 'ArrivedAtCollectionCenter' },
+                // Other status parcels must have no shipment assigned
+                { 
+                    shipmentId: null,
+                    status: { $in: ['OrderPlaced', 'PendingPickup', 'PickedUp', 'ArrivedAtDistributionCenter'] }
+                }
+            ],
+            shippingMethod: { $regex: new RegExp(`^${deliveryType}$`, 'i') } // Case-insensitive matching
         }).populate('to', 'location branchId')
           .populate('from', 'location branchId');
 
@@ -2246,7 +2382,9 @@ async function findAvailableParcelsForRoute(vehicleCenterId, shipmentRoute, deli
                     itemSize: parcel.itemSize,
                     itemType: parcel.itemType,
                     shippingMethod: parcel.shippingMethod,
-                    status: parcel.status
+                    status: parcel.status,
+                    from: parcel.from,
+                    to: parcel.to
                 });
 
                 groupedParcels[destId].totalWeight += sizeSpec.weight;
@@ -2355,6 +2493,19 @@ const confirmVehicleAssignment = async (req, res) => {
 
         // Always set status to "In Transit" when vehicle is assigned, regardless of location
         shipment.status = "In Transit";
+        
+        // Update all parcels in this shipment to 'ShipmentAssigned' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            { 
+                $set: { 
+                    status: 'ShipmentAssigned',
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        console.log(`Updated ${shipment.parcels.length} parcels to ShipmentAssigned status for shipment ${shipment._id}`);
         
         const isAtSource = vehicle.currentBranch.equals(shipment.sourceCenter);
         
@@ -2884,6 +3035,7 @@ module.exports = {
     createVehicleTransportWithParcels, 
     createReverseShipment, 
     getPendingB2BShipments,
+    getShipmentsByBranch,
     assignVehicleManual,
     assignVehicleSmart,
     confirmVehicleAssignment,

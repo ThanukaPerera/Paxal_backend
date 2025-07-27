@@ -54,7 +54,7 @@ app.use(
       "http://localhost:5173",
       'https://frontend-vite-6ned.vercel.app', // Your frontend URL
       "http://localhost:19006", // Expo dev server
-      "exp://10.10.28.96:19000",//  physical device
+      "exp://192.168.1.9:19000",//  physical device
     ], 
     credentials: true, // Allow credentials (cookies)
   }),

@@ -1,6 +1,6 @@
 const VehicleSchedule = require("../../models/VehicleScheduleModel");
 const Parcel = require("../../models/ParcelModel");
-const Vehicle = require("../../models/vehicleModel");
+const Vehicle = require("../../models/VehicleModel");
 const Staff = require("../../models/StaffModel");
 const getParcelProperties = require("../../utils/parcelDetails");
 
@@ -218,7 +218,7 @@ const createNewPickupSchedule = async (req, res) => {
   }
 };
 
-// remove the parcel from an assigne schedule
+// remove the parcel from an assigned schedule
 const cancelPickupAssignment = async (req, res) => {
   try {
     const { parcelId } = req.body;

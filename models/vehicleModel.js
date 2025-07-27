@@ -22,6 +22,6 @@ const vehicleSchema = new mongoose.Schema({
   capableVolume: { type: Number, required: true }, // Maximum volume capacity of the vehicle
   capableWeight: { type: Number, required: true }, // Maximum weight capacity of the vehicle
   available: {type: Boolean, default:true}
-});
+}, { timestamps: true });
 
 module.exports = mongoose.models.Vehicle||mongoose.model("Vehicle", vehicleSchema);

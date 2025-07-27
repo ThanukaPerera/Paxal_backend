@@ -11,15 +11,16 @@ const adminLogout = async (req, res) => {
       });
     }
 
-    // Clear cookie with proper security settings
-    // res.clearCookie("AdminToken", {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === "production",
-    //   sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    //   path: "/"
-    // });
-    res.clearCookie("AdminToken");
-    res.clearCookie("AdminRefreshToken");
+    // Clear cookies with proper security settings
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: "/"
+    };
+
+    res.clearCookie("AdminToken", cookieOptions);
+    res.clearCookie("AdminRefreshToken", cookieOptions);
 
     // Fetch admin details for audit logging
     const reqAdmin = await findAdminFunction(req.admin.adminId);

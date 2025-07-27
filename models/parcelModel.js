@@ -24,89 +24,107 @@ const deliverySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const parcelSchema = new mongoose.Schema(
-    {
-        parcelId: { type: String, required: false },
-        trackingNo: { type: String, required: false, unique: true },
-        qrCodeNo: { type: String, required: false, unique: true },
-        itemType: { type: String, enum: ["Glass", "Flowers", 'Document', 'Clothing', 'Electronics', 'Food', 'Other'], required: true },
-        itemSize: {
-            type: String,
-            enum: ["small", "medium", "large"],
-            required: true,
-        }, // Enum for size
-        specialInstructions: { type: String, required: false },
-        submittingType: {
-            type: String,
-            enum: ["pickup", "drop-off", "branch"],
-            required: true,
-        }, // Enum for submission type
-        receivingType: {
-            type: String,
-            enum: ["doorstep", "collection_center"],
-            required: true,
-        }, // Enum for receiving type
-        shippingMethod: {
-            type: String,
-            enum: ["standard", "express"],
-            required: true,
-        }, // Enum for shipping method
-        senderId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        }, // Reference to User
-        receiverId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Receiver",
-            required: true,
-        }, // Reference to Receiver
-        paymentId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Payment", required: false
-        }, // Reference to Payment
-        orderPlacedStaffId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Staff",
-            required: false,
-        }, // Reference to Staff
-        shipmentId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "B2BShipment",
-            required: false,
-        }, // Reference to B2B Shipment
-        arrivedToCollectionCenterTime: { type: Date, required: false },
-        status: {
-            type: String,
-            enum: [
-                "OrderPlaced",
-                "PendingPickup",
-                "PickedUp",
-                "ArrivedAtDistributionCenter",
-                "ShipmentAssigned",
-                "InTransit",
-                "ArrivedAtCollectionCenter",
-                "DeliveryDispatched",
-                "Delivered",
-                "NotAccepted",
-                "WrongAddress",
-                "Return",
-            ],
-            default: "OrderPlaced",
-            required: true,
-        },
-        pickupInformation: pickupSchema,
-        deliveryInformation: deliverySchema,
-        from: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Branch",
-            required: false
-        },
-        to: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Branch",
-            required: false
-        }
+  {
+    parcelId: { type: String, required: true },
+    trackingNo: { type: String, required: false },
+    qrCodeNo: { type: String, required: false },
+    itemType: {
+      type: String,
+      enum: [
+        "Glass",
+        "Flowers",
+        "Document",
+        "Clothing",
+        "Electronics",
+        "Food",
+        "Other",
+      ],
+      required: true,
     },
+    itemSize: {
+      type: String,
+      enum: ["small", "medium", "large"],
+      required: true,
+    }, // Enum for size
+    specialInstructions: { type: String, required: false },
+    submittingType: {
+      type: String,
+      enum: ["pickup", "drop-off", "branch"],
+      required: true,
+    }, // Enum for submission type
+    receivingType: {
+      type: String,
+      enum: ["doorstep", "collection_center"],
+      required: true,
+    }, // Enum for receiving type
+    shippingMethod: {
+      type: String,
+      enum: ["standard", "express"],
+      required: true,
+    }, // Enum for shipping method
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    }, // Reference to User
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Receiver",
+      required: true,
+    }, // Reference to Receiver
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+    }, // Reference to Payment
+    orderPlacedStaffId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Staff",
+      required: false,
+    }, // Reference to Staff
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "B2BShipment",
+      required: false,
+    }, // Reference to B2B Shipment
+    parcelPickedUpDate: { type: Date, required: false },
+    arrivedToDistributionCenterTime: { type: Date, required: false },
+    shipmentAssignedTime: { type: Date, required: false },
+    intransitedDate: { type: Date, required: false },
+    arrivedToCollectionCenterTime: { type: Date, required: false },
+    parcelDispatchedDate: { type: Date, required: false },
+    parcelDeliveredDate: { type: Date, required: false },
+    status: {
+      type: String,
+      enum: [
+        "OrderPlaced",
+        "PendingPickup",
+        "PickedUp",
+        "ArrivedAtDistributionCenter",
+        "ShipmentAssigned",
+        "InTransit",
+        "ArrivedAtCollectionCenter",
+        "DeliveryDispatched",
+        "Delivered",
+        "NotAccepted",
+        "WrongAddress",
+        "Return",
+      ],
+      default: "OrderPlaced",
+      required: true,
+    },
+    pickupInformation: pickupSchema,
+    deliveryInformation: deliverySchema,
+    from: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+      required: false,
+    },
+    to: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+      required: false,
+    },
+  },
 
     { timestamps: true }
 );
