@@ -1,6 +1,6 @@
 const Vehicle = require("../../../models/VehicleModel");
 const VehicleSchedule = require("../../../models/VehicleScheduleModel");
-const Driver = require("../../../models/DriverModel");
+const Driver = require("../../../models/driverModel");
 const Branch = require("../../../models/BranchesModel");
 const Parcel = require("../../../models/ParcelModel");
 const B2BShipment = require("../../../models/B2BShipmentModel");

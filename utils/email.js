@@ -27,7 +27,7 @@ const sendEmail = async (options) => {
     console.log("Sending email to:", options.email);
     
     // Create transporter with error handling
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: "Gmail",
       auth: {
         user: process.env.EMAIL_USER,

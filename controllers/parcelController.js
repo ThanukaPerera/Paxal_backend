@@ -1080,6 +1080,8 @@ exports.getUserParcels = catchAsync(async (req, res, next) => {
 
 //parcel tracking
 exports.getParcelByTrackingNumber = catchAsync(async (req, res, next) => {
+
+
   const { trackingNo } = req.params;
 
   if (!trackingNo) {
@@ -1108,6 +1110,8 @@ if (parcelDoc.from && parcelDoc.to) {
 
  
 const progressPercentage = calculateProgressPercentage(parcelDoc.status);
+
+
 
 res.json({
   ...parcelDoc,

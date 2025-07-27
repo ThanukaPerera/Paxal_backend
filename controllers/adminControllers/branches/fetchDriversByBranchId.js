@@ -1,5 +1,5 @@
 const Branch = require("../../../models/BranchesModel");
-const Driver = require("../../../models/DriverModel");
+const Driver = require("../../../models/driverModel");
 const Vehicle = require("../../../models/VehicleModel");
 
 const fetchDriversByBranchId = async (req, res) => {

@@ -1,5 +1,5 @@
 const Staff = require("../../models/StaffModel");
-const Driver = require("../../models/DriverModel");
+const Driver = require("../../models/driverModel");
 const Admin = require("../../models/AdminModel");
 const Customer = require("../../models/userModel");
 const getCount = require("../../utils/getCount");

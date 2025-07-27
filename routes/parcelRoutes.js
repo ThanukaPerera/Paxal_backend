@@ -33,7 +33,8 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
         const parcels = await Parcel.find({
             from: req.staff.branchId._id,
             shipmentId: null,
-            $expr: { $ne: ["$from", "$to"] } // Exclude parcels where from equals to
+            $expr: { $ne: ["$from", "$to"] } ,// Exclude parcels where from equals to
+            status: { $in: "ArrivedAtDistributionCenter" } // Exclude delivered parcels
         }).populate('from', 'location')
           .populate('to', 'location');
 
@@ -47,6 +48,8 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
                 branchId: req.staff.branchId._id
             }
         });
+        console.log("Staff parcels fetched:", parcels.length, "parcels found.");
+        console.log("Staff parcels fetched successfully.");
 
     } catch (error) {
         console.error("Error fetching staff parcels:", error);
@@ -88,69 +91,83 @@ router.get("/:center", async (req, res) => {
 router.get("/dashboard/stats/:center/:date", async (req, res) => {
     try {
         const center = req.params.center;
-        const date = new Date(req.params.date);
-        const nextDay = new Date(date);
-        nextDay.setDate(date.getDate() + 1);
+        
+        // Parse date properly to avoid timezone issues
+        const dateStr = req.params.date;
+        const [year, month, day] = dateStr.split('-');
+        const date = new Date(year, month - 1, day, 0, 0, 0, 0); // Local timezone
+        const nextDay = new Date(year, month - 1, day, 23, 59, 59, 999); // End of day
         
         console.log("=== DASHBOARD STATS API CALLED ===");
         console.log("Center:", center);
         console.log("Date received:", req.params.date);
-        console.log("Date parsed:", date);
-        console.log("Next day:", nextDay);
+        console.log("Date parsed (start):", date);
+        console.log("Date parsed (end):", nextDay);
         
-        // Let's first check if there are any parcels in the database at all
-        const totalParcelsInDb = await Parcel.countDocuments({});
-        console.log("Total parcels in database:", totalParcelsInDb);
-        
-        // Check parcels related to this center
-        const centerParcels = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }]
-        });
-        console.log("Parcels related to center:", centerParcels);
-        
-        // Check parcels with specific statuses
-        const arrivedStatusParcels = await Parcel.countDocuments({
-            status: "ArrivedAtCollectionCenter"
-        });
-        console.log("Parcels with ArrivedAtCollectionCenter status:", arrivedStatusParcels);
-        
-        const deliveredStatusParcels = await Parcel.countDocuments({
-            status: "Delivered"
-        });
-        console.log("Parcels with Delivered status:", deliveredStatusParcels);
-        
-        // Get arrived parcels for the selected date
+        // 2. Arrived Parcels: arrivedToCollectionCenterTime === clickedDate && status === "ArrivedAtCollectionCenter"
         const arrivedParcels = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }],
+            to: center,
             status: "ArrivedAtCollectionCenter",
-            parcelArrivedDate: {
+            arrivedToCollectionCenterTime: {
                 $gte: date,
-                $lt: nextDay
+                $lte: nextDay
             }
         });
         
-        console.log("Arrived parcels query completed. Count:", arrivedParcels);
+        console.log("Arrived parcels count:", arrivedParcels);
 
-        // Get delivered parcels for the selected date
+        // 3. Delivered Parcels: parcelDeliveredDate === clickedDate && status === "Delivered"
         const deliveredParcels = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }],
+            to: center,
             status: "Delivered",
             parcelDeliveredDate: {
                 $gte: date,
-                $lt: nextDay
+                $lte: nextDay
             }
         });
         
-        console.log("Delivered parcels query completed. Count:", deliveredParcels);
+        console.log("Delivered parcels count:", deliveredParcels);
 
-        // Total parcels = Arrived + Delivered
-        const totalParcels = arrivedParcels + deliveredParcels;
+        // 1. Total Parcels: (arrivedToCollectionCenterTime === clickedDate && status === "ArrivedAtCollectionCenter") OR (parcelDeliveredDate === clickedDate && status === "Delivered")
+        const totalParcels = await Parcel.countDocuments({
+            to: center,
+            $or: [
+                {
+                    status: "ArrivedAtCollectionCenter",
+                    arrivedToCollectionCenterTime: {
+                        $gte: date,
+                        $lte: nextDay
+                    }
+                },
+                {
+                    status: "Delivered",
+                    parcelDeliveredDate: {
+                        $gte: date,
+                        $lte: nextDay
+                    }
+                }
+            ]
+        });
         
-        console.log("Total parcels calculated:", totalParcels);
+        console.log("Total parcels count:", totalParcels);
+
+        // 4. Non-Delivered Parcels: arrivedToCollectionCenterTime === clickedDate && status IN ["NotAccepted", "WrongAddress", "Return"]
+        const nonDeliveredParcels = await Parcel.countDocuments({
+            to: center,
+            status: { $in: ["NotAccepted", "WrongAddress", "Return"] },
+            arrivedToCollectionCenterTime: {
+                $gte: date,
+                $lte: nextDay
+            }
+        });
+        
+        console.log("Non-delivered parcels count:", nonDeliveredParcels);
+        
         console.log("Final stats object:", {
             total: totalParcels,
             arrived: arrivedParcels,
-            delivered: deliveredParcels
+            delivered: deliveredParcels,
+            nonDelivered: nonDeliveredParcels
         });
 
         res.status(200).json({
@@ -158,7 +175,8 @@ router.get("/dashboard/stats/:center/:date", async (req, res) => {
             stats: {
                 total: totalParcels,
                 arrived: arrivedParcels,
-                delivered: deliveredParcels
+                delivered: deliveredParcels,
+                nonDelivered: nonDeliveredParcels
             }
         });
 
@@ -177,87 +195,94 @@ router.get("/dashboard/stats/:center/:date", async (req, res) => {
 router.get("/dashboard/daily/:center/:date", async (req, res) => {
     try {
         const center = req.params.center;
-        const date = new Date(req.params.date);
-        const nextDay = new Date(date);
-        nextDay.setDate(date.getDate() + 1);
+        
+        // Parse date properly to avoid timezone issues
+        const dateStr = req.params.date;
+        const [year, month, day] = dateStr.split('-');
+        const date = new Date(year, month - 1, day, 0, 0, 0, 0); // Local timezone
+        const nextDay = new Date(year, month - 1, day, 23, 59, 59, 999); // End of day
         
         console.log("=== DASHBOARD DAILY API CALLED ===");
         console.log("Center:", center);
         console.log("Date received:", req.params.date);
-        console.log("Date parsed:", date);
-        console.log("Next day:", nextDay);
+        console.log("Date parsed (start):", date);
+        console.log("Date parsed (end):", nextDay);
 
-        // Get all parcels processed on that date (arrived or delivered)
-        const processedParcels = await Parcel.find({
-            $and: [
-                { $or: [{ from: center }, { to: center }] },
+        // Get all parcels that match the total parcels criteria
+        let totalParcels = await Parcel.find({
+            to: center,
+            $or: [
                 {
-                    $or: [
-                        {
-                            status: "ArrivedAtCollectionCenter",
-                            parcelArrivedDate: {
-                                $gte: date,
-                                $lt: nextDay
-                            }
-                        },
-                        {
-                            status: "Delivered",
-                            parcelDeliveredDate: {
-                                $gte: date,
-                                $lt: nextDay
-                            }
-                        }
-                    ]
+                    status: "ArrivedAtCollectionCenter",
+                    arrivedToCollectionCenterTime: {
+                        $gte: date,
+                        $lte: nextDay
+                    }
+                },
+                {
+                    status: "Delivered",
+                    parcelDeliveredDate: {
+                        $gte: date,
+                        $lte: nextDay
+                    }
                 }
             ]
         }).populate('from', 'location')
           .populate('to', 'location');
           
-        console.log("Processed parcels found:", processedParcels.length);
-
-        // Calculate statistics for the selected date
-        const arrivedCount = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }],
+        console.log("Total parcels found:", totalParcels.length);
+        
+        // Get arrived parcels
+        let arrivedParcels = await Parcel.find({
+            to: center,
             status: "ArrivedAtCollectionCenter",
-            parcelArrivedDate: {
+            arrivedToCollectionCenterTime: {
                 $gte: date,
-                $lt: nextDay
+                $lte: nextDay
             }
-        });
+        }).populate('from', 'location')
+          .populate('to', 'location');
 
-        const deliveredCount = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }],
+        // Get delivered parcels
+        let deliveredParcels = await Parcel.find({
+            to: center,
             status: "Delivered",
             parcelDeliveredDate: {
                 $gte: date,
-                $lt: nextDay
+                $lte: nextDay
             }
-        });
+        }).populate('from', 'location')
+          .populate('to', 'location');
 
-        const totalCount = arrivedCount + deliveredCount;
-
-        // Get failed delivery count (dispatched but not delivered)
-        const failedDeliveryCount = await Parcel.countDocuments({
-            $or: [{ from: center }, { to: center }],
+        // Get non-delivered parcels
+        let nonDeliveredParcels = await Parcel.find({
+            to: center,
             status: { $in: ["NotAccepted", "WrongAddress", "Return"] },
-            parcelDispatchedDate: {
+            arrivedToCollectionCenterTime: {
                 $gte: date,
-                $lt: nextDay
+                $lte: nextDay
             }
-        });
+        }).populate('from', 'location')
+          .populate('to', 'location');
         
         console.log("Daily statistics calculated:");
-        console.log("- Arrived count:", arrivedCount);
-        console.log("- Delivered count:", deliveredCount);
-        console.log("- Total count:", totalCount);
-        console.log("- Failed delivery count:", failedDeliveryCount);
+        console.log("- Total count:", totalParcels.length);
+        console.log("- Arrived count:", arrivedParcels.length);
+        console.log("- Delivered count:", deliveredParcels.length);
+        console.log("- Non-delivered count:", nonDeliveredParcels.length);
 
-        // Format parcels for response
-        const parcelsFormatted = processedParcels.map(parcel => ({
+        // Format parcels for response - combine all parcels
+        const allParcels = [...totalParcels];
+        const parcelsFormatted = allParcels.map(parcel => ({
+            _id: parcel._id,
             parcelId: parcel.parcelId,
             trackingNo: parcel.trackingNo,
             status: parcel.status,
-            processedDate: parcel.status === "ArrivedAtCollectionCenter" ? parcel.parcelArrivedDate : parcel.parcelDeliveredDate
+            from: parcel.from?.location || 'N/A',
+            to: parcel.to?.location || 'N/A',
+            processedDate: parcel.status === "ArrivedAtCollectionCenter" ? 
+                parcel.arrivedToCollectionCenterTime : 
+                parcel.parcelDeliveredDate
         }));
         
         console.log("Formatted parcels:", parcelsFormatted.length, "items");
@@ -267,12 +292,16 @@ router.get("/dashboard/daily/:center/:date", async (req, res) => {
             data: {
                 date: req.params.date,
                 statistics: {
-                    total: totalCount,
-                    arrived: arrivedCount,
-                    delivered: deliveredCount,
-                    failedDelivery: failedDeliveryCount
+                    total: totalParcels.length,
+                    arrived: arrivedParcels.length,
+                    delivered: deliveredParcels.length,
+                    failedDelivery: nonDeliveredParcels.length
                 },
-                parcels: parcelsFormatted
+                parcels: parcelsFormatted,
+                // Store arrays for filtering in frontend
+                arrivedParcels: arrivedParcels.map(p => ({ _id: p._id, ...p.toObject() })),
+                deliveredParcels: deliveredParcels.map(p => ({ _id: p._id, ...p.toObject() })),
+                nonDeliveredParcels: nonDeliveredParcels.map(p => ({ _id: p._id, ...p.toObject() }))
             }
         });
 
@@ -387,7 +416,7 @@ router.patch("/:shipmentId/reset-parcels", async (req, res) => {
 
         await Parcel.updateMany(
             { _id: { $in: shipment.parcels } },
-            { $set: { shipmentId: null, status: "PendingPickup" } }
+            { $set: { shipmentId: null, status: "ArrivedAtCollectionCenter" } }
         );
 
         await Shipment.deleteOne({ shipmentId: req.params.shipmentId });
@@ -635,7 +664,8 @@ router.post('/validate-for-shipment', async (req, res) => {
 router.get("/debug/parcels", async (req, res) => {
     try {
         const totalParcels = await Parcel.countDocuments({});
-        const allParcels = await Parcel.find({}).limit(3); // Get first 3 parcels
+        const centerParcels = await Parcel.find({ to: "682e1059ce33c2a891c9b168" }).limit(3);
+        const allParcelsToCheck = await Parcel.find({}).limit(3).select('from to status createdAt updatedAt');
         const statusCounts = await Parcel.aggregate([
             { $group: { _id: "$status", count: { $sum: 1 } } }
         ]);
@@ -647,14 +677,105 @@ router.get("/debug/parcels", async (req, res) => {
             parcelDispatchedDate: 1,
             createdAt: 1,
             updatedAt: 1,
-            status: 1
+            status: 1,
+            from: 1,
+            to: 1
         });
+        
+        // Check parcels specifically with our center ID
+        const centerSpecificParcels = await Parcel.find({
+            to: "682e1059ce33c2a891c9b168"
+        }).select('parcelId status from to createdAt updatedAt parcelArrivedDate parcelDeliveredDate parcelDispatchedDate').limit(5);
         
         res.json({
             totalParcels,
-            sampleParcels: allParcels,
+            centerParcelsCount: centerParcels.length,
+            sampleParcels: allParcelsToCheck,
             statusCounts,
-            dateFieldsExample: parcelWithDates
+            dateFieldsExample: parcelWithDates,
+            centerSpecificParcels
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create test parcels for today's date
+router.post("/debug/create-test-data", async (req, res) => {
+    try {
+        const today = new Date();
+        today.setHours(12, 0, 0, 0); // Set to noon today
+        
+        const testParcels = [
+            {
+                parcelId: "TEST001",
+                trackingNo: "TR001",
+                from: "682e1068ce33c2a891c9b174", // Different center
+                to: "682e1059ce33c2a891c9b168", // Our test center
+                status: "ArrivedAtCollectionCenter",
+                parcelArrivedDate: today,
+                weight: 1.5,
+                itemType: "Electronics"
+            },
+            {
+                parcelId: "TEST002",
+                trackingNo: "TR002",
+                from: "682e1077ce33c2a891c9b180",
+                to: "682e1059ce33c2a891c9b168",
+                status: "Delivered",
+                parcelDeliveredDate: today,
+                weight: 2.0,
+                itemType: "Books"
+            },
+            {
+                parcelId: "TEST003",
+                trackingNo: "TR003",
+                from: "682e1083ce33c2a891c9b18c",
+                to: "682e1059ce33c2a891c9b168",
+                status: "ArrivedAtCollectionCenter",
+                parcelArrivedDate: today,
+                weight: 0.5,
+                itemType: "Documents"
+            },
+            {
+                parcelId: "TEST004",
+                trackingNo: "TR004",
+                from: "682e1195ce33c2a891c9b258",
+                to: "682e1059ce33c2a891c9b168",
+                status: "NotAccepted",
+                parcelDispatchedDate: today,
+                weight: 3.0,
+                itemType: "Fragile"
+            },
+            {
+                parcelId: "TEST005",
+                trackingNo: "TR005",
+                from: "682e1195ce33c2a891c9b258",
+                to: "682e1059ce33c2a891c9b168",
+                status: "DeliveryDispatched",
+                parcelDispatchedDate: today,
+                weight: 1.2,
+                itemType: "Clothing",
+                deliveryInformation: {
+                    staffId: null // Will be populated with actual staff ID if available
+                }
+            }
+        ];
+        
+        const createdParcels = await Parcel.insertMany(testParcels);
+        
+        res.json({
+            success: true,
+            message: `Created ${createdParcels.length} test parcels for today (${today.toDateString()})`,
+            parcels: createdParcels.map(p => ({
+                parcelId: p.parcelId,
+                status: p.status,
+                dates: {
+                    parcelArrivedDate: p.parcelArrivedDate,
+                    parcelDeliveredDate: p.parcelDeliveredDate,
+                    parcelDispatchedDate: p.parcelDispatchedDate
+                }
+            }))
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -1,5 +1,5 @@
 const Branch = require("../../../models/BranchesModel");
-const Driver = require("../../../models/DriverModel");
+const Driver = require("../../../models/driverModel");
 const Staff = require("../../../models/StaffModel");
 const Parcel = require("../../../models/ParcelModel");
 const Vehicle = require("../../../models/VehicleModel");
