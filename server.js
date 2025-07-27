@@ -44,6 +44,8 @@ const globalErrorHandler = require("./controllers/errorController");
 const userNotificationRoutes = require('./routes/userNotificationRoutes');
 
 const app = express();
+app.set('trust proxy', 1); // or 'loopback' or true depending on your setup
+
 
 
 
