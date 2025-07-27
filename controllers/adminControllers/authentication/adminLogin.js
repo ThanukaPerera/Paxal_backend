@@ -61,6 +61,7 @@ const adminLogin = async (req, res) => {
     //   sameSite: "lax",
     //   secure: false, 
     // };
+const isProduction = process.env.NODE_ENV === "production";
 
     const cookieOptions = {
       httpOnly: true,
