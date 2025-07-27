@@ -56,10 +56,16 @@ const adminLogin = async (req, res) => {
     );
 
     // Set cookies with appropriate security settings
+    // const cookieOptions = {
+    //   httpOnly: true,
+    //   sameSite: "lax",
+    //   secure: false, 
+    // };
+
     const cookieOptions = {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false, 
+      sameSite: isProduction ? 'none' : 'lax',
+      secure:isProduction, 
     };
 
     res.cookie("AdminToken", accessToken, {
