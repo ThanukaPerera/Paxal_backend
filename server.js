@@ -11,7 +11,7 @@ const startServer = require("./config/startServer");
 // Import routes
 const shipmentRoutes = require("./routes/shipmentRoutes");
 const parcelRoutes = require("./routes/parcelRoutes");
-const driverRoutes = require("./routes/driverRoutes");
+const driverRoutes = require("./routes/adminRoutes/driverRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 // const customerRoutes = require("./routes/customer");

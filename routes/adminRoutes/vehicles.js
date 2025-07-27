@@ -25,6 +25,11 @@ const fetchVehicleSchedules = require('../../controllers/adminControllers/Vehicl
 const fetchVehicleParcels = require('../../controllers/adminControllers/Vehicles/fetchVehicleParcels');
 const getVehicleAnalytics = require('../../controllers/adminControllers/Vehicles/getVehicleAnalytics');
 
+// Vehicle Schedule endpoints
+const getAllVehicleSchedules = require('../../controllers/adminControllers/Vehicles/getAllVehicleSchedules');
+const getVehicleSchedulesByType = require('../../controllers/adminControllers/Vehicles/getVehicleSchedulesByType');
+const getTodayVehicleSchedules = require('../../controllers/adminControllers/Vehicles/getTodayVehicleSchedules');
+
 // Basic Vehicle Routes
 router.get("/", authenticateAdmin, fetchVehicles);
 router.get("/branch/:branchId", authenticateAdmin, fetchVehiclesOfBranch);
@@ -37,5 +42,10 @@ router.get("/:id/details", authenticateAdmin, validateVehicleId, fetchVehicleDet
 router.get("/:id/schedules", authenticateAdmin, validateVehicleId, fetchVehicleSchedules);
 router.get("/:id/parcels", authenticateAdmin, validateVehicleId, fetchVehicleParcels);
 router.get("/:id/analytics", authenticateAdmin, validateVehicleId, getVehicleAnalytics);
+
+// Vehicle Schedule Management Routes
+router.get("/schedules/all", authenticateAdmin, getAllVehicleSchedules);
+router.get("/schedules/today", authenticateAdmin, getTodayVehicleSchedules);
+router.get("/schedules/:type", authenticateAdmin, getVehicleSchedulesByType);
 
 module.exports = router;
