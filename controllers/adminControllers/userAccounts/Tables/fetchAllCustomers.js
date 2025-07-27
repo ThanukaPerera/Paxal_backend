@@ -2,7 +2,8 @@ const user = require("../../../../models/userModel");
 
 const fetchAllCustomers = async (req, res) => {
   try {
-    const customers = await user.find()
+    const customers = await user
+      .find()
       .select("-fullName -password -profilePicLink -updatedAt -__v")
       .lean()
       .exec();
@@ -10,8 +11,7 @@ const fetchAllCustomers = async (req, res) => {
       ...customer,
       name: `${customer.fName} ${customer.lName}`,
       contact: customer.contact,
-      address: `${customer.address } ${customer.city} ${customer.district} ${customer.province}`
-
+      address: `${customer.address} ${customer.city} ${customer.district} ${customer.province}`,
     }));
     res.status(200).json({ userData });
   } catch (error) {

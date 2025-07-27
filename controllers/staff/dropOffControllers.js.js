@@ -71,7 +71,7 @@ const getQRandTrackingNumberForDropOff = async (req, res) => {
      const updatedParcel = await Parcel.findOneAndUpdate(
       { parcelId },
       updatedDropOffParcel,
-      { new: true }
+      { new: true },
     );
     console.log("updated");
  // Send a notification to the user in the application

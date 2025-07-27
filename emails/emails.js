@@ -4,7 +4,7 @@ const fs = require("fs");
 
 require('dotenv').config();
 
-const sender = process.env.EMAIL;
+const sender = process.env.EMAIL_USER;
 
 // Setup email transport
 const transporter = nodemailer.createTransport({
@@ -235,4 +235,3 @@ module.exports = {
   sendCollectionCenterArrivedEmail,
   sendParcelDeliveredEmail
 };
-

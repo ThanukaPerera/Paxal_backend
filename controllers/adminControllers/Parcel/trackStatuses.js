@@ -1,202 +1,270 @@
 const Parcel = require("../../../models/parcelModel");
-const VehicleSchedule = require("../../../models/VehicleScheduleModel");
+const B2BShipment = require("../../../models/B2BShipmentModel");
 const mongoose = require("mongoose");
 
-const fetchOrderPlacedTime = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select("createdAt from submittingType")
-    .populate("from", "location")
-    .lean()
-    .exec();
 
-  if (!parcel) {
-    return null;
+const getResponsiblePerson = (parcel, status) => {
+  switch (status) {
+    case "Picked Up":
+    case "Delivered":
+      // For these statuses, check if driver is assigned via shipment
+      if (parcel.shipmentId?.assignedDriver?.name) {
+        return `${parcel.shipmentId.assignedDriver.name} (Driver)`;
+      }
+      // Fallback to staff from pickup/delivery information
+      if (status === "Picked Up" && parcel.pickupInformation?.staffId?.name) {
+        return `${parcel.pickupInformation.staffId.name} (Staff)`;
+      }
+      if (status === "Delivered" && parcel.deliveryInformation?.staffId?.name) {
+        return `${parcel.deliveryInformation.staffId.name} (Staff)`;
+      }
+      return "Driver";
+    
+    case "Order Placed":
+      return parcel?.submittingType === "pickup" ? "User (Pickup)" : "Branch";
+    
+    case "Pending Pickup":
+      return parcel?.pickupInformation?.staffId?.name || "Not Assigned";
+    
+    case "Shipment Assigned":
+      return "System";
+    
+    case "In Transit":
+      return parcel.shipmentId?.assignedDriver?.name 
+        ? `${parcel.shipmentId.assignedDriver.name} (Driver)` 
+        : "Transport Team";
+    
+    default:
+      return parcel?.orderPlacedStaffId?.name || "Staff";
   }
+};
 
-  const handledBy =
-    parcel?.submittingType === "pickup" ? "User (Pickup)" : "Branch";
-  const note = "-";
+const getStatusLocation = (parcel, status) => {
+  switch (status) {
+    case "Order Placed":
+      return parcel?.from?.location || "Unknown";
+    
+    case "Pending Pickup":
+    case "Picked Up":
+      if (parcel.submittingType === "pickup") {
+        return parcel?.pickupInformation?.address || parcel?.from?.location || "Unknown";
+      }
+      return parcel?.from?.location || "Unknown";
+    
+    case "In Transit":
+      return `${parcel?.from?.location || "Unknown"} → ${parcel?.to?.location || "Unknown"}`;
+    
+    case "Arrived at Collection Center":
+    case "Delivery Dispatched":
+      return parcel?.to?.location || "Collection Center";
+    
+    case "Delivered":
+      if (parcel.receivingType === "collection_center") {
+        return parcel?.to?.location || "Collection Center";
+      }
+      return parcel?.deliveryInformation?.deliveryAddress || "Delivery Address";
+    
+    default:
+      return parcel?.from?.location || "Unknown";
+  }
+};
 
+const getStatusNote = (parcel, status) => {
+  switch (status) {
+    case "Shipment Assigned":
+      return parcel?.shipmentId?.shipmentId ? `Shipment: ${parcel.shipmentId.shipmentId}` : "-";
+    
+    case "Delivered":
+      return `Delivery Type: ${parcel.receivingType === "collection_center" ? "Collection Center" : "Doorstep"}`;
+    
+    default:
+      return "-";
+  }
+};
+
+const buildStatusResponse = (status, time, parcel) => {
+  if (!time) return null;
+  
   return {
-    status: "order placed",
-    time: parcel?.createdAt,
-    location: parcel?.from?.location,
-    handledBy,
-    note,
+    status,
+    time,
+    location: getStatusLocation(parcel, status),
+    handledBy: getResponsiblePerson(parcel, status),
+    note: getStatusNote(parcel, status),
   };
 };
 
-const findPendingPickupDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("pickupInformation.staffId");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Pending Pickup",
-    time: parcel?.pickupInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.pickupInformation?.staffId,
-  };
+const isValidParcelId = (parcelId) => {
+  return parcelId && mongoose.Types.ObjectId.isValid(parcelId);
 };
 
-const findDeliveryDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("deliveryInformation.staffId");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Delivery Dispatched",
-    time: parcel?.deliveryInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
-  };
-};
-
-const findPickedUpDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("pickupInformation");
-
-  if (!parcel) return null;
-
-  return {
-    status: "PickedUp",
-    time: parcel?.pickupInformation?.pickupTime,
-    location: parcel?.pickupInformation?.address || parcel?.from?.location,
-    handledBy: "Put the driver name here" || parcel?.from?.location,
-  };
-};
-
-const findArrivedAtDistributionCenterDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("pickupInformation");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Arrived to distribution center",
-    time: parcel?.pickupInformation?.pickupTime,
-    location: parcel?.pickupInformation?.address || parcel?.from?.location,
-    handledBy: "Put the driver name here" || parcel?.from?.location,
-  };
-};
-
-const findShipmentAssignedDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("pickupInformation");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Shipment Assigned",
-    time: parcel?.pickupInformation?.pickupTime,
-    location: parcel?.pickupInformation?.address || parcel?.from?.location,
-    handledBy: "Put the driver name here" || parcel?.from?.location,
-  };
-};
-
-const findInTransitDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("deliveryInformation.staffId");
-
-  if (!parcel) return null;
-
-  return {
-    status: "In Transit",
-    time: parcel?.deliveryInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
-  };
-};
-const findArrivedAtCollectionCenterDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ parcelId })
-    .select()
-    .lean()
-    .populate("deliveryInformation.staffId");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Arrived to Collection Center",
-    time: parcel?.deliveryInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
-  };
-};
-const findDeliveredDetails = async (parcelId) => {
-  const parcel = await Parcel.findOne({ _id: parcelId })
-    .select()
-    .lean()
-    .populate("deliveryInformation.staffId");
-
-  if (!parcel) return null;
-
-  return {
-    status: "Delivered",
-    time: parcel?.deliveryInformation?.createdAt,
-    location: parcel?.from?.location,
-    handledBy: parcel?.deliveryInformation?.staffId,
-  };
+const handleDatabaseError = (operation, error) => {
+  console.error(`Error in ${operation}:`, error);
+  return null;
 };
 
 const trackStatuses = async (req, res) => {
   try {
-    const parcelId = req.params.parcelId;
+    const { parcelId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(parcelId)) {
+    // Validate parcelId parameter
+    if (!parcelId) {
       return res.status(400).json({
         success: false,
-        message: "Invalid parcel ID",
+        message: "Parcel ID is required",
       });
     }
 
-    const orderPlacedDetails = await fetchOrderPlacedTime(parcelId);
-    const pendingPickupDetails = await findPendingPickupDetails(parcelId);
-    const deliveryDetails = await findDeliveryDetails(parcelId);
-    const PickedUpDetails = await findPickedUpDetails(parcelId);
-    const ArrivedAtDistributionCenterDetails =
-      await findArrivedAtDistributionCenterDetails(parcelId);
-    const ShipmentAssignedDetails = await findShipmentAssignedDetails(parcelId);
-    const InTransitDetails = await findInTransitDetails(parcelId);
-    const ArrivedAtCollectionCenterDetails =
-      await findArrivedAtCollectionCenterDetails(parcelId);
-    const DeliveredDetails = await findDeliveredDetails(parcelId);
-
-    if (!orderPlacedDetails || !pendingPickupDetails) {
-      return res
-        .status(404)
-        .json({ status: "error", message: "Parcel not found" });
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(parcelId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid parcel ID format",
+      });
     }
 
-    const timeData = [
-      orderPlacedDetails,
-      pendingPickupDetails,
-      PickedUpDetails,
-      ArrivedAtDistributionCenterDetails,
-      ShipmentAssignedDetails,
-      InTransitDetails,
-      ArrivedAtCollectionCenterDetails,
-      deliveryDetails,
-      DeliveredDetails,
+    // Single optimized query to get all required data
+    const parcel = await Parcel.findOne({ _id: parcelId })
+      .select(`
+        createdAt status submittingType receivingType
+        parcelPickedUpDate arrivedToDistributionCenterTime shipmentAssignedTime
+        intransitedDate arrivedToCollectionCenterTime parcelDispatchedDate parcelDeliveredDate
+        pickupInformation deliveryInformation orderPlacedStaffId shipmentId
+      `)
+      .populate("from", "location")
+      .populate("to", "location")
+      .populate("orderPlacedStaffId", "name")
+      .populate({
+        path: "pickupInformation",
+        populate: {
+          path: "staffId",
+          select: "name"
+        }
+      })
+      .populate({
+        path: "deliveryInformation", 
+        populate: {
+          path: "staffId",
+          select: "name"
+        }
+      })
+      .populate({
+        path: "shipmentId",
+        select: "shipmentId status",
+        populate: {
+          path: "assignedDriver",
+          select: "name"
+        }
+      })
+      .lean()
+      .exec();
+
+    // Check if parcel exists
+    if (!parcel) {
+      return res.status(404).json({
+        success: false,
+        message: "Parcel not found",
+      });
+    }
+
+    console.log("Fetched parcel:", parcel);
+
+    // Build timeline array based on parcel status progression
+    const timeline = [];
+
+    // 1. Order Placed (always present)
+    timeline.push(buildStatusResponse("Order Placed", parcel.createdAt, parcel));
+
+    // 2. Pending Pickup (only for pickup type parcels)
+    if (parcel.submittingType === "pickup" && parcel.pickupInformation?.createdAt) {
+      timeline.push(buildStatusResponse("Pending Pickup", parcel.pickupInformation.createdAt, parcel));
+    }
+
+    // Define status hierarchy for progression check
+    const statusHierarchy = [
+      "OrderPlaced",
+      "PendingPickup", 
+      "PickedUp",
+      "ArrivedAtDistributionCenter",
+      "ShipmentAssigned",
+      "InTransit", 
+      "ArrivedAtCollectionCenter",
+      "DeliveryDispatched",
+      "Delivered"
     ];
 
-    res.status(200).json({ status: "success", timeData });
+    const currentStatusIndex = statusHierarchy.indexOf(parcel.status);
+    
+    // 3. Picked Up (if status progressed beyond PendingPickup)
+    if (currentStatusIndex >= statusHierarchy.indexOf("PickedUp")) {
+      const pickupTime = parcel.parcelPickedUpDate || 
+        (parcel.submittingType === "pickup" ? parcel.pickupInformation?.updatedAt : parcel.createdAt);
+      timeline.push(buildStatusResponse("Picked Up", pickupTime, parcel));
+    }
+
+    // 4. Arrived at Distribution Center (if status progressed)
+    if (currentStatusIndex >= statusHierarchy.indexOf("ArrivedAtDistributionCenter") && 
+        parcel.arrivedToDistributionCenterTime) {
+      timeline.push(buildStatusResponse("Arrived at Distribution Center", 
+        parcel.arrivedToDistributionCenterTime, parcel));
+    }
+
+    // 5. Shipment Assigned (if status progressed)
+    if (currentStatusIndex >= statusHierarchy.indexOf("ShipmentAssigned")) {
+      const shipmentTime = parcel.shipmentAssignedTime || parcel.updatedAt;
+      timeline.push(buildStatusResponse("Shipment Assigned", shipmentTime, parcel));
+    }
+
+    // 6. In Transit (if status progressed)
+    if (currentStatusIndex >= statusHierarchy.indexOf("InTransit") && parcel.intransitedDate) {
+      timeline.push(buildStatusResponse("In Transit", parcel.intransitedDate, parcel));
+    }
+
+    // 7. Arrived at Collection Center (if status progressed)
+    if (currentStatusIndex >= statusHierarchy.indexOf("ArrivedAtCollectionCenter") && 
+        parcel.arrivedToCollectionCenterTime) {
+      timeline.push(buildStatusResponse("Arrived at Collection Center", 
+        parcel.arrivedToCollectionCenterTime, parcel));
+    }
+
+    // 8. Delivery Dispatched (if status progressed)
+    if (currentStatusIndex >= statusHierarchy.indexOf("DeliveryDispatched") && 
+        parcel.parcelDispatchedDate) {
+      timeline.push(buildStatusResponse("Delivery Dispatched", 
+        parcel.parcelDispatchedDate, parcel));
+    }
+
+    // 9. Delivered (if completed)
+    if (parcel.status === "Delivered" && parcel.parcelDeliveredDate) {
+      timeline.push(buildStatusResponse("Delivered", parcel.parcelDeliveredDate, parcel));
+    }
+
+    // Filter out null values and sort chronologically
+    const timeData = timeline
+      .filter(item => item !== null)
+      .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    // Return successful response with tracking data
+    return res.status(200).json({
+      success: true,
+      data: timeData,
+      totalStatuses: timeData.length,
+      currentStatus: parcel.status,
+      parcelInfo: {
+        parcelId: parcel.parcelId,
+        submittingType: parcel.submittingType,
+        receivingType: parcel.receivingType,
+        shipmentId: parcel.shipmentId?.shipmentId || null
+      }
+    });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ status: "error", message: "Server error" });
+    console.error("Error in trackStatuses controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error. Please try again later.",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
   }
 };
 

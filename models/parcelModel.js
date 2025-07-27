@@ -1,39 +1,33 @@
 const mongoose = require("mongoose");
 
-const pickupSchema = new mongoose.Schema(
-  {
+const pickupSchema = new mongoose.Schema({
     pickupDate: { type: Date, required: true },
     pickupTime: {
-      type: String,
-      enum: ["08:00 - 12:00", "13:00 - 17:00"],
-      required: true,
+        type: String,
+        enum: ["08:00 - 12:00", "13:00 - 17:00"],
+        required: true,
     },
     address: { type: String, required: true },
     city: { type: String, required: true },
     district: { type: String, required: true },
     province: { type: String, required: true },
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" }, // Reference to Staff
-  },
-  { timestamps: true }
-);
+}, { timestamps: true });
 
-const deliverySchema = new mongoose.Schema(
-  {
+const deliverySchema = new mongoose.Schema({
     deliveryAddress: { type: String, required: true },
     deliveryCity: { type: String, required: true },
     deliveryDistrict: { type: String, required: true },
     deliveryProvince: { type: String, required: true },
     postalCode: { type: String, required: true },
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" }, // Reference to Staff
-  },
-  { timestamps: true }
-);
+}, { timestamps: true });
 
 const parcelSchema = new mongoose.Schema(
   {
-    parcelId: { type: String, required: true, unique: true },
-    trackingNo: { type: String, required: false, unique: true },
-    qrCodeNo: { type: String, required: false, unique: true },
+    parcelId: { type: String, required: true },
+    trackingNo: { type: String, required: false },
+    qrCodeNo: { type: String, required: false },
     itemType: {
       type: String,
       enum: [
@@ -81,7 +75,6 @@ const parcelSchema = new mongoose.Schema(
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
-      required: false,
     }, // Reference to Payment
     orderPlacedStaffId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -95,6 +88,7 @@ const parcelSchema = new mongoose.Schema(
     }, // Reference to B2B Shipment
     parcelPickedUpDate: { type: Date, required: false },
     arrivedToDistributionCenterTime: { type: Date, required: false },
+    shipmentAssignedTime: { type: Date, required: false },
     intransitedDate: { type: Date, required: false },
     arrivedToCollectionCenterTime: { type: Date, required: false },
     parcelDispatchedDate: { type: Date, required: false },
@@ -132,8 +126,7 @@ const parcelSchema = new mongoose.Schema(
     },
   },
 
-  { timestamps: true }
+    { timestamps: true }
 );
 
-module.exports =
-  mongoose.models.Parcel || mongoose.model("Parcel", parcelSchema);
+module.exports = mongoose.models.Parcel || mongoose.model("Parcel", parcelSchema)

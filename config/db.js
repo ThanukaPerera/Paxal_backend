@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const db_URL = process.env.DB_URL;
 
 const connectDB = async () => {
@@ -14,12 +14,11 @@ const connectDB = async () => {
 
 // Handle runtime DB events (post-connection)
 mongoose.connection.on('disconnected', () => {
-  console.log('🔴 MongoDB Connection Lost!');
+  console.log('MongoDB Connection Lost!');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error(`❌ MongoDB Runtime Error: ${err.message}`);
+  console.error(` MongoDB Runtime Error: ${err.message}`);
 });
-
 
 module.exports = connectDB;

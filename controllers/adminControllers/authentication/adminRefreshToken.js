@@ -37,11 +37,15 @@ const adminRefreshToken = (req, res) => {
     const expiresAt = decodedAccessToken.exp * 1000; // Convert to milliseconds
    
   
-    // Set the new access token as a cookie
-    res.cookie('AdminToken', newAccessToken, {
+    // Set the new access token as a cookie with consistent settings
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    };
+
+    res.cookie('AdminToken', newAccessToken, {
+      ...cookieOptions,
       maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE
     });
     console.log("Token refreshed")

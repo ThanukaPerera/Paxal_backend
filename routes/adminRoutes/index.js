@@ -13,6 +13,8 @@ const profileRoutes = require("./profile");
 const branchRoutes = require("./branches");
 const vehicleRoutes = require("./vehicles");
 const adminManagementRoutes = require("./adminManagement");
+const reportRoutes = require("./reports");
+
 
 // Use sub-routes
 router.use("/auth", authRoutes);
@@ -24,6 +26,8 @@ router.use("/profile", profileRoutes);
 router.use("/branches", branchRoutes);
 router.use("/vehicles", vehicleRoutes);
 router.use("/management", adminManagementRoutes);
+router.use("/reports",reportRoutes); // Import reports routes
+
 
 
 module.exports = router;

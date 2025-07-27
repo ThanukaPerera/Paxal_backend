@@ -1,5 +1,4 @@
-
-const Driver = require("../../../../models/DriverModel")
+const Driver = require("../../../../models/driverModel");
 
 const fetchAllDrivers = async (req, res) => {
 
@@ -11,7 +10,7 @@ const fetchAllDrivers = async (req, res) => {
       .select("-password -__v -updatedAt")
       .populate(
         "adminId",
-        "-adminId -password -email -contactNo -createdAt -profilePicLink -__v -updatedAt"
+        "-adminId -password -email -contactNo -createdAt -profilePicLink -__v -updatedAt",
       )
       .populate("branchId", "-branchId -__v -updatedAt");
     if (!drivers || drivers.length === 0) {
