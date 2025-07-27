@@ -58,8 +58,8 @@ const adminLogin = async (req, res) => {
     // Set cookies with appropriate security settings
     const cookieOptions = {
       httpOnly: true,
-      sameSite: "None",
-      secure: true, 
+      sameSite: "lax",
+      secure: false, 
     };
 
     res.cookie("AdminToken", accessToken, {
