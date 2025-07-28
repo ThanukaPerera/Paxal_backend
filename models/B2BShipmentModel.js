@@ -101,6 +101,12 @@ const shipmentSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    dispatchedAt: {
+        type: Date
+    },
+    completedAt: {
+        type: Date
+    },
     confirmed: {
         type: Boolean,
         default: false

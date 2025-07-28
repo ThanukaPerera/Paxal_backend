@@ -61,7 +61,7 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
 });
 
 // Get parcels by center (exclude same origin-destination parcels) - Keep for backward compatibility
-router.get("/:center", async (req, res) => {
+router.get("/:center", isStaffAuthenticated, async (req, res) => {
     try {
         console.log("Fetching parcels for center:", req.params.center);
         const parcels = await Parcel.find({
@@ -88,7 +88,7 @@ router.get("/:center", async (req, res) => {
 });
 
 // Get dashboard statistics for a center and date
-router.get("/dashboard/stats/:center/:date", async (req, res) => {
+router.get("/dashboard/stats/:center/:date", isStaffAuthenticated, async (req, res) => {
     try {
         const center = req.params.center;
         
@@ -192,7 +192,7 @@ router.get("/dashboard/stats/:center/:date", async (req, res) => {
 });
 
 // Get daily parcel details for a center
-router.get("/dashboard/daily/:center/:date", async (req, res) => {
+router.get("/dashboard/daily/:center/:date", isStaffAuthenticated, async (req, res) => {
     try {
         const center = req.params.center;
         
@@ -401,7 +401,7 @@ router.patch("/:shipmentId/status", async (req, res) => {
 });
 
 // Reset parcels in shipment
-router.patch("/:shipmentId/reset-parcels", async (req, res) => {
+router.patch("/:shipmentId/reset-parcels", isStaffAuthenticated, async (req, res) => {
     try {
         const shipment = await Shipment.findOne({
             shipmentId: req.params.shipmentId
@@ -435,7 +435,7 @@ router.patch("/:shipmentId/reset-parcels", async (req, res) => {
 });
 
 // Get shipment details
-router.get("/:shipmentId", async (req, res) => {
+router.get("/:shipmentId", isStaffAuthenticated, async (req, res) => {
     try {
         const shipment = await Shipment.findOne({
             shipmentId: req.params.shipmentId
@@ -464,7 +464,7 @@ router.get("/:shipmentId", async (req, res) => {
 });
 
 // Get filtered parcels for dashboard cards
-router.get("/dashboard/parcels/:center/:date/:type", async (req, res) => {
+router.get("/dashboard/parcels/:center/:date/:type", isStaffAuthenticated, async (req, res) => {
     try {
         const center = req.params.center;
         const date = new Date(req.params.date);
@@ -553,7 +553,7 @@ router.get("/dashboard/parcels/:center/:date/:type", async (req, res) => {
  * Validate if a parcel can be added to a specific shipment
  * POST /parcels/validate-for-shipment
  */
-router.post('/validate-for-shipment', async (req, res) => {
+router.post('/validate-for-shipment', isStaffAuthenticated, async (req, res) => {
     try {
         const { parcelId, shipmentId } = req.body;
 
@@ -601,11 +601,11 @@ router.post('/validate-for-shipment', async (req, res) => {
         }
 
         // Calculate parcel weight and volume based on item size
-        const weightMap = { small: 1, medium: 3, large: 8 };
-        const volumeMap = { small: 0.1, medium: 0.3, large: 0.8 };
+        const weightMap = { small: 2, medium: 5, large: 10 };
+        const volumeMap = { small: 0.2, medium: 0.5, large: 1.0 };
         
-        const parcelWeight = weightMap[parcel.itemSize] || 1;
-        const parcelVolume = volumeMap[parcel.itemSize] || 0.1;
+        const parcelWeight = weightMap[parcel.itemSize] || 10;
+        const parcelVolume = volumeMap[parcel.itemSize] || 1;
 
         // Check capacity constraints (Standard shipment limits: 2500kg, 10m³)
         const MAX_WEIGHT = 2500;
