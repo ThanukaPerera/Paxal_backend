@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const { processStandardShipment } = require("../controllers/shipmentManagementControllers/standardShipmentNotificationController");
+const isStaffAuthenticated = require("../middleware/staffAuth");
 
 // notify the standard shipment
-router.post('/notifyAboutShipment/:id', async (req, res) => {
+router.post('/notifyAboutShipment/:id', isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
         console.log('Received shipment ID:', shipmentId);
