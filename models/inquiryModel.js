@@ -12,7 +12,7 @@ const inquirySchema = new mongoose.Schema(
     }, // Enum for inquiry status
     name: { type: String, required: true },
     email: { type: String, required: true },
-    parcelTrackingNo: { type: String, required: true }, // Links to Parcel schema
+    parcelTrackingNo: { type: String, required: false }, // Links to Parcel schema
     reply: { type: String, required: false },
     staffId: {
       type: mongoose.Schema.Types.ObjectId,

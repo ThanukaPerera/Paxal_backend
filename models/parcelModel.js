@@ -1,3 +1,6 @@
+
+
+
 const mongoose = require("mongoose");
 
 const pickupSchema = new mongoose.Schema({
@@ -26,8 +29,8 @@ const deliverySchema = new mongoose.Schema({
 const parcelSchema = new mongoose.Schema(
     {
         parcelId: { type: String, required: false },
-        trackingNo: { type: String, required: false, unique: true },
-        qrCodeNo: { type: String, required: false, unique: true },
+        trackingNo: { type: String, required: false },
+        qrCodeNo: { type: String, required: false },
         itemType: { type: String, enum: ["Glass", "Flowers", 'Document', 'Clothing', 'Electronics', 'Food', 'Other'], required: true },
         itemSize: {
             type: String,
@@ -74,6 +77,8 @@ const parcelSchema = new mongoose.Schema(
             ref: "B2BShipment",
             required: false,
         }, // Reference to B2B Shipment
+        parcelPickedUpDate: { type: Date, required: false },
+        arrivedToDistributionCenterTime: { type: Date, required: false },
         intransitedDate: { type: Date, required: false },
         arrivedToCollectionCenterTime: { type: Date, required: false },
         parcelDispatchedDate: { type: Date, required: false },

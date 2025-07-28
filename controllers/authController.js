@@ -7,6 +7,8 @@ const user = require("../models/userModel.js");
 const AppError = require("../utils/appError.js");
 const hashPassword = require("../utils/hashPassword");
 const comparePassword = require("../utils/comparePassword");
+const generateOtpHTML = require("../utils/emailTemplate.js");
+
 
 const dotenv = require("dotenv");
 dotenv.config();
@@ -130,12 +132,14 @@ exports.signup = catchAscync(async (req, res, next) => {
   });
 
   try {
-    const emailResult = await sendEmail({
-      email: newUser.email,
-      subject: "OTP For Email Verification",
-      html: `<h1>Your OTP is: ${otp}</h1>`,
-    });
-    console.log("Email sent result:", emailResult);
+   const emailHtml = generateOtpHTML(otp, "complete your signup");
+await sendEmail({
+  email: newUser.email,
+  subject: "OTP For Email Verification",
+  html: emailHtml,
+});
+
+     console.log("Signup email sent successfully");
 
     createSendToken(newUser, 200, res, "Registration Successful!");
   } catch (error) {
@@ -183,11 +187,14 @@ exports.resendOTP = catchAscync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    await sendEmail({
-      email: user.email,
-      subject: "Resend OTP for Email Verification",
-      html: `<h1>Your OTP is: ${newOtp}</h1>`,
-    });
+  
+  const emailHtml = generateOtpHTML(newOtp, "verify your email");
+  await sendEmail({
+  email: user.email,
+  subject: "Resend OTP for Email Verification",
+  html: emailHtml,
+});
+
 
     res.status(200).json({
       status: "success",
@@ -241,12 +248,15 @@ exports.forgetPassword = catchAscync(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    await sendEmail({
+
+      const emailHtml = generateOtpHTML(otp, "reset your password");
+      await sendEmail({
       email: user.email,
       subject: "Your Password Reset OTP (valid for 5 minutes)",
-      html: `<h1>Your reset OTP is: ${otp}</h1>`,
-    });
+      html: emailHtml,
+      });
 
+ 
     res.status(200).json({
       status: "success",
       message: "Password reset OTP sent to your email.",
