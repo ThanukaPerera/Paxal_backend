@@ -7,6 +7,8 @@ const Shipment = require("../models/B2BShipmentModel");
 const Parcel = require("../models/parcelModel");
 const Branch = require("../models/BranchesModel");
 const Vehicle = require("../models/VehicleModel");
+const Staff = require("../models/StaffModel");
+const { createStaffNotification } = require("../controllers/staff/notificationController");
 
 
 
@@ -15,7 +17,7 @@ const Vehicle = require("../models/VehicleModel");
 router.post("/create", isStaffAuthenticated, createShipment);
 
 // Route for adding more parcels to standard shipments
-router.post("/b2b/standard-shipments/:id/add-more", async (req, res) => {
+router.post("/b2b/standard-shipments/:id/add-more", isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
         const { searchOnly, parcelIds } = req.body; // Extract searchOnly and parcelIds from request body
@@ -49,7 +51,7 @@ router.post("/b2b/standard-shipments/:id/add-more", async (req, res) => {
 });
 
 // Route for manually adding a single parcel to standard shipment
-router.post("/b2b/standard-shipments/:id/add-manual-parcel", async (req, res) => {
+router.post("/b2b/standard-shipments/:id/add-manual-parcel", isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
         const { parcelId } = req.body;
@@ -105,6 +107,7 @@ router.post("/b2b/standard-shipments/:id/add-manual-parcel", async (req, res) =>
         // Update parcel
         parcel.shipmentId = shipmentId;
         parcel.status = "ShipmentAssigned";
+
         await parcel.save();
 
         return res.status(200).json({
@@ -135,7 +138,7 @@ router.post("/b2b/standard-shipments/:id/add-manual-parcel", async (req, res) =>
 });
 
 // Get completed shipments with assigned vehicles for a specific center
-router.get("/completed/:centerId", async (req, res) => {
+router.get("/completed/:centerId", isStaffAuthenticated, async (req, res) => {
     try {
         const completedShipments = await Shipment.find({
             createdByCenter: req.params.centerId,
@@ -163,7 +166,7 @@ router.get("/completed/:centerId", async (req, res) => {
 });
 
 // Get active shipments (Pending, Verified, In Transit) for a specific center
-router.get("/active/:centerId", async (req, res) => {
+router.get("/active/:centerId", isStaffAuthenticated, async (req, res) => {
     try {
         const activeShipments = await Shipment.find({
             createdByCenter: req.params.centerId,
@@ -205,7 +208,7 @@ router.get("/active/:centerId", async (req, res) => {
 });
 
 // Get completed shipments with assigned vehicles
-router.get("/completed", async (req, res) => {
+router.get("/completed", isStaffAuthenticated, async (req, res) => {
     try {
         const completedShipments = await Shipment.find({
             status: 'Completed',
@@ -232,7 +235,7 @@ router.get("/completed", async (req, res) => {
 });
 
 // Get shipment manifest
-router.get("/:shipmentId/manifest", async (req, res) => {
+router.get("/:shipmentId/manifest", isStaffAuthenticated, async (req, res) => {
     try {
         const shipment = await Shipment.findOne({
             shipmentId: req.params.shipmentId
@@ -347,117 +350,7 @@ router.get("/:shipmentId/manifest", async (req, res) => {
     }
 });
 
-// const Shipment = require("../models/B2BShipmentModel");
-// const express = require("express");
-// const router = express.Router();
-// const { processAllShipments } = require("../controllers/shipmentManagementControllers/shipmentController");
-// const Parcel = require("../models/ParcelModel"); // Make sure to require the Parcel model
 
-// // Process all shipments
-// router.get('/processExpressShipments/:center', async (req, res) => {
-//     try {
-//         const expressShipments = await processAllShipments('Express', req.params.center);
-//         console.log('Express Shipments:', expressShipments);
-//         res.status(201).json({ message: "Shipments created successfully", expressShipments });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// router.get('/processStandardShipments/:center', async (req, res) => {
-//     try {
-//         const standardShipments = await processAllShipments('Standard', req.params.center);
-//         console.log('Standard Shipments:', standardShipments);
-//         res.status(201).json({ message: "Shipments created successfully", standardShipments });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Add a new shipment
-// router.post("/add", async (req, res) => {
-//     try {
-//         const shipment = new Shipment(req.body);
-//         await shipment.save();
-//         res.status(201).json({ message: "Shipment created successfully", shipment });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Get all shipments
-// router.get("/", async (req, res) => {
-//     try {
-//         const shipments = await Shipment.find();
-//         res.status(200).json(shipments);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Get shipments by center
-// router.get("/:center/:shipmentType", async (req, res) => {
-//     try {
-//         const shipments = await Shipment.find({ sourceCenter: req.params.center, deliveryType: req.params.shipmentType });
-//         res.json(shipments);
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-
-// // Update shipment details
-// router.put("/:id", async (req, res) => {
-//     try {
-//         const updatedShipment = await Shipment.findOneAndUpdate(
-//             { id: req.params.id },  // Search by custom ID field
-//             req.body,
-//             { new: true, runValidators: true }  // Return updated document & validate fields
-//         );
-//         if (!updatedShipment) {
-//             return res.status(404).json({ message: "Shipment not found" });
-//         }
-//         res.json({ message: "Shipment updated successfully", updatedShipment });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Update all parcels' shipment ID to null in a specific shipment
-// router.put("/resetParcels/:id", async (req, res) => {
-//     try {
-//         const shipment = await Shipment.findOne({ id: req.params.id }); // Using 'id' field instead of MongoDB _id
-//         if (!shipment) {
-//             return res.status(404).json({ message: "Shipment not found" });
-//         }
-
-//         // Update all parcels in the Parcel collection that belong to this shipment
-//         await Parcel.updateMany(
-//             { shipmentId: shipment.id },
-//             { $set: { shipmentId: null } }
-//         );
-
-//         res.json({ message: "All parcels' shipment ID reset to null" });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-
-// // Delete a shipment
-// router.delete("/:id", async (req, res) => {
-//     try {
-//         const deletedShipment = await Shipment.findOneAndDelete({ id: req.params.id }); // Using 'id' field instead of MongoDB _id
-//         if (!deletedShipment) {
-//             return res.status(404).json({ message: "Shipment not found" });
-//         }
-//         res.json({ message: "Shipment deleted successfully", deletedShipment });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// module.exports = router;
 
 
 
@@ -666,7 +559,7 @@ router.patch("/:shipmentId/reset-parcels", async (req, res) => {
 });
 
 // Verify shipment and set confirmed to true
-router.put("/:shipmentId/verify", async (req, res) => {
+router.put("/:shipmentId/verify", isStaffAuthenticated, async (req, res) => {
     try {
         const shipment = await Shipment.findOne({
             $or: [
@@ -692,6 +585,17 @@ router.put("/:shipmentId/verify", async (req, res) => {
             { new: true, runValidators: true }
         );
 
+        // Update all parcels in this shipment to 'ShipmentAssigned' status
+        await Parcel.updateMany(
+            { _id: { $in: shipment.parcels } },
+            {
+                $set: {
+                    status: 'ShipmentAssigned',
+                    intransitedDate: new Date()
+                }
+            }
+        );
+
         res.status(200).json({
             success: true,
             message: "Shipment verified and confirmed successfully",
@@ -707,7 +611,7 @@ router.put("/:shipmentId/verify", async (req, res) => {
 });
 
 // Delete shipment (first nullify parcel shipmentIds, then delete shipment)
-router.delete("/:shipmentId", async (req, res) => {
+router.delete("/:shipmentId", isStaffAuthenticated, async (req, res) => {
     try {
         const shipment = await Shipment.findOne({
             $or: [
@@ -789,7 +693,7 @@ router.get("/:shipmentId", async (req, res) => {
 });
 
 // Route to dispatch a shipment (First branch action)
-router.put("/:id/dispatch", async (req, res) => {
+router.put("/:id/dispatch", isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
 
@@ -800,7 +704,7 @@ router.put("/:id/dispatch", async (req, res) => {
                 error: 'Invalid shipment ID format'
             });
         }
-
+console.log(`Dispatching shipment with ID: ${shipmentId}`);
         // Find and update the shipment
         const shipment = await Shipment.findByIdAndUpdate(
             shipmentId,
@@ -827,6 +731,7 @@ router.put("/:id/dispatch", async (req, res) => {
             { 
                 $set: { 
                     status: 'InTransit',
+                    intransitedDate: new Date(),
                     updatedAt: new Date()
                 }
             }
@@ -842,6 +747,55 @@ router.put("/:id/dispatch", async (req, res) => {
         }
 
         console.log(`Updated ${shipment.parcels.length} parcels to InTransit status for shipment ${shipmentId}`);
+
+        // Create notifications for ALL destination branches (intermediate + final)
+        if (shipment.route && shipment.route.length > 1) {
+            console.log('Creating notifications for destination branches:', {
+                shipmentId: shipment.shipmentId,
+                totalBranches: shipment.route.length,
+                destinationBranches: shipment.route.slice(1)
+            });
+            
+            // Get all destination branches (excluding the source branch)
+            const destinationBranches = shipment.route.slice(1);
+            
+            for (const branchId of destinationBranches) {
+            
+                
+                // Find all staff at this destination branch - use _id for ObjectId comparison
+                const branchStaff = await Staff.find({ 
+                    branchId: branchId._id,
+                    status: 'active' 
+                });
+
+               
+
+                // Create notifications for each staff member
+                for (const staff of branchStaff) {
+                    try {
+                       
+                        
+                        await createStaffNotification(
+                            staff._id,
+                            `Shipment ${shipment.shipmentId} is coming to your center. Prepare for processing.`,
+                            'shipment_incoming',
+                            {
+                                id: shipment._id,
+                                type: 'shipment'
+                            }
+                        );
+                        
+                        
+                    } catch (notificationError) {
+                        console.error('Error creating notification for staff:', staff._id, notificationError);
+                    }
+                }
+                
+                console.log(`Created notifications for ${branchStaff.length} staff members at destination branch ${branchId}`);
+            }
+        } else {
+            console.log('No destination branches found for notification creation');
+        }
 
         res.status(200).json({
             success: true,
@@ -859,7 +813,7 @@ router.put("/:id/dispatch", async (req, res) => {
 });
 
 // Route to complete a shipment (Last branch action)
-router.put("/:id/complete", async (req, res) => {
+router.put("/:id/complete", isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
 
@@ -896,7 +850,6 @@ router.put("/:id/complete", async (req, res) => {
             { _id: { $in: shipment.parcels } },
             { 
                 $set: { 
-                    status: 'ArrivedAtCollectionCenter',
                     updatedAt: new Date()
                 }
             }
@@ -921,6 +874,81 @@ router.put("/:id/complete", async (req, res) => {
         }
 
         console.log(`Updated ${shipment.parcels.length} parcels to ArrivedAtCollectionCenter status for shipment ${shipmentId}`);
+
+        // Create notification for all staff at the destination branch
+        if (shipment.route && shipment.route.length > 0) {
+            const destinationBranch = shipment.route[shipment.route.length - 1];
+            
+          
+            
+            // Find all staff at the destination branch - use _id for ObjectId comparison
+            const branchStaff = await Staff.find({ 
+                branchId: destinationBranch._id,
+                status: 'active' 
+            });
+
+           
+            // Create notifications for each staff member at destination
+            for (const staff of branchStaff) {
+                try {
+                   
+                    
+                    await createStaffNotification(
+                        staff._id,
+                        `Shipment ${shipment.shipmentId} has been completed and parcels are now available for collection`,
+                        'shipment_completed',
+                        {
+                            id: shipment._id,
+                            type: 'shipment'
+                        }
+                    );
+                    
+                    
+                } catch (notificationError) {
+                    console.error('Error creating notification for destination staff:', staff._id, notificationError);
+                }
+            }
+            
+           
+        } 
+
+        // Create notification for all staff at the source center (shipment created branch)
+        if (shipment.sourceCenter) {
+           
+            
+            // Find all staff at the source center - use _id for ObjectId comparison
+            const sourceStaff = await Staff.find({ 
+                branchId: shipment.sourceCenter._id,
+                status: 'active' 
+            });
+
+           
+
+            // Create notifications for each staff member at source center
+            for (const staff of sourceStaff) {
+                try {
+                    
+                    
+                    await createStaffNotification(
+                        staff._id,
+                        `Shipment ${shipment.shipmentId} has been successfully delivered to the final destination`,
+                        'shipment_delivered',
+                        {
+                            id: shipment._id,
+                            type: 'shipment'
+                        }
+                    );
+                    
+                 
+                } catch (notificationError) {
+                    console.error('Error creating notification for source staff:', staff._id, notificationError);
+                }
+            }
+            
+          
+        } else {
+            console.log('No source center found for notification creation');
+        }
 
         res.status(200).json({
             success: true,

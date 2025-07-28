@@ -5,6 +5,7 @@ const router = express.Router();
 const VehicleSchedule = require("../models/VehicleScheduleModel");
 const Vehicle = require("../models/VehicleModel");
 const Driver = require("../models/driverModel");
+const isStaffAuthenticated = require("../middleware/staffAuth");
 const { 
     assignVehicle, 
     findVehicleForShipment, 
@@ -24,7 +25,7 @@ const {
 const shipmentModel = require("../models/B2BShipmentModel");
 
 // Route to find available vehicle for a shipment (for user confirmation)
-router.get("/findVehicleForShipment/:id/:deliveryType", async (req, res) => {
+router.get("/findVehicleForShipment/:id/:deliveryType", isStaffAuthenticated, async (req, res) => {
     try {
         const shipmentId = req.params.id;
         const shipmentType = req.params.deliveryType;
@@ -72,13 +73,13 @@ router.post("/assignVehicleToShipment/:id/:deliveryType", async (req, res) => {
     }
 });
 
-// Route to get shipments by branch ID directly (for ViewShipmentsPage) - MUST come before :staffId route
+
 router.get("/b2b/shipments/branch/:branchId", getShipmentsByBranch);
 
-// Route to get pending B2B shipments for a specific staff member's center
+//to get pending B2B shipments for a specific staff member's center
 router.get("/b2b/shipments/:staffId", getPendingB2BShipments);
 
-// PHASE 2 - Vehicle Assignment Routes
+
 // Manual vehicle assignment
 router.post("/b2b/shipments/:shipmentId/assign-vehicle/manual", assignVehicleManual);
 
@@ -88,7 +89,6 @@ router.get("/b2b/shipments/:shipmentId/assign-vehicle/smart", assignVehicleSmart
 // Confirm vehicle assignment
 router.post("/b2b/shipments/:shipmentId/assign-vehicle/confirm", confirmVehicleAssignment);
 
-// PHASE 4 - Additional Parcels Routes
 // Get available additional parcels for a shipment with assigned vehicle
 router.get("/b2b/shipments/:shipmentId/available-parcels", getAvailableParcelsForShipment);
 

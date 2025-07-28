@@ -2715,7 +2715,7 @@ const enhancedFindVehicleForShipment = async (req, res) => {
                 console.log(`PARCEL SEARCH RESULT:`, parcelSearchResult);
 
                 if (parcelSearchResult && parcelSearchResult.parcelGroups) {
-                    console.log(`✅ PARCELS FOUND: ${parcelSearchResult.totalParcelsFound} parcels in ${parcelSearchResult.totalGroupsFound} groups`);
+                    console.log(`PARCELS FOUND: ${parcelSearchResult.totalParcelsFound} parcels in ${parcelSearchResult.totalGroupsFound} groups`);
                     availableParcelGroups = parcelSearchResult;
                     
                     // STEP 6: Calculate capacity constraints
@@ -2790,7 +2790,7 @@ const enhancedFindVehicleForShipment = async (req, res) => {
                     };
                 }
             } else {
-                console.log(`❌ NO PARCELS FOUND: parcelSearchResult was null, empty, or had no parcelGroups`);
+                console.log(`NO PARCELS FOUND: parcelSearchResult was null, empty, or had no parcelGroups`);
                 console.log(`Search details: Vehicle at ${vehicleLocation}, destinations:`, destinationCenters.map(id => branchIdToLocation[id.toString()]));
             }
 
@@ -2822,8 +2822,8 @@ const enhancedFindVehicleForShipment = async (req, res) => {
             },
             needsTransport: !isVehicleAtSource,
             message: isVehicleAtSource ? 
-                `✅ Vehicle ${vehicle.vehicleId} found at source location ${sourceLocation}` :
-                `🚚 Vehicle ${vehicle.vehicleId} found at ${vehicleLocation}, transport required to ${sourceLocation}`
+                `Vehicle ${vehicle.vehicleId} found at source location ${sourceLocation}` :
+                `Vehicle ${vehicle.vehicleId} found at ${vehicleLocation}, transport required to ${sourceLocation}`
         };
 
         // Add parcel information if vehicle is from another center
@@ -2836,7 +2836,7 @@ const enhancedFindVehicleForShipment = async (req, res) => {
                     assignOnly: "Assign Vehicle Only - Immediate assignment",
                     checkParcels: "Check for Parcels - Search and select additional parcels to carry"
                 };
-                console.log(`✅ PARCELS FOUND: ${availableParcelGroups.totalParcelsFound} parcels in ${availableParcelGroups.totalGroupsFound} groups`);
+                console.log(`PARCELS FOUND: ${availableParcelGroups.totalParcelsFound} parcels in ${availableParcelGroups.totalGroupsFound} groups`);
             } else {
                 // No parcels found - still provide structure but empty
                 response.availableParcelGroups = {
@@ -2861,7 +2861,7 @@ const enhancedFindVehicleForShipment = async (req, res) => {
                 response.userOptions = {
                     assignOnly: "Assign Vehicle Only - No additional parcels available"
                 };
-                console.log(`ℹ️ NO PARCELS FOUND: Vehicle can be assigned but no additional parcels available`);
+                console.log(`NO PARCELS FOUND: Vehicle can be assigned but no additional parcels available`);
             }
         }
 
@@ -2989,7 +2989,7 @@ const addParcelsToCurrentShipment = async (req, res) => {
         vehicle.currentShipment = shipment._id;
         await vehicle.save();
 
-        console.log(`✅ Successfully added ${selectedParcels.length} parcels to shipment`);
+        console.log(`Successfully added ${selectedParcels.length} parcels to shipment`);
         console.log(`Updated totals: ${newTotalWeight}kg, ${newTotalVolume}m³, ${newParcelCount} parcels`);
 
         return res.status(200).json({
@@ -3019,7 +3019,7 @@ const addParcelsToCurrentShipment = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Error adding parcels to current shipment:', error);
+        console.error('Error adding parcels to current shipment:', error);
         return res.status(500).json({
             success: false,
             message: 'Internal server error',
