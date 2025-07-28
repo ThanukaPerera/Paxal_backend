@@ -871,15 +871,21 @@ exports.addParcel = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Find or create receiver
-  let receiver = await Receiver.findOne({ receiverEmail });
-  if (!receiver) {
-    receiver = await Receiver.create({
-      receiverFullName,
-      receiverContact,
-      receiverEmail,
-    });
-  }
+
+  let receiver = await Receiver.findOne({
+  receiverEmail,
+  receiverFullName,
+  receiverContact,
+});
+
+if (!receiver) {
+  receiver = await Receiver.create({
+    receiverFullName,
+    receiverContact,
+    receiverEmail,
+  });
+}
+
 
   // Calculate distance between branches
   const distance = getBranchDistance(fromBranch.branchId, toBranch.branchId);
@@ -968,7 +974,7 @@ exports.addParcel = catchAsync(async (req, res, next) => {
          // Add notification
 await notificationController.createNotification(
   req.user.id,
-  `Your parcel #${newParcel.parcelId} has been registered`, // Using parcelId since trackingNo might not be set yet
+  `Your parcel #${newParcel.parcelId} has been added successfully!`, // Using parcelId since trackingNo might not be set yet
   'parcel_created',
   { id: newParcel._id, type: 'Parcel' }
 );
@@ -1068,7 +1074,8 @@ exports.getUserParcels = catchAsync(async (req, res, next) => {
   const senderId = req.user.id; // Get the authenticated user's ID
 
    const parcels = await Parcel.find({ senderId })
-   .populate("receiverId", "receiverFullName receiverDistrict")
+   .populate("receiverId", "receiverFullName receiverEmail")
+   .populate("to", "location");
   
 
   res.status(200).json({
@@ -1078,10 +1085,9 @@ exports.getUserParcels = catchAsync(async (req, res, next) => {
   });
 });
 
-//parcel tracking
+
+
 exports.getParcelByTrackingNumber = catchAsync(async (req, res, next) => {
-
-
   const { trackingNo } = req.params;
 
   if (!trackingNo) {
@@ -1089,67 +1095,42 @@ exports.getParcelByTrackingNumber = catchAsync(async (req, res, next) => {
     throw new Error("Please provide a tracking number");
   }
 
-  let parcelQuery = Parcel.findOne({ trackingNo: trackingNo.trim() })
-  .populate("senderId", "fname email contact")
-  .populate("receiverId", "receiverFullName receiverEmail receiverContact");
+  const parcelDoc = await Parcel.findOne({ trackingNo: trackingNo.trim() })
+    .populate("senderId", "fname lname email contact")
+    .populate("receiverId", "receiverFullName receiverEmail receiverContact")
+    .populate({
+      path: "from",
+      select: "location branchName city district province",
+      model: "Branch"
+    })
+    .populate({
+      path: "to",
+      select: "location branchName city district province", 
+      model: "Branch"
+    })
+    .select('+parcelPickedUpDate +arrivedToDistributionCenterTime +intransitedDate +arrivedToCollectionCenterTime +parcelDeliveredDate')
+    .lean();
 
-const parcelDoc = await parcelQuery.lean();
+  if (!parcelDoc) {
+    res.status(404);
+    throw new Error("Parcel not found");
+  }
 
-if (!parcelDoc) {
-  res.status(404);
-  throw new Error("Parcel not found");
-}
-
-// optionally populate from/to only if they exist
-if (parcelDoc.from && parcelDoc.to) {
-  await Parcel.populate(parcelDoc, [
-    { path: "from", select: "location branchName city district" },
-    { path: "to", select: "location branchName city district" },
-  ]);
-}
-
- 
-const progressPercentage = calculateProgressPercentage(parcelDoc.status);
-
-
-
-res.json({
-  ...parcelDoc,
-  progress: progressPercentage,
+  res.json(parcelDoc); // Just return the raw data
 });
-});
-
-// Helper function to calculate progress percentage
-const calculateProgressPercentage = (status) => {
-  const statusOrder = [
-    "OrderPlaced",
-    "PendingPickup",
-    "PickedUp",
-    "ArrivedAtDistributionCenter",
-    "ShipmentAssigned",
-    "InTransit",
-    "ArrivedAtCollectionCenter",
-    "DeliveryDispatched",
-    "Delivered",
-  ];
-
-  const currentIndex = statusOrder.indexOf(status);
-  return currentIndex >= 0
-    ? Math.round((currentIndex / (statusOrder.length - 1)) * 100)
-    : 0;
-};
 
 
 
 exports.getParcelById = catchAsync(async (req, res, next) => {
-
-   try {
+  try {
     const parcelId = req.params.id.trim();
 
     const parcel = await Parcel.findOne({ parcelId: { $regex: `^${parcelId}$`, $options: "i" } })
       .populate("receiverId", "receiverFullName receiverEmail receiverContact")
+      .populate("paymentId", "paymentMethod amount paymentStatus paymentDate")
       .populate("from", "location")
       .populate("to", "location");
+      
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });

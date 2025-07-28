@@ -30,22 +30,22 @@ const registerNewUser = async (userData, session) => {
     console.log("------A new user registered------");
 
     return savedUser._id;
-
-    
   } catch (error) {
     console.error("Error in registering a new user:", error);
-    throw error; 
+    throw error;
   }
 };
 
 // fetch a single user by ID
 const getOneUser = async (req, res) => {
   try {
-    const  user_id  = req.body;
-    const user = await User.findById(user_id );
+    const user_id = req.body;
+    const user = await User.findById(user_id);
     return res.status(200).json(user);
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching user information", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching user information", error });
   }
 };
 

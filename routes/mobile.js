@@ -268,7 +268,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
           payment = await Payment.findById(parcel.paymentId);
           if (payment) {
             payment.paymentStatus = 'paid';
-            payment.paidAt = new Date();
+            payment.paymentDate = new Date();
             payment.paymentMethod = paymentMethod || payment.paymentMethod;
             payment.amount = amount || payment.amount;
             payment.parcelId = payment.parcelId || parcel._id;
@@ -279,7 +279,7 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
             paymentMethod: 'COD',
             paymentStatus: 'paid',
             amount: amount,
-            paidAt: new Date(),
+            paymentDate: new Date(),
             parcelId: parcel._id
           });
           await payment.save();
@@ -298,9 +298,9 @@ router.post("/updateParcelStatus", authMiddleware, async (req, res) => {
       }
     }
 
-    // Notification logic added here
+
     try {
-      const userId = parcel.senderId; // Sender is the customer
+      const userId = parcel.senderId; 
       let message = '';
       let type = '';
 
@@ -397,7 +397,7 @@ router.get('/pickup-summary',authMiddleware, async (req, res) => {
   try {
     const { driverId } = req.query;
     
-    // 1. First validate the ID format
+   
     if (!mongoose.Types.ObjectId.isValid(driverId)) {
       return res.status(400).json({ 
         success: false,
@@ -406,12 +406,12 @@ router.get('/pickup-summary',authMiddleware, async (req, res) => {
       });
     }
 
-    // 2. Use new keyword with ObjectId
+   
     const pickups = await Pickup.find({ 
       driverId: new mongoose.Types.ObjectId(driverId) 
     }).populate('parcelId', 'status');
 
-    // 3. Calculate counts
+   
     const assignedCount = pickups.length;
     const pickedUpCount = pickups.filter(p => 
       p.pickedUpTime || p.parcelId?.status === 'PickedUp'

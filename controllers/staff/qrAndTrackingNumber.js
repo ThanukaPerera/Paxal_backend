@@ -71,9 +71,14 @@ const scanQRCode = async (req, res) => {
         });
       }
 
+       // Update the arrival time at distribution center if the branch is same.
+      if (parcel.from.equals(staff.branchId)) {
+        parcel.arrivedToDistributionCenterTime = new Date();
+      }
       // Updating parcel.
       parcel.status = "ArrivedAtCollectionCenter";
       parcel.arrivedToCollectionCenterTime = new Date();
+     
       const updatedParcel = await parcel.save();
       console.log("Parcel updated successfully:", updatedParcel);
 

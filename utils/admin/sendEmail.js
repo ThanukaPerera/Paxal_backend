@@ -384,8 +384,8 @@ const sendEmail = async (options) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER_THANUKA,
+        pass: process.env.EMAIL_PASS_THANUKA,
       },
       pool: true, // Use connection pooling
       maxConnections: 5,

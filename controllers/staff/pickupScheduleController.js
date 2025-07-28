@@ -218,7 +218,7 @@ const createNewPickupSchedule = async (req, res) => {
   }
 };
 
-// remove the parcel from an assigne schedule
+// remove the parcel from an assigned schedule
 const cancelPickupAssignment = async (req, res) => {
   try {
     const { parcelId } = req.body;
