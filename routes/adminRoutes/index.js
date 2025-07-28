@@ -16,6 +16,7 @@ const vehicleScheduleRoutes = require("./vehicleSchedules");
 const adminManagementRoutes = require("./adminManagement");
 const reportRoutes = require("./reports");
 const b2bShipmentRoutes = require("./b2bShipmentRoutes");
+const aiRoutes = require("./ai"); // AI insights routes
 
 
 // Use sub-routes
@@ -31,6 +32,7 @@ router.use("/vehicle-schedules", vehicleScheduleRoutes);
 router.use("/management", adminManagementRoutes);
 router.use("/reports",reportRoutes); // Import reports routes
 router.use("/b2b-shipments", b2bShipmentRoutes); // B2B shipment management routes
+router.use("/ai", aiRoutes); // AI insights and analysis routes
 
 
 
