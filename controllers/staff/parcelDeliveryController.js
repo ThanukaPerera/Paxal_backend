@@ -100,11 +100,20 @@ const updateParcelStatusToDeliveryDispatched = async (req, res) => {
 // update parcel status when receiver collected the parcel from the branch
 const updateParcelAsDelivered = async (req, res) => {
   try {
-    const { parcelId } = req.body;
+    const { parcelId, paid } = req.body;
+
+    console.log(parcelId, paid);
+
+    if (paid !== true) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment must be completed before the parcel delivery",
+      });
+    }
 
     const parcelData = {
       status: "Delivered",
-       parcelDeliveredDate: new Date(),
+      parcelDeliveredDate: new Date(),
     };
 
     //Find the parcel and update the status.
@@ -115,13 +124,13 @@ const updateParcelAsDelivered = async (req, res) => {
 
     // Mark the COD payment as collected.
     const paymentData = {
-      paymentStatus :"paid",
-      paymentDate : new Date().setHours(0, 0, 0, 0)
-    }
-    const payment = await Payment.findByIdAndUpdate(updatedParcel.paymentId, paymentData, {
-      new:true,
-    })
-    
+      paymentStatus: "paid",
+      paymentDate: new Date().setHours(0, 0, 0, 0),
+    };
+    await Payment.findByIdAndUpdate(updatedParcel.paymentId, paymentData, {
+      new: true,
+    });
+
     // Send a notification to the user in the application
     await notificationController.createNotification(
       updatedParcel.senderId,
