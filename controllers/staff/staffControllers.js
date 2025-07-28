@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const { sendPasswordResetEmail } = require("../../emails/emails");
 
 require("dotenv").config();
+const isProduction = process.env.NODE_ENV === "production";
 
 // server route 
 const checkAuthenticity = (req, res) => {
@@ -43,8 +44,8 @@ const staffLogin = async (req, res) => {
 
     res.cookie("StaffToken", token, {
       httpOnly: true, 
-      secure:true, //  In production, set this to true to allow only HTTPS . 
-      sameSite: "none",
+      secure:isProduction,  
+      sameSite:  isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
@@ -61,8 +62,8 @@ const staffLogout = (req, res) => {
     res.clearCookie("StaffToken", {
       path: "/",
       httpOnly: true,
-      sameSite: "Lax",
-      secure: false
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
     });
     return res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
