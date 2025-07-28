@@ -130,7 +130,8 @@ const getOneParcel = async (req, res) => {
       .populate("senderId")
       .populate("receiverId")
       .populate("paymentId")
-      .populate("to");
+      .populate("to")
+      .populate("from");
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel Not found" });
