@@ -1,5 +1,7 @@
 const Payment = require("../../models/PaymentModel");
 const Branch = require("../../models/BranchesModel");
+const Parcel = require("../../models/parcelModel");
+
 const branchDistances = require("../../utils/BranchDistances");
 
 // Calculate distance between two branches
@@ -99,7 +101,32 @@ const savePayment = async (paymentData, session) => {
     throw error;  }
 };
 
+//Check payment status
+const checkPaymentStatus = async (req,res) => {
+  try {
+    const {parcelId} = req.query;
+
+    const parcel= await Parcel.findOne({ parcelId: parcelId });
+    
+
+    const payment = await Payment.findById(parcel.paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    if (payment.paymentStatus === "paid") {
+      return res.status(200).json({ paid: true });
+    }else {
+      return res.status(200).json({ paid: false });
+    }
+  } catch (error) {
+    console.log("Error checking payment status:", error);
+    return res.status(500).json({ message: "Error checking payment status", error });
+  }
+}
+
 module.exports = {
   calculatePayment,
   savePayment,
+  checkPaymentStatus,
 };

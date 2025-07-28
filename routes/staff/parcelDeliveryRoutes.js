@@ -3,6 +3,7 @@ const router = express.Router();
 const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 const { getAllDoorstepDeliveryParcels, getAllCollectionCenterDeliveryParcels, updateParcelStatusToDeliveryDispatched, updateParcelAsDelivered, getDoorstepDeliveryStats, getCollectionCenterDeliveryStats } = require("../../controllers/staff/parcelDeliveryController");
 const { getOneParcel } = require("../../controllers/staff/parcelControllers");
+const { checkPaymentStatus } = require("../../controllers/staff/paymentController");
 
 // get all "doorstep" delivery parcels
 router.get("/get-all-doorstep-delivery-parcels",  authenticateStaff, getAllDoorstepDeliveryParcels);
@@ -24,6 +25,9 @@ router.get("/get-doorstep-delivery-stats", authenticateStaff, getDoorstepDeliver
 
 // get "collection center delivery" parcels stats
 router.get("/get-collection-center-delivery-stats", authenticateStaff, getCollectionCenterDeliveryStats);
+
+// check for the payment status of a parcel
+router.get("/check-payment", authenticateStaff, checkPaymentStatus);
 
 module.exports = router;
 
