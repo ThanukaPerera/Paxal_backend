@@ -4,7 +4,7 @@ const fs = require("fs");
 
 require('dotenv').config();
 
-const sender = process.env.EMAIL_USER;
+const sender = process.env.EMAIL_KALANI;
 
 // Setup email transport
 const transporter = nodemailer.createTransport({
@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: sender,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS_KALANI,
   },
 });
 
