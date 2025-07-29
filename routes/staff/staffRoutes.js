@@ -10,6 +10,7 @@ const {
   checkAuthenticity,
   updateStaffInfo,
   staffProfilePicUpdate,
+  getStaffBranch,
 } = require("../../controllers/staff/staffControllers");
 const {authenticateStaff} = require("../../middleware/adminMiddleware/authMiddleware");
 const staffImageUpload = require("../../middleware/staffImageUplaod");
@@ -39,5 +40,8 @@ router.put("/update-staff-info", authenticateStaff, updateStaffInfo);
 router.post("/profile/upload", authenticateStaff, staffImageUpload, staffProfilePicUpdate);
 
 router.get("/staffMainMenu", authenticateStaff, getStaffLoggedPage);
+
+// get staff branch
+router.get("/get-branch", authenticateStaff, getStaffBranch);
 
 module.exports = router;

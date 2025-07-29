@@ -248,7 +248,29 @@ const staffProfilePicUpdate = async (req, res) => {
   }
 };
 
+// Get staff's branch
+const getStaffBranch = async (req, res) => {
+  try {
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+    const branch = await Branch.findById(branch_id);
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
 
+    const from = branch.location;
+    console.log(from);
+
+    return res.status(200).json({from});
+  } catch (error) {
+    console.log("Error fetching staff's branch:", error);
+    return res
+      .status(500)
+      .json({ message: "Error fetching staff's branch", error });
+  }
+};
 
 module.exports = {
   checkAuthenticity,
@@ -260,5 +282,6 @@ module.exports = {
   getStaffLoggedPage, 
   getStaffInfo,
   updateStaffInfo,
-  staffProfilePicUpdate
+  staffProfilePicUpdate,
+  getStaffBranch
 };
