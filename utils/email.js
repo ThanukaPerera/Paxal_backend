@@ -25,6 +25,8 @@ const sendEmail = async (options) => {
     }
 
     console.log("Sending email to:", options.email);
+
+    console.log( "Email sending", process.env.EMAIL_USER,process.env.EMAIL_PASS,)
     
     // Create transporter with error handling
     const transporter = nodemailer.createTransport({
