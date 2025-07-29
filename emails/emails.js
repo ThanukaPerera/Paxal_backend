@@ -7,6 +7,7 @@ require('dotenv').config();
 const sender = process.env.EMAIL_KALANI;
 
 // Setup email transport
+console.log(process.env.EMAIL_PASS_KALANI,process.env.EMAIL_KALANI);
 const transporter = nodemailer.createTransport({
   service: "gmail",
   host: "smtp.gmail.com",
