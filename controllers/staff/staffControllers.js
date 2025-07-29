@@ -1,4 +1,5 @@
 const  Staff  = require("../../models/StaffModel")
+const Branch = require("../../models/BranchesModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -261,9 +262,10 @@ const getStaffBranch = async (req, res) => {
     }
 
     const from = branch.location;
-    console.log(from);
+    
+   
 
-    return res.status(200).json({from});
+    return res.status(200).json({from, branch_id});
   } catch (error) {
     console.log("Error fetching staff's branch:", error);
     return res
