@@ -111,9 +111,41 @@ const parcelSchema = new mongoose.Schema(
         "NotAccepted",
         "WrongAddress",
         "Return",
+        "Cancelled"
       ],
       default: "OrderPlaced",
       required: true,
+    },
+    // Cancellation/Return Information
+    cancellationInfo: {
+      reason: { type: String, required: false },
+      description: { type: String, required: false },
+      cancelledBy: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        required: false,
+        ref:"Admin"
+      },
+      cancelledByModel: {
+        type: String,
+        enum: ['Staff', 'Admin'],
+        required: false
+      },
+      cancelledAt: { type: Date, required: false },
+    },
+    returnInfo: {
+      reason: { type: String, required: false },
+      description: { type: String, required: false },
+      returnedBy: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        required: false,
+        ref:"Admin"
+      },
+      returnedByModel: {
+        type: String,
+        enum: ['Staff', 'Admin'],
+        required: false
+      },
+      returnedAt: { type: Date, required: false },
     },
     pickupInformation: pickupSchema,
     deliveryInformation: deliverySchema,

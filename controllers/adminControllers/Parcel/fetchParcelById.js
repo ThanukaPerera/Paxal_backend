@@ -1,5 +1,7 @@
 const Parcel = require("../../../models/parcelModel");
 const Payment = require("../../../models/PaymentModel");
+const Staff = require("../../../models/StaffModel");
+const Admin = require("../../../models/AdminModel");
 const mongoose = require('mongoose')
 
 const fetchParcelById = async (req, res) => {
@@ -14,7 +16,6 @@ const fetchParcelById = async (req, res) => {
     }
 
     // Find parcel by custom ID
-
     const parcel = await Parcel.findOne({_id:parcelId})
       .select("-__v")
       .populate(
@@ -25,8 +26,44 @@ const fetchParcelById = async (req, res) => {
       .populate("paymentId", "-__v")
       .populate("from", "-__v")
       .populate("to", "-__v")
+      .populate("cancellationInfo.cancelledBy", "-__v")
+      .populate("returnInfo.returnedBy", "-__v")
       .lean()
       .exec();
+
+    if (!parcel) {
+      return res.status(404).json({
+        success: false,
+        message: "Parcel not found",
+      });
+    }
+
+    // Manually populate cancellation and return information - Only Admin operations
+    if (parcel.cancellationInfo?.cancelledBy) {
+      const cancelledByData = await Admin.findById(parcel.cancellationInfo.cancelledBy)
+        .select('adminId name email nic contactNo')
+        .lean();
+      
+      if (cancelledByData) {
+        parcel.cancellationInfo.cancelledBy = {
+          ...cancelledByData,
+          userType: 'Admin'
+        };
+      }
+    }
+
+    if (parcel.returnInfo?.returnedBy) {
+      const returnedByData = await Admin.findById(parcel.returnInfo.returnedBy)
+        .select('adminId name email nic contactNo')
+        .lean();
+      
+      if (returnedByData) {
+        parcel.returnInfo.returnedBy = {
+          ...returnedByData,
+          userType: 'Admin'
+        };
+      }
+    }
     if (!parcel) {
       return res.status(404).json({
         success: false,
