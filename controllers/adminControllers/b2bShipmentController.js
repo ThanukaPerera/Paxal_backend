@@ -114,23 +114,79 @@ const getAllB2BShipments = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Get drivers for vehicles and add parcel size information
+    const vehicleIds = shipments
+      .map(s => s.assignedVehicle?._id)
+      .filter(Boolean);
+    
+    const driversForVehicles = await Driver.find({ vehicleId: { $in: vehicleIds } })
+      .populate('branchId', 'branchId location contact')
+      .lean();
+    
+    const vehicleDriverMap = {};
+    driversForVehicles.forEach(driver => {
+      vehicleDriverMap[driver.vehicleId.toString()] = driver;
+    });
+
+    // Add parcel size details and vehicle driver information
+    const processedShipments = shipments.map(shipment => {
+      const shipmentObj = shipment.toObject();
+      
+      // Add driver assigned to vehicle
+      if (shipmentObj.assignedVehicle?._id) {
+        const vehicleDriver = vehicleDriverMap[shipmentObj.assignedVehicle._id.toString()];
+        shipmentObj.vehicleDriver = vehicleDriver ? {
+          driverId: vehicleDriver.driverId,
+          name: vehicleDriver.name,
+          email: vehicleDriver.email,
+          contactNo: vehicleDriver.contactNo,
+          licenseId: vehicleDriver.licenseId,
+          branchId: vehicleDriver.branchId
+        } : null;
+      }
+
+      // Add parcel size details
+      if (shipmentObj.parcels) {
+        shipmentObj.parcels = shipmentObj.parcels.map(parcel => {
+          const getParcelProperties = (itemSize) => {
+            switch (itemSize) {
+              case "small":
+                return { parcelWeight: 2, parcelVolume: 0.2 };
+              case "medium":
+                return { parcelWeight: 5, parcelVolume: 0.5 };
+              default:
+                return { parcelWeight: 10, parcelVolume: 1 };
+            }
+          };
+          
+          const sizeProperties = getParcelProperties(parcel.itemSize);
+          return {
+            ...parcel,
+            ...sizeProperties
+          };
+        });
+      }
+      
+      return shipmentObj;
+    });
+
     // Calculate summary statistics
     const summary = {
       totalShipments: total,
-      totalParcels: shipments.reduce((sum, shipment) => sum + shipment.parcelCount, 0),
-      totalWeight: shipments.reduce((sum, shipment) => sum + shipment.totalWeight, 0),
-      totalVolume: shipments.reduce((sum, shipment) => sum + shipment.totalVolume, 0),
-      totalDistance: shipments.reduce((sum, shipment) => sum + shipment.totalDistance, 0),
+      totalParcels: processedShipments.reduce((sum, shipment) => sum + shipment.parcelCount, 0),
+      totalWeight: processedShipments.reduce((sum, shipment) => sum + shipment.totalWeight, 0),
+      totalVolume: processedShipments.reduce((sum, shipment) => sum + shipment.totalVolume, 0),
+      totalDistance: processedShipments.reduce((sum, shipment) => sum + shipment.totalDistance, 0),
       shipmentsByStatus: await getStatusBreakdown(filter),
       shipmentsByDeliveryType: await getDeliveryTypeBreakdown(filter),
-      shipmentsWithVehicles: shipments.filter(s => s.assignedVehicle).length,
-      shipmentsWithDrivers: shipments.filter(s => s.assignedDriver).length
+      shipmentsWithVehicles: processedShipments.filter(s => s.assignedVehicle).length,
+      shipmentsWithDrivers: processedShipments.filter(s => s.assignedDriver || s.vehicleDriver).length
     };
 
     res.status(200).json({
       success: true,
       data: {
-        shipments,
+        shipments: processedShipments,
         summary,
         pagination: {
           currentPage: parseInt(page),
@@ -224,9 +280,53 @@ const getB2BShipmentById = async (req, res) => {
       });
     }
 
+    // Get driver assigned to vehicle and add parcel size information
+    let vehicleDriver = null;
+    if (shipment.assignedVehicle?._id) {
+      vehicleDriver = await Driver.findOne({ vehicleId: shipment.assignedVehicle._id })
+        .populate('branchId', 'branchId location contact')
+        .lean();
+    }
+
+    const shipmentObj = shipment.toObject();
+    
+    // Add vehicle driver information
+    if (vehicleDriver) {
+      shipmentObj.vehicleDriver = {
+        driverId: vehicleDriver.driverId,
+        name: vehicleDriver.name,
+        email: vehicleDriver.email,
+        contactNo: vehicleDriver.contactNo,
+        licenseId: vehicleDriver.licenseId,
+        branchId: vehicleDriver.branchId
+      };
+    }
+
+    // Add parcel size details
+    if (shipmentObj.parcels) {
+      shipmentObj.parcels = shipmentObj.parcels.map(parcel => {
+        const getParcelProperties = (itemSize) => {
+          switch (itemSize) {
+            case "small":
+              return { parcelWeight: 2, parcelVolume: 0.2 };
+            case "medium":
+              return { parcelWeight: 5, parcelVolume: 0.5 };
+            default:
+              return { parcelWeight: 10, parcelVolume: 1 };
+          }
+        };
+        
+        const sizeProperties = getParcelProperties(parcel.itemSize);
+        return {
+          ...parcel,
+          ...sizeProperties
+        };
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: shipment
+      data: shipmentObj
     });
 
   } catch (error) {

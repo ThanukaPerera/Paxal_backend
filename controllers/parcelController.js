@@ -1129,14 +1129,20 @@ exports.getParcelById = catchAsync(async (req, res, next) => {
       .populate("receiverId", "receiverFullName receiverEmail receiverContact")
       .populate("paymentId", "paymentMethod amount paymentStatus paymentDate")
       .populate("from", "location")
-      .populate("to", "location");
+      .populate("to", "location")
+      .populate("senderId", "fName lName email contact address city district province zone")
+      .populate("cancellationInfo.cancelledBy", "staffId fName lName email")
+      .populate("returnInfo.returnedBy", "staffId fName lName email");
       
 
     if (!parcel) {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
-    res.status(200).json({ parcel });
+    res.status(200).json({ 
+      success: true,
+      data: parcel 
+    });
   } catch (error) {
     console.error("Parcel Fetch Error:", error);
     res.status(500).json({ message: "Server error" });
