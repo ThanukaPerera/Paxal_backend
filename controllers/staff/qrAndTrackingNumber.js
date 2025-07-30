@@ -5,7 +5,7 @@ const Receiver = require("../../models/ReceiverModel");
 const Parcel = require("../../models/parcelModel");
 const Staff = require("../../models/StaffModel");
 const Branch = require("../../models/BranchesModel");
-const { sendCollectionCenterArrivedEmail } = require("../../emails/emails");
+const { sendCollectionCenterArrivedEmail, sendReturnToBranchEmail } = require("../../emails/emails");
 const notificationController = require("../notificationController");
 
 // generate a tracking number
@@ -63,6 +63,28 @@ const scanQRCode = async (req, res) => {
       return res.status(404).json({ message: "Parcel not found" });
     }
 
+    if (parcel.status === "Return" && parcel.to.equals(staff.branchId)) {
+      parcel.status = "ArrivedAtReturningBranch";
+      parcel.arrivedAtReturningBranchDate = new Date();
+      const updatedParcel = await parcel.save();
+      console.log("Parcel updated successfully:", updatedParcel);
+
+      //Send and email to the sender.
+      const sender = await User.findById(updatedParcel.senderId);
+      const senderEmail = sender.email;
+
+
+      const result = await sendReturnToBranchEmail(
+        senderEmail,
+        decodedText,
+        branchName
+      );
+      if (!result.success) {
+        console.log("Error in sending the email with parcel update about return", result);
+      }
+
+    }
+
     if (parcel.to.equals(staff.branchId)) {
       // Check if already updated
       if (parcel.status === "ArrivedAtCollectionCenter") {
@@ -105,7 +127,7 @@ const scanQRCode = async (req, res) => {
         branchName
       );
       if (!result1.success) {
-        console.log("Error in sending the email with tracking number", result1);
+        console.log("Error in sending the email with parcel update", result1);
       }
       const result2 = await sendCollectionCenterArrivedEmail(
         receiverEmail,
@@ -113,7 +135,7 @@ const scanQRCode = async (req, res) => {
         branchName
       );
       if (!result2.success) {
-        console.log("Error in sending the email with tracking number", result2);
+        console.log("Error in sending the email with parcel update", result2);
       }
 
       return res.status(200).json({

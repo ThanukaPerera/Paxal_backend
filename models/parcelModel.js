@@ -96,6 +96,8 @@ const parcelSchema = new mongoose.Schema(
     arrivedToCollectionCenterTime: { type: Date, required: false },
     parcelDispatchedDate: { type: Date, required: false },
     parcelDeliveredDate: { type: Date, required: false },
+    arrivedAtReturningBranchDate: { type: Date, required: false },
+
     status: {
       type: String,
       enum: [
@@ -111,6 +113,7 @@ const parcelSchema = new mongoose.Schema(
         "NotAccepted",
         "WrongAddress",
         "Return",
+        "ArrivedAtReturningBranch"
       ],
       default: "OrderPlaced",
       required: true,
