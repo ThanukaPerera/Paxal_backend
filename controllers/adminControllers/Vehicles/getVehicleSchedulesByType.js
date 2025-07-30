@@ -592,6 +592,12 @@ const getVehicleSchedulesByType = async (req, res) => {
           registrationNo: vehicle.registrationNo,
           vehicleType: vehicle.vehicleType,
           available: vehicle.available,
+          capacity: {
+            maxVolume: vehicle.capableVolume || 0,
+            maxWeight: vehicle.capableWeight || 0,
+            volumeUnit: 'm³', // or appropriate unit
+            weightUnit: 'kg'  // or appropriate unit
+          },
           assignedBranch: vehicle.assignedBranch ? {
             branchId: vehicle.assignedBranch.branchId,
             location: vehicle.assignedBranch.location,
