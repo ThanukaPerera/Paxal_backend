@@ -60,6 +60,10 @@ const updateParcelStatus = catchAsync(async (req, res, next) => {
       returnedByModel: 'Admin', // Always Admin for returns
       returnedAt: new Date()
     };
+    
+    // Swap from and to branches when returning a parcel
+    updateData.from = parcel.to;
+    updateData.to = parcel.from;
   }
 
   // Handle Reactivation - clear cancellation/return info and reset to OrderPlaced

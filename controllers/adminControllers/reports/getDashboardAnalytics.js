@@ -20,9 +20,42 @@ const VehicleSchedule = require("../../../models/VehicleScheduleModel");
  */
 const getDashboardAnalytics = async (req, res) => {
   try {
-    const endDate = new Date();
-    const startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-
+    // Get filter parameters from query string
+    const { period = '1w', startDate: customStartDate, endDate: customEndDate } = req.query;
+    
+    // Calculate date range based on period
+    let endDate = new Date();
+    let startDate;
+    let periodLabel;
+    
+    switch (period) {
+      case '1w':
+        startDate = new Date(endDate.getTime() - (7 * 24 * 60 * 60 * 1000));
+        periodLabel = 'Last 7 days';
+        break;
+      case '1m':
+        startDate = new Date(endDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+        periodLabel = 'Last 30 days';
+        break;
+      case '2m':
+        startDate = new Date(endDate.getTime() - (60 * 24 * 60 * 60 * 1000));
+        periodLabel = 'Last 2 months';
+        break;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          startDate = new Date(customStartDate);
+          endDate = new Date(customEndDate);
+          periodLabel = 'Custom range';
+        } else {
+          // Default to 1 week if custom dates are not provided
+          startDate = new Date(endDate.getTime() - (7 * 24 * 60 * 60 * 1000));
+          periodLabel = 'Last 7 days';
+        }
+        break;
+      default:
+        startDate = new Date(endDate.getTime() - (7 * 24 * 60 * 60 * 1000));
+        periodLabel = 'Last 7 days';
+    }
 
     const dateFilter = {
       createdAt: { $gte: startDate, $lte: endDate }
@@ -49,12 +82,13 @@ const getDashboardAnalytics = async (req, res) => {
       status: "success",
       message: "Dashboard analytics fetched successfully",
       data: {
-        period:"current-month",
+        period: period,
+        periodLabel: periodLabel,
         dateRange: {
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          month: new Date().toLocaleString('default', { month: 'long' }),
-          year: new Date().getFullYear()
+          month: endDate.toLocaleString('default', { month: 'long' }),
+          year: endDate.getFullYear()
         },
         kpi: kpiMetrics,
         charts: chartData,
@@ -91,7 +125,8 @@ const getDashboardAnalytics = async (req, res) => {
     parcelStatus,
     paymentStatus,
     previousPeriodParcels,
-    previousPeriodRevenue
+    previousPeriodRevenue,
+    deliveredParcelsData
   ] = await Promise.all([
     Parcel.countDocuments(dateFilter),
     Payment.aggregate([
@@ -133,12 +168,56 @@ const getDashboardAnalytics = async (req, res) => {
         }
       },
       { $group: { _id: null, total: { $sum: "$amount" } } }
-    ])
+    ]),
+    // Get delivered parcels with delivery times
+    Parcel.find({
+      ...dateFilter,
+      status: "Delivered",
+      parcelDeliveredDate: { $exists: true, $ne: null }
+    }).select('createdAt parcelDeliveredDate')
   ]);
 
   const revenue = totalRevenue[0]?.total || 0;
   const paidAmount = paidPaymentsAmount[0]?.total || 0;
   const previousRevenue = previousPeriodRevenue[0]?.total || 0;
+  
+  // Calculate average delivery time
+  let avgDeliveryTime = 0;
+  let avgDeliveryTimeFormatted = "No data";
+  
+  if (deliveredParcelsData && deliveredParcelsData.length > 0) {
+    let totalDeliveryTimeMs = 0;
+    let validDeliveries = 0;
+    
+    deliveredParcelsData.forEach(parcel => {
+      if (parcel.createdAt && parcel.parcelDeliveredDate) {
+        const orderTime = new Date(parcel.createdAt);
+        const deliveryTime = new Date(parcel.parcelDeliveredDate);
+        const deliveryDurationMs = deliveryTime - orderTime;
+        
+        if (deliveryDurationMs > 0) {
+          totalDeliveryTimeMs += deliveryDurationMs;
+          validDeliveries++;
+        }
+      }
+    });
+    
+    if (validDeliveries > 0) {
+      avgDeliveryTime = totalDeliveryTimeMs / validDeliveries;
+      // Convert to days and hours
+      const days = Math.floor(avgDeliveryTime / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((avgDeliveryTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      
+      if (days > 0) {
+        avgDeliveryTimeFormatted = `${days}d ${hours}h`;
+      } else if (hours > 0) {
+        avgDeliveryTimeFormatted = `${hours}h`;
+      } else {
+        const minutes = Math.floor((avgDeliveryTime % (1000 * 60 * 60)) / (1000 * 60));
+        avgDeliveryTimeFormatted = `${minutes}m`;
+      }
+    }
+  }
   
   // Calculate percentage changes
   const parcelChange = previousPeriodParcels > 0 ? 
@@ -196,6 +275,13 @@ const getDashboardAnalytics = async (req, res) => {
       value: paymentRate.toFixed(1),
       status: paymentRate >= 95 ? "excellent" : paymentRate >= 85 ? "good" : "needs-improvement",
       target: 95
+    },
+    avgDeliveryTime: {
+      value: avgDeliveryTimeFormatted,
+      rawValue: avgDeliveryTime, // in milliseconds
+      count: deliveredParcelsData?.length || 0,
+      status: avgDeliveryTime > 0 ? (avgDeliveryTime <= (2 * 24 * 60 * 60 * 1000) ? "excellent" : 
+              avgDeliveryTime <= (3 * 24 * 60 * 60 * 1000) ? "good" : "needs-improvement") : "no-data"
     }
   };
 }

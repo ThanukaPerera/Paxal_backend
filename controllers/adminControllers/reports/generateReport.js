@@ -1130,30 +1130,84 @@ const generateReport = async (req, res) => {
         break;
     }
 
-    // Add metadata
+    // Generate descriptive title
+    const reportTypeNames = {
+      comprehensive: "Comprehensive Business Analytics Report",
+      parcels: "Parcel Management Report",
+      shipments: "Shipment Analytics Report", 
+      users: "User Activity Report",
+      financial: "Financial Performance Report",
+      operational: "Operational Efficiency Report"
+    };
+
+    const formatDateForTitle = (date) => {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric'
+      });
+    };
+
+    const formatDateTimeForTitle = (date) => {
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+
+    const reportTitle = reportTypeNames[reportType] || "Analytics Report";
+    const dateRangeTitle = `${formatDateForTitle(startDateObj)} - ${formatDateForTitle(endDateObj)}`;
+    const branchInfo = branchId && branchId !== "all" ? ` - Branch: ${branchId}` : " - All Branches";
+    const fullTitle = `${reportTitle} | ${dateRangeTitle}${branchInfo}`;
+
+    // Add metadata with title and enhanced information
     const reportMetadata = {
+      title: fullTitle,
+      subtitle: `Generated on ${formatDateTimeForTitle(new Date())}`,
+      reportType: reportTypeNames[reportType] || reportType,
       generatedAt: new Date().toISOString(),
       dateRange: {
         startDate: startDateObj.toISOString(),
         endDate: endDateObj.toISOString(),
+        formatted: {
+          startDate: formatDateForTitle(startDateObj),
+          endDate: formatDateForTitle(endDateObj),
+          range: dateRangeTitle
+        }
       },
-      reportType,
-      branchId: branchId || "all",
+      scope: {
+        branchId: branchId || "all",
+        branchLabel: branchId && branchId !== "all" ? `Branch: ${branchId}` : "All Branches",
+        reportPart: reportPart || "all"
+      },
       format,
       recordCount: Object.values(reportData).reduce(
         (sum, data) => sum + (Array.isArray(data) ? data.length : 0),
         0
       ),
+      generationInfo: {
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        version: "1.0"
+      }
     };
 
     if (format === "csv") {
-      // Generate CSV
+      // Generate CSV with enhanced header
+      const csvTitleRow = `"${fullTitle}"\n`;
+      const csvSubtitleRow = `"${reportMetadata.subtitle}"\n`;
+      const csvEmptyRow = `\n`;
+      
       const fields = [
         { label: "Report Type", value: "metadata.reportType" },
         { label: "Generated At", value: "metadata.generatedAt" },
-        { label: "Start Date", value: "metadata.dateRange.startDate" },
-        { label: "End Date", value: "metadata.dateRange.endDate" },
-        { label: "Branch ID", value: "metadata.branchId" },
+        { label: "Date Range", value: "metadata.dateRange.formatted.range" },
+        { label: "Branch Scope", value: "metadata.scope.branchLabel" },
+        { label: "Record Count", value: "metadata.recordCount" },
         ...Object.keys(reportData).flatMap((key) =>
           Array.isArray(reportData[key])
             ? reportData[key].map((_, index) => ({
@@ -1164,12 +1218,15 @@ const generateReport = async (req, res) => {
         ),
       ];
       const parser = new Parser({ fields });
-      const csv = parser.parse({ metadata: reportMetadata, data: reportData });
+      const csvData = parser.parse({ metadata: reportMetadata, data: reportData });
+      
+      // Combine title, subtitle, empty row, and data
+      const csv = csvTitleRow + csvSubtitleRow + csvEmptyRow + csvData;
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="report_${reportType}_${new Date().toISOString().split("T")[0]}.csv"`
+        `attachment; filename="${reportType}_report_${formatDateForTitle(startDateObj).replace(/\s/g, '_')}_to_${formatDateForTitle(endDateObj).replace(/\s/g, '_')}.csv"`
       );
       return res.send(csv);
     } else {
@@ -1206,57 +1263,26 @@ async function generateComprehensiveReport(
       case "parcels":
         return {
           parcelAnalytics: await getParcelAnalytics(parcelFilter),
-          trends: await getTrendAnalysis(
-            startDate,
-            endDate,
-            ["parcels"],
-            parcelFilter
-          ),
         };
       case "shipments":
         return {
           shipmentAnalytics: await getShipmentAnalytics(shipmentFilter),
-          trends: await getTrendAnalysis(
-            startDate,
-            endDate,
-            ["shipments"],
-            shipmentFilter
-          ),
         };
       case "users":
         return {
           userAnalytics: await getUserAnalytics(userFilter),
-          trends: await getTrendAnalysis(startDate, endDate, ["users"], userFilter),
         };
       case "financial":
         return {
           financialAnalytics: await getFinancialAnalytics(paymentFilter),
-          trends: await getTrendAnalysis(
-            startDate,
-            endDate,
-            ["financial"],
-            paymentFilter
-          ),
         };
       case "operational":
         return {
           operationalAnalytics: await getOperationalAnalytics(operationalFilter),
-          trends: await getTrendAnalysis(
-            startDate,
-            endDate,
-            ["operational"],
-            operationalFilter
-          ),
         };
       case "branches":
         return {
           branchPerformance: await getBranchPerformance(parcelFilter),
-          trends: await getTrendAnalysis(
-            startDate,
-            endDate,
-            ["parcels"],
-            parcelFilter
-          ),
         };
     }
   }
@@ -1288,7 +1314,6 @@ async function generateComprehensiveReport(
     financialAnalytics,
     operationalAnalytics,
     branchPerformance,
-    trends: await getTrendAnalysis(startDate, endDate, null, parcelFilter),
   });
   return {
     systemOverview,
@@ -1298,7 +1323,6 @@ async function generateComprehensiveReport(
     financialAnalytics,
     operationalAnalytics,
     branchPerformance,
-    trends: await getTrendAnalysis(startDate, endDate, null, parcelFilter),
   };
 }
 
@@ -1843,164 +1867,6 @@ async function getBranchPerformance(dateFilter) {
     branchStats,
     message: branchStats.length ? undefined : "No branch performance data",
   };
-}
-
-/**
- * Get trend analysis
- */
-async function getTrendAnalysis(startDate, endDate, categories = null, dateFilter = {}) {
-  const trends = {};
-  const baseFilter = { createdAt: { $gte: startDate, $lte: endDate }, ...dateFilter };
-  const includeCategories = categories || ["parcels", "shipments", "users", "financial", "operational"];
-
-  const pipeline = [
-    { $match: baseFilter },
-    {
-      $facet: {
-        ...(includeCategories.includes("parcels") && {
-          parcels: [
-            {
-              $group: {
-                _id: {
-                  year: { $year: "$createdAt" },
-                  month: { $month: "$createdAt" },
-                  day: { $dayOfMonth: "$createdAt" },
-                },
-                count: { $sum: 1 },
-                totalRevenue: { $sum: "$price" },
-              },
-            },
-            { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
-          ],
-        }),
-        ...(includeCategories.includes("shipments") && {
-          shipments: [
-            { $match: baseFilter },
-            {
-              $group: {
-                _id: {
-                  year: { $year: "$createdAt" },
-                  month: { $month: "$createdAt" },
-                },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { "_id.year": 1, "_id.month": 1 } },
-          ],
-        }),
-        ...(includeCategories.includes("users") && {
-          users: [
-            { $match: baseFilter },
-            {
-              $group: {
-                _id: {
-                  year: { $year: "$createdAt" },
-                  month: { $month: "$createdAt" },
-                },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { "_id.year": 1, "_id.month": 1 } },
-          ],
-        }),
-        ...(includeCategories.includes("financial") && {
-          financial: [
-            { $match: baseFilter },
-            {
-              $group: {
-                _id: {
-                  year: { $year: "$createdAt" },
-                  month: { $month: "$createdAt" },
-                },
-                totalRevenue: { $sum: "$amount" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { "_id.year": 1, "_id.month": 1 } },
-          ],
-        }),
-        ...(includeCategories.includes("operational") && {
-          operational: [
-            { $match: baseFilter },
-            {
-              $group: {
-                _id: "$type",
-                count: { $sum: 1 },
-                totalParcels: { $sum: { $size: { $ifNull: ["$assignedParcels", []] } } },
-              },
-            },
-          ],
-        }),
-      },
-    },
-  ];
-
-  const results = await Promise.all([
-    includeCategories.includes("parcels") ? Parcel.aggregate(pipeline) : [],
-    includeCategories.includes("shipments") ? B2BShipment.aggregate(pipeline) : [],
-    includeCategories.includes("users") ? User.aggregate(pipeline) : [],
-    includeCategories.includes("financial") ? Payment.aggregate(pipeline) : [],
-    includeCategories.includes("operational") ? VehicleSchedule.aggregate(pipeline) : [],
-  ]);
-
-  if (includeCategories.includes("parcels")) {
-    trends.parcelTrend = {
-      growth: calculateGrowthRate(results[0].parcels, "count"),
-      period: `${startDate.toDateString()} to ${endDate.toDateString()}`,
-    };
-  }
-
-  if (includeCategories.includes("shipments")) {
-    trends.shipmentTrend = {
-      growth: calculateGrowthRate(results[1].shipments, "count"),
-      period: `${startDate.toDateString()} to ${endDate.toDateString()}`,
-    };
-  }
-
-  if (includeCategories.includes("users")) {
-    trends.userTrend = {
-      growth: calculateGrowthRate(results[2].users, "count"),
-      period: `${startDate.toDateString()} to ${endDate.toDateString()}`,
-    };
-  }
-
-  if (includeCategories.includes("financial")) {
-    trends.revenueTrend = {
-      growth: calculateGrowthRate(results[3].financial, "totalRevenue"),
-      period: `${startDate.toDateString()} to ${endDate.toDateString()}`,
-    };
-  }
-
-  if (includeCategories.includes("operational")) {
-    const vehicleTrends = await Vehicle.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const utilizationRate = vehicleTrends.find((v) => v._id === "busy")?.count || 0;
-    const totalVehicles = vehicleTrends.reduce((sum, v) => sum + v.count, 0);
-
-    trends.vehicleTrend = {
-      growth: totalVehicles > 0 ? Math.round((utilizationRate / totalVehicles) * 100) : 0,
-      period: "Current utilization rate",
-    };
-  }
-
-  return trends;
-}
-
-/**
- * Calculate growth rate from trend data
- */
-function calculateGrowthRate(trendData, field) {
-  if (!trendData || trendData.length < 2) return 0;
-  const firstPeriod = trendData[0][field] || 0;
-  const lastPeriod = trendData[trendData.length - 1][field] || 0;
-  return firstPeriod === 0 ? (lastPeriod > 0 ? 100 : 0) : Math.round(((lastPeriod - firstPeriod) / firstPeriod) * 100);
 }
 
 module.exports = {
