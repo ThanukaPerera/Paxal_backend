@@ -1,5 +1,7 @@
 const bcrypt = require("bcrypt");
 const User = require("../../models/userModel");
+const generator = require("generate-password");
+const { sendUserPasswordEmail } = require("../../emails/emails");
 
 // register a new user
 const registerNewUser = async (userData, session) => {
@@ -15,8 +17,16 @@ const registerNewUser = async (userData, session) => {
 
     const userId = `user-${Date.now()}`;
 
-    const defaultPassword = "paxal12345"; // Provide a default password for the users registered by the staff.
-    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+    const password = generator.generate({
+      length: 12,
+      numbers: true,
+      symbols: true,
+      uppercase: true,
+      lowercase: true,
+      strict: true,
+    });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create new user with the generated ID.
     const newUser = {
@@ -24,6 +34,11 @@ const registerNewUser = async (userData, session) => {
       userId: userId,
       password: hashedPassword,
     };
+
+    const result = await sendUserPasswordEmail(email, password);
+    if (!result.success) {
+      console.log("Error in sending the user password email", result);
+    }
 
     const user = new User(newUser);
     const savedUser = await user.save({ session });

@@ -1,4 +1,5 @@
 const  Staff  = require("../../models/StaffModel")
+const Branch = require("../../models/BranchesModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -249,7 +250,30 @@ const staffProfilePicUpdate = async (req, res) => {
   }
 };
 
+// Get staff's branch
+const getStaffBranch = async (req, res) => {
+  try {
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+    const branch = await Branch.findById(branch_id);
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
 
+    const from = branch.location;
+    
+   
+
+    return res.status(200).json({from, branch_id});
+  } catch (error) {
+    console.log("Error fetching staff's branch:", error);
+    return res
+      .status(500)
+      .json({ message: "Error fetching staff's branch", error });
+  }
+};
 
 module.exports = {
   checkAuthenticity,
@@ -261,5 +285,6 @@ module.exports = {
   getStaffLoggedPage, 
   getStaffInfo,
   updateStaffInfo,
-  staffProfilePicUpdate
+  staffProfilePicUpdate,
+  getStaffBranch
 };
