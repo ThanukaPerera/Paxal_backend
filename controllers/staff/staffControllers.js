@@ -23,13 +23,8 @@ const staffLogin = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-<<<<<<< Updated upstream
     // Search for a staff member with the email and populate branch information
     const staff = await Staff.findOne({ email }).populate('branchId');
-=======
-    // Search for a staff member with the email.
-    const staff = await Staff.findOne({ email }).select('-password');
->>>>>>> Stashed changes
 
     if (!staff) {
       return res.status(401).json({ message: "Invalid staff credentials" });
@@ -61,15 +56,9 @@ const staffLogin = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
 
-<<<<<<< Updated upstream
     console.log("=== BACKEND: RETURNING STAFF DATA ===");
     console.log("Staff branchId before return:", staff.branchId);
     console.log("Staff branchId ID:", staff.branchId?._id);
-=======
-    console.log("=== BACKEND: STAFF LOGIN SUCCESS ===");
-    console.log("Staff object being returned:", staff);
-    console.log("Staff branchId:", staff.branchId);
->>>>>>> Stashed changes
 
     return res.status(200).json({ message: "Login successful", staff });
   } catch (error) {
