@@ -1,19 +1,64 @@
   const  Parcel  = require("../../../models/parcelModel");
+const mongoose = require("mongoose");
 
   // Define stage groups
   const stageGroups = {
     "Initial Stage": ["OrderPlaced", "PendingPickup"],
     "In Transit": ["PickedUp", "ArrivedAtDistributionCenter", "ShipmentAssigned", "InTransit"],
     "At Collection Center": ["ArrivedAtCollectionCenter", "DeliveryDispatched"],
-    "Issues": ["Delivered","NotAccepted", "WrongAddress", "Return"]
+    "Delivery Conclusion": ["Delivered","NotAccepted", "WrongAddress", "Return"]
   };
 
   const getParcelCountByGroup = async (req, res) => {
     try {
+      // Extract query parameters for filtering
+      const { startDate, endDate, branchId } = req.query;
+      console.log("Query Parameters:", { startDate, endDate, branchId });
+
+      // Build match criteria
+      const matchCriteria = {};
+
+      // Add date range filter if provided
+      if (startDate || endDate) {
+        matchCriteria.createdAt = {};
+        if (startDate) {
+          matchCriteria.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          // Add one day to endDate to include the entire end date
+          const endDateTime = new Date(endDate);
+          endDateTime.setHours(23, 59, 59, 999);
+          matchCriteria.createdAt.$lte = endDateTime;
+        }
+      }
+
+      // Add branch filter if provided and not 'all'
+      if (branchId && branchId !== 'all') {
+        try {
+          // Convert branchId to ObjectId if it's a valid ObjectId string
+          const branchObjectId = new mongoose.Types.ObjectId(branchId);
+          // Filter by parcels that originate from the selected branch
+          matchCriteria.from = branchObjectId;
+        } catch (error) {
+          console.warn("Invalid branchId format:", branchId);
+          // If branchId is not a valid ObjectId, try direct string comparison
+          matchCriteria.from = branchId;
+        }
+      }
+
+      // Build aggregation pipeline
+      const pipeline = [];
+      
+      // Add match stage if there are criteria
+      if (Object.keys(matchCriteria).length > 0) {
+        pipeline.push({ $match: matchCriteria });
+      }
+
+      // Add group stage
+      pipeline.push({ $group: { _id: "$status", count: { $sum: 1 } } });
+
       // Aggregate parcel counts for each status
-      const counts = await Parcel.aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 } } }
-      ]);
+      const counts = await Parcel.aggregate(pipeline);
 
       // Calculate total parcel count
       const totalParcels = counts.reduce((sum, item) => sum + item.count, 0);

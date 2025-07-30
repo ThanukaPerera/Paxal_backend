@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const vehicleSchema = new mongoose.Schema({
   vehicleId: { type: String, required: true, unique: true },
   registrationNo: { type: String, required: true, unique: true },
-  driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: false },
+  // driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: false },
   vehicleType: {
     type: String,
     enum: ["shipment", "pickupDelivery"], 

@@ -170,6 +170,44 @@ const sendParcelDeliveredEmail = async (email, parcelId) => {
   }
 };
 
+// get collection center arrived email template
+const getReturnToBranchEmail = (decodedText, branchName) => {
+
+  // ath to access the email template.
+  const arrivedtoReturnBranchEmailPath = path.join(
+    "emails",
+    "templates",
+    "parcelAtReturnBranchEmail.html"
+  );
+
+  let htmlContent = fs.readFileSync(arrivedtoReturnBranchEmailPath, "utf8");
+  return htmlContent
+    .replace("{PARCEL_ID}", decodedText)
+    .replace("{BRANCH}", branchName);
+};
+
+// send tracking number emails when parcel is registered
+const sendReturnToBranchEmail = async (email, decodedText, branchName) => {
+  try {
+    const htmlContent = getReturnToBranchEmail(decodedText, branchName);
+
+    const mailInfo = {
+      from: `PAXAL Support ${sender}`,
+      to: email,
+      subject: "Your Parcel Is Returned to Branch",
+      html: htmlContent,
+    };
+    
+    const sentResult = await transporter.sendMail(mailInfo);
+    console.log("Parcel Arrived at Return Branch email sent");
+    return { success: true, messageId: sentResult.messageId };
+
+  } catch (error) {
+    console.error("Parcel Arrived at Return Branch email failed ",error);
+    return { success: false, error: error.message,};
+  }
+};
+
 
 // get inquiry reply email template
 const getInquiryReplyEmail = (
@@ -229,10 +267,48 @@ const sendInquiryReplyEmail = async (
     }
 };
 
+// get use password email template 
+const getUserPasswordEmail = (password) => {
+
+  // Path to access the email template.
+  const userPasswordEmailPath = path.join(
+    "emails",
+    "templates",
+    "userPasswordEmail.html"
+  );
+
+  let htmlContent = fs.readFileSync(userPasswordEmailPath, "utf8");
+  return htmlContent.replace("{TEMP_PASSWORD}", password);
+};
+
+// send user password email
+const sendUserPasswordEmail = async (email, password) => {
+  try {
+    const htmlContent = getUserPasswordEmail(password);
+
+    const mailInfo = {
+      from: `PAXAL Support ${sender}`,
+      to: email,
+      subject: "Your Account Password",
+      html: htmlContent,
+    };
+
+    const sentResult = await transporter.sendMail(mailInfo);
+    console.log("user password email sent");
+    return { success: true, messageId: sentResult.messageId };
+
+  } catch (error) {
+    console.error("User password email sending failed", error);
+    return { success: false, error: error.message,};
+  }
+};
+
 module.exports = { 
   sendPasswordResetEmail,
   sendTrackingNumberEmail,
   sendInquiryReplyEmail,
   sendCollectionCenterArrivedEmail,
-  sendParcelDeliveredEmail
+  sendParcelDeliveredEmail,
+  sendUserPasswordEmail,
+  sendReturnToBranchEmail
 };
