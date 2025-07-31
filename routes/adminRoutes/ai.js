@@ -7,9 +7,7 @@ const { authenticateAdmin } = require("../../middleware/adminMiddleware/authMidd
 // Import AI controllers
 const { 
   generateAIReport, 
-  getAIInsights,
-  getBusinessMetrics,
-  getPerformanceAnalysis 
+  getAIInsights
 } = require("../../controllers/adminControllers/aiReportController");
 
 /**
@@ -27,21 +25,5 @@ router.post("/generate-report", authenticateAdmin, generateAIReport);
  * @body    { reportData, reportType }
  */
 router.post("/insights", authenticateAdmin, getAIInsights);
-
-/**
- * @route   GET /api/admin/ai/metrics
- * @desc    Get business metrics for AI analysis
- * @access  Admin only
- * @query   { dateRange, branchId }
- */
-router.get("/metrics", authenticateAdmin, getBusinessMetrics);
-
-/**
- * @route   GET /api/admin/ai/performance
- * @desc    Get performance analysis data
- * @access  Admin only
- * @query   { dateRange, branchId, analysisType }
- */
-router.get("/performance", authenticateAdmin, getPerformanceAnalysis);
 
 module.exports = router;
