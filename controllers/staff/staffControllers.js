@@ -1,4 +1,5 @@
 const  Staff  = require("../../models/StaffModel")
+const Branch = require("../../models/BranchesModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -260,29 +261,28 @@ const staffProfilePicUpdate = async (req, res) => {
   }
 };
 
-// get Staff Branch Information
-const getStaffBranch = async(req, res) => {
+// Get staff's branch
+const getStaffBranch = async (req, res) => {
   try {
-    const staffId = req.staff._id;
-    const staff = await Staff.findById(staffId).populate('branchId', 'branchName location');
-
-    if(!staff) {
-      return res.status(404).json({ message: "Staff not found" });
+    // Find the branch.
+    const staff_id = req.staff._id.toString();
+    const staff = await Staff.findById(staff_id);
+    const branch_id = staff.branchId;
+    const branch = await Branch.findById(branch_id);
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
     }
 
-    if(!staff.branchId) {
-      return res.status(404).json({ message: "No branch assigned to this staff member" });
-    }
+    const from = branch.location;
+    
+   
 
-    console.log("Staff branch information retrieved successfully");
-    return res.status(200).json({ 
-      success: true,
-      branch: staff.branchId,
-      message: "Branch information retrieved successfully"
-    });
-  }catch (error) {
-    console.error("Error fetching staff branch information:", error);
-    return res.status(500).json({ message: "Error fetching branch information", error });
+    return res.status(200).json({from, branch_id});
+  } catch (error) {
+    console.log("Error fetching staff's branch:", error);
+    return res
+      .status(500)
+      .json({ message: "Error fetching staff's branch", error });
   }
 };
 
