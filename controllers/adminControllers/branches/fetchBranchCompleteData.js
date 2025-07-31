@@ -67,12 +67,14 @@ const fetchBranchCompleteData = async (req, res) => {
         .lean(),
 
       // Fetch recent parcels (last 20)
-      Parcel.find({
-        $or: [
-          { from: branchObjectId },
-          { to: branchObjectId }
-        ]
-      })
+      // Parcel.find({
+      //   $or: [
+      //     { from: branchObjectId },
+      //     { to: branchObjectId }
+      //   ]
+      // })
+      Parcel.find({ from: branchObjectId })
+
         .populate('senderId', 'name email fName lName userId')
         .populate('receiverId', 'name email')
         .populate('from', 'branchId location')
@@ -125,10 +127,11 @@ const fetchBranchCompleteData = async (req, res) => {
       Parcel.aggregate([
         { 
           $match: { 
-            $or: [
-              { from: branchObjectId }, 
-              { to: branchObjectId }
-            ] 
+            // $or: [
+            //   { from: branchObjectId }, 
+            //   { to: branchObjectId }
+            // ] 
+            from: branchObjectId
           } 
         },
         {
@@ -292,18 +295,20 @@ const fetchBranchCompleteData = async (req, res) => {
     }
 
     console.log('Processed vehicle statistics:', vehicleStatistics);
+    console.log(startOfToday, endOfToday);  
 
     // Calculate branch performance metrics with correct ObjectId usage
     const performanceMetrics = {
       totalParcelsToday: await Parcel.countDocuments({
-        $or: [{ from: branchObjectId }, { to: branchObjectId }],
+        // $or: [{ from: branchObjectId }, { to: branchObjectId }],
+        from: branchObjectId,
         createdAt: {
           $gte: startOfToday,
           $lt: endOfToday
         }
       }),
       deliveredToday: await Parcel.countDocuments({
-        $or: [{ from: branchObjectId }, { to: branchObjectId }],
+        from: branchObjectId,
         status: 'Delivered',
         updatedAt: {
           $gte: startOfToday,
@@ -315,7 +320,7 @@ const fetchBranchCompleteData = async (req, res) => {
         status: 'PendingPickup'
       }),
       inTransit: await Parcel.countDocuments({
-        $or: [{ from: branchObjectId }, { to: branchObjectId }],
+        from: branchObjectId,
         status: 'InTransit'
       }),
       shipmentsPending: await B2BShipment.countDocuments({
