@@ -2,15 +2,10 @@ const { GoogleGenAI } = require("@google/genai");
 
 // Initialize Gemini API
 const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "your-gemini-api-key-here" // Replace with actual API key
+  apiKey: process.env.GEMINI_API_KEY  // Replace with actual API key
 });
 
-/**
- * Generate AI-powered insights using Gemini
- * @param {Object} reportData - The report data to analyze
- * @param {string} reportType - Type of report (comprehensive, parcels, etc.)
- * @returns {Object} AI-generated insights and recommendations
- */
+
 async function generateGeminiInsights(reportData, reportType = "comprehensive") {
   try {
     // Prepare the prompt with report data
@@ -42,7 +37,7 @@ function createAnalysisPrompt(reportData, reportType) {
   const dataContext = JSON.stringify(reportData, null, 2);
   
   return `
-Analyze the following Parcel Management System data and provide professional business insights:
+Analyze the following Parcel Management System data and provide professional business insights use LKR for currency:
 
 REPORT TYPE: ${reportType.toUpperCase()}
 DATA: ${dataContext}
@@ -78,14 +73,7 @@ Please provide a comprehensive analysis in the following JSON format:
       "potentialImpact": "Expected business impact"
     }
   ],
-  "performanceScore": {
-    "overall": 85,
-    "breakdown": {
-      "operational": 88,
-      "financial": 82,
-      "customer": 87,
-      "efficiency": 80
-    }
+ 
   },
   "trendAnalysis": {
     "positive": ["Positive trend 1", "Positive trend 2"],
