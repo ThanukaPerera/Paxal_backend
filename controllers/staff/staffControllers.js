@@ -1,5 +1,4 @@
 const  Staff  = require("../../models/StaffModel")
-const Branch = require("../../models/BranchesModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -24,14 +23,21 @@ const staffLogin = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Search for a staff member with the email.
-    const staff = await Staff.findOne({ email });
+    // Search for a staff member with the email and populate branch information
+    const staff = await Staff.findOne({ email }).populate('branchId');
 
     if (!staff) {
       return res.status(401).json({ message: "Invalid staff credentials" });
     }
+
+    console.log("=== BACKEND: STAFF LOGIN ===");
+    console.log("Staff found:", staff.name);
+    console.log("Staff branchId:", staff.branchId);
+    console.log("BranchId type:", typeof staff.branchId);
  
-    const isPasswordValid = await bcrypt.compare(password, staff.password);
+    // Get the staff with password for comparison
+    const staffWithPassword = await Staff.findOne({ email });
+    const isPasswordValid = await bcrypt.compare(password, staffWithPassword.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid staff credentials" });
     }
@@ -49,6 +55,10 @@ const staffLogin = async (req, res) => {
       sameSite:  isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     });
+
+    console.log("=== BACKEND: RETURNING STAFF DATA ===");
+    console.log("Staff branchId before return:", staff.branchId);
+    console.log("Staff branchId ID:", staff.branchId?._id);
 
     return res.status(200).json({ message: "Login successful", staff });
   } catch (error) {
@@ -250,30 +260,33 @@ const staffProfilePicUpdate = async (req, res) => {
   }
 };
 
-// Get staff's branch
-const getStaffBranch = async (req, res) => {
+// get Staff Branch Information
+const getStaffBranch = async(req, res) => {
   try {
-    // Find the branch.
-    const staff_id = req.staff._id.toString();
-    const staff = await Staff.findById(staff_id);
-    const branch_id = staff.branchId;
-    const branch = await Branch.findById(branch_id);
-    if (!branch) {
-      return res.status(404).json({ message: "Branch not found" });
+    const staffId = req.staff._id;
+    const staff = await Staff.findById(staffId).populate('branchId', 'branchName location');
+
+    if(!staff) {
+      return res.status(404).json({ message: "Staff not found" });
     }
 
-    const from = branch.location;
-    
-   
+    if(!staff.branchId) {
+      return res.status(404).json({ message: "No branch assigned to this staff member" });
+    }
 
-    return res.status(200).json({from, branch_id});
-  } catch (error) {
-    console.log("Error fetching staff's branch:", error);
-    return res
-      .status(500)
-      .json({ message: "Error fetching staff's branch", error });
+    console.log("Staff branch information retrieved successfully");
+    return res.status(200).json({ 
+      success: true,
+      branch: staff.branchId,
+      message: "Branch information retrieved successfully"
+    });
+  }catch (error) {
+    console.error("Error fetching staff branch information:", error);
+    return res.status(500).json({ message: "Error fetching branch information", error });
   }
 };
+
+
 
 module.exports = {
   checkAuthenticity,

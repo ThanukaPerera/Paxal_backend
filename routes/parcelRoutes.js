@@ -34,7 +34,8 @@ router.get("/staff/assigned-parcels", isStaffAuthenticated, async (req, res) => 
             from: req.staff.branchId._id,
             shipmentId: null,
             $expr: { $ne: ["$from", "$to"] } ,// Exclude parcels where from equals to
-            status: { $in: "ArrivedAtDistributionCenter" } // Exclude delivered parcels
+            status: { $in: ["ArrivedAtDistributionCenter", "Return"] }
+
         }).populate('from', 'location')
           .populate('to', 'location');
 
