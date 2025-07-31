@@ -71,6 +71,7 @@ const generateAIReport = catchAsync(async (req, res, next) => {
 const getAIInsights = catchAsync(async (req, res, next) => {
   try {
     const { reportData, reportType = "comprehensive" } = req.body;
+    console.log("Received report data for AI insights:", reportData);
 
     if (!reportData) {
       return next(new AppError("Report data is required for AI analysis", 400));
@@ -249,53 +250,119 @@ function calculateAverageDeliveryTime(parcels) {
  * Calculate key performance indicators
  */
 function calculateKPIs(data) {
+  const deliveredCount = data.parcels.byStatus.delivered || data.parcels.byStatus.Delivered || 0;
+  const inTransitCount = data.parcels.byStatus['in-transit'] || data.parcels.byStatus['In Transit'] || 0;
+  const pendingCount = data.parcels.byStatus.pending || data.parcels.byStatus.Pending || 0;
+  const cancelledCount = data.parcels.byStatus.cancelled || data.parcels.byStatus.Cancelled || 0;
+  
+  // Calculate average delivery time from delivery times array
+  const avgDeliveryTime = data.parcels.deliveryTimes && data.parcels.deliveryTimes.length > 0
+    ? data.parcels.deliveryTimes.reduce((sum, d) => sum + d.days, 0) / data.parcels.deliveryTimes.length
+    : 0;
+  
+  // Calculate on-time delivery rate (assuming 5 days is standard)
+  const onTimeDeliveries = data.parcels.deliveryTimes.filter(d => d.days <= 5).length;
+  const onTimeDeliveryRate = data.parcels.deliveryTimes.length > 0 
+    ? (onTimeDeliveries / data.parcels.deliveryTimes.length * 100) 
+    : 0;
+
   return {
     totalRevenue: data.payments.totalAmount + data.b2bShipments.totalValue,
     totalParcels: data.parcels.total,
     deliverySuccessRate: data.parcels.total > 0 
-      ? ((data.parcels.byStatus.delivered || 0) / data.parcels.total * 100) 
+      ? (deliveredCount / data.parcels.total * 100) 
+      : 0,
+    averageDeliveryTime: Number(avgDeliveryTime.toFixed(1)),
+    onTimeDeliveryRate: Number(onTimeDeliveryRate.toFixed(1)),
+    inTransitParcels: inTransitCount,
+    pendingParcels: pendingCount,
+    cancelledParcels: cancelledCount,
+    deliveryEfficiency: data.parcels.total > 0 
+      ? ((deliveredCount + inTransitCount) / data.parcels.total * 100) 
       : 0,
     customerSatisfaction: calculateCustomerSatisfaction(data),
     operationalEfficiency: calculateOperationalEfficiency(data),
-    revenueGrowth: 0, // Would need historical data
+    paymentSuccessRate: data.payments.total > 0
+      ? ((data.payments.byStatus.completed || data.payments.byStatus.Completed || 0) / data.payments.total * 100)
+      : 0,
+    averageOrderValue: data.payments.averageAmount || 0,
+    branchUtilization: calculateBranchUtilization(data.branches),
     customerRetention: calculateCustomerRetention(data)
   };
 }
 
 /**
+ * Calculate branch utilization score
+ */
+function calculateBranchUtilization(branchesData) {
+  if (!branchesData || !branchesData.performance) return 0;
+  
+  const performances = Object.values(branchesData.performance);
+  if (performances.length === 0) return 0;
+  
+  const totalUtilization = performances.reduce((sum, branch) => {
+    // Calculate utilization based on parcels processed and delivery rate
+    const parcelScore = Math.min(branch.totalParcels / 50, 1) * 100; // Assuming 50 parcels is optimal
+    const deliveryScore = branch.deliveryRate;
+    return sum + (parcelScore * 0.6 + deliveryScore * 0.4);
+  }, 0);
+  
+  return Number((totalUtilization / performances.length).toFixed(1));
+}
+/**
  * Calculate customer satisfaction score
  */
 function calculateCustomerSatisfaction(data) {
-  // Based on delivery success rate and average delivery time
-  const deliveryRate = data.parcels.total > 0 
-    ? ((data.parcels.byStatus.delivered || 0) / data.parcels.total * 100) 
-    : 0;
+  // Based on delivery success rate, delivery time, and service quality
+  const deliveredCount = data.parcels.byStatus.delivered || data.parcels.byStatus.Delivered || 0;
+  const deliveryRate = data.parcels.total > 0 ? (deliveredCount / data.parcels.total * 100) : 0;
   
-  const avgDeliveryTime = data.parcels.deliveryTimes.length > 0
+  const avgDeliveryTime = data.parcels.deliveryTimes && data.parcels.deliveryTimes.length > 0
     ? data.parcels.deliveryTimes.reduce((sum, d) => sum + d.days, 0) / data.parcels.deliveryTimes.length
-    : 0;
-
-  // Score based on delivery rate (70%) and delivery speed (30%)
-  const deliveryScore = deliveryRate * 0.7;
-  const speedScore = avgDeliveryTime > 0 ? Math.max(0, (7 - avgDeliveryTime) / 7 * 100) * 0.3 : 0;
+    : 7; // Default assumption
   
-  return Math.round(deliveryScore + speedScore);
+  // Calculate satisfaction components
+  const deliveryScore = deliveryRate * 0.5; // 50% weight for delivery success
+  const speedScore = avgDeliveryTime > 0 ? Math.max(0, (7 - avgDeliveryTime) / 7 * 100) * 0.3 : 0; // 30% weight for speed
+  const reliabilityScore = (data.payments.byStatus.completed || data.payments.byStatus.Completed || 0) / Math.max(data.payments.total, 1) * 100 * 0.2; // 20% weight for payment reliability
+  
+  const satisfaction = deliveryScore + speedScore + reliabilityScore;
+  return Number(Math.min(100, Math.max(0, satisfaction)).toFixed(1));
 }
 
 /**
  * Calculate operational efficiency score
  */
 function calculateOperationalEfficiency(data) {
-  // Based on parcel processing, branch utilization, and payment processing
+  // Enhanced efficiency calculation based on multiple factors
+  const deliveredCount = data.parcels.byStatus.delivered || data.parcels.byStatus.Delivered || 0;
+  const inTransitCount = data.parcels.byStatus['in-transit'] || data.parcels.byStatus['In Transit'] || 0;
+  
+  // Parcel processing efficiency
   const parcelEfficiency = data.parcels.total > 0 
-    ? ((data.parcels.byStatus.delivered || 0) + (data.parcels.byStatus["in-transit"] || 0)) / data.parcels.total * 100
+    ? ((deliveredCount + inTransitCount) / data.parcels.total * 100)
     : 0;
   
+  // Payment processing efficiency
   const paymentEfficiency = data.payments.total > 0
-    ? ((data.payments.byStatus.completed || 0) / data.payments.total * 100)
+    ? ((data.payments.byStatus.completed || data.payments.byStatus.Completed || 0) / data.payments.total * 100)
     : 0;
-
-  return Math.round((parcelEfficiency + paymentEfficiency) / 2);
+  
+  // Average delivery time efficiency (faster = more efficient)
+  const avgDeliveryTime = data.parcels.deliveryTimes && data.parcels.deliveryTimes.length > 0
+    ? data.parcels.deliveryTimes.reduce((sum, d) => sum + d.days, 0) / data.parcels.deliveryTimes.length
+    : 5;
+  const timeEfficiency = Math.max(0, (10 - avgDeliveryTime) / 10 * 100); // 10 days max, lower is better
+  
+  // B2B shipment efficiency
+  const b2bEfficiency = data.b2bShipments.total > 0 
+    ? ((data.b2bShipments.byStatus.completed || data.b2bShipments.byStatus.delivered || 0) / data.b2bShipments.total * 100)
+    : 100; // Default to 100 if no B2B shipments
+  
+  // Weighted average of all efficiency metrics
+  const overallEfficiency = (parcelEfficiency * 0.4) + (paymentEfficiency * 0.25) + (timeEfficiency * 0.25) + (b2bEfficiency * 0.1);
+  
+  return Number(overallEfficiency.toFixed(1));
 }
 
 /**
@@ -342,297 +409,7 @@ function calculateDataPoints(reportData) {
   }, 0);
 }
 
-/**
- * Get business metrics for AI analysis
- */
-const getBusinessMetrics = catchAsync(async (req, res, next) => {
-  try {
-    const { dateRange, branchId } = req.query;
-
-    // Build filters
-    let dateFilter = {};
-    if (dateRange) {
-      const { startDate, endDate } = JSON.parse(dateRange);
-      dateFilter = {
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
-      };
-    }
-
-    let branchFilter = {};
-    if (branchId && branchId !== "all") {
-      branchFilter = { branch: branchId };
-    }
-
-    const filters = { ...dateFilter, ...branchFilter };
-
-    // Collect basic metrics
-    const metrics = await collectBusinessMetrics(filters);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        metrics,
-        filters: { dateRange, branchId },
-        generatedAt: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    console.error("Business Metrics Error:", error);
-    return next(new AppError("Failed to get business metrics", 500));
-  }
-});
-
-/**
- * Get performance analysis data
- */
-const getPerformanceAnalysis = catchAsync(async (req, res, next) => {
-  try {
-    const { dateRange, branchId, analysisType = "comprehensive" } = req.query;
-
-    // Build filters
-    let dateFilter = {};
-    if (dateRange) {
-      const { startDate, endDate } = JSON.parse(dateRange);
-      dateFilter = {
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
-      };
-    }
-
-    let branchFilter = {};
-    if (branchId && branchId !== "all") {
-      branchFilter = { branch: branchId };
-    }
-
-    const filters = { ...dateFilter, ...branchFilter };
-
-    // Collect performance data
-    const performanceData = await collectPerformanceData(filters, analysisType);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        performanceData,
-        analysisType,
-        filters: { dateRange, branchId },
-        generatedAt: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    console.error("Performance Analysis Error:", error);
-    return next(new AppError("Failed to get performance analysis", 500));
-  }
-});
-
-/**
- * Collect business metrics for AI analysis
- */
-async function collectBusinessMetrics(filters) {
-  try {
-    const [users, parcels, payments, branches, b2bShipments] = await Promise.all([
-      UserModel.find(filters).lean(),
-      ParcelModel.find(filters).lean(),
-      PaymentModel.find(filters).lean(),
-      BranchModel.find({}).lean(),
-      B2BShipmentModel.find(filters).lean()
-    ]);
-
-    return {
-      overview: {
-        totalUsers: users.length,
-        totalParcels: parcels.length,
-        totalRevenue: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
-        totalBranches: branches.length,
-        b2bShipments: b2bShipments.length
-      },
-      userMetrics: {
-        newUsers: users.filter(u => new Date(u.createdAt) > new Date(Date.now() - 30*24*60*60*1000)).length,
-        activeUsers: users.filter(u => u.isActive).length,
-        verifiedUsers: users.filter(u => u.isVerified).length
-      },
-      parcelMetrics: {
-        byStatus: groupBy(parcels, "status"),
-        byServiceType: groupBy(parcels, "serviceType"),
-        averageWeight: calculateAverage(parcels, "weight"),
-        totalWeight: parcels.reduce((sum, p) => sum + (p.weight || 0), 0)
-      },
-      revenueMetrics: {
-        totalAmount: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
-        byStatus: groupBy(payments, "paymentStatus"),
-        byMethod: groupBy(payments, "paymentMethod"),
-        averageTransaction: calculateAverage(payments, "amount")
-      },
-      branchMetrics: {
-        total: branches.length,
-        byCity: groupBy(branches, "city"),
-        byStatus: groupBy(branches, "status")
-      }
-    };
-
-  } catch (error) {
-    console.error("Error collecting business metrics:", error);
-    throw new AppError("Failed to collect business metrics", 500);
-  }
-}
-
-/**
- * Collect performance analysis data
- */
-async function collectPerformanceData(filters, analysisType) {
-  try {
-    const baseData = await collectBusinessMetrics(filters);
-    
-    // Add performance-specific calculations
-    const parcels = await ParcelModel.find(filters).lean();
-    const payments = await PaymentModel.find(filters).lean();
-    
-    // Calculate performance indicators
-    const deliveryPerformance = {
-      onTimeDeliveries: parcels.filter(p => p.status === "Delivered").length,
-      totalDeliveries: parcels.filter(p => p.status === "Delivered" || p.status === "Delayed").length,
-      averageDeliveryTime: calculateAverageDeliveryTime(parcels),
-      delayedParcels: parcels.filter(p => p.status === "Delayed").length
-    };
-
-    const financialPerformance = {
-      totalRevenue: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
-      paidTransactions: payments.filter(p => p.paymentStatus === "paid").length,
-      pendingPayments: payments.filter(p => p.paymentStatus === "pending").length,
-      revenueGrowth: calculateRevenueGrowth(payments)
-    };
-
-    const operationalPerformance = {
-      processingEfficiency: calculateProcessingEfficiency(parcels),
-      branchUtilization: calculateBranchUtilization(parcels),
-      customerSatisfaction: calculateCustomerSatisfaction(parcels)
-    };
-
-    return {
-      ...baseData,
-      performance: {
-        delivery: deliveryPerformance,
-        financial: financialPerformance,
-        operational: operationalPerformance,
-        overallScore: calculateOverallPerformanceScore({
-          delivery: deliveryPerformance,
-          financial: financialPerformance,
-          operational: operationalPerformance
-        })
-      }
-    };
-
-  } catch (error) {
-    console.error("Error collecting performance data:", error);
-    throw new AppError("Failed to collect performance data", 500);
-  }
-}
-
-/**
- * Calculate average delivery time
- */
-function calculateAverageDeliveryTime(parcels) {
-  const deliveredParcels = parcels.filter(p => 
-    p.status === "Delivered" && p.createdAt && p.deliveredAt
-  );
-  
-  if (deliveredParcels.length === 0) return 0;
-  
-  const totalTime = deliveredParcels.reduce((sum, parcel) => {
-    const created = new Date(parcel.createdAt);
-    const delivered = new Date(parcel.deliveredAt);
-    return sum + (delivered - created);
-  }, 0);
-  
-  return Math.round(totalTime / deliveredParcels.length / (1000 * 60 * 60 * 24)); // Days
-}
-
-/**
- * Calculate revenue growth
- */
-function calculateRevenueGrowth(payments) {
-  // Simplified growth calculation
-  const currentMonth = payments.filter(p => 
-    new Date(p.createdAt).getMonth() === new Date().getMonth()
-  );
-  const lastMonth = payments.filter(p => 
-    new Date(p.createdAt).getMonth() === new Date().getMonth() - 1
-  );
-  
-  const currentRevenue = currentMonth.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const lastRevenue = lastMonth.reduce((sum, p) => sum + (p.amount || 0), 0);
-  
-  if (lastRevenue === 0) return 0;
-  return ((currentRevenue - lastRevenue) / lastRevenue * 100).toFixed(2);
-}
-
-/**
- * Calculate processing efficiency
- */
-function calculateProcessingEfficiency(parcels) {
-  const processed = parcels.filter(p => 
-    p.status === "Delivered" || p.status === "In Transit" || p.status === "Out for Delivery"
-  ).length;
-  
-  return parcels.length > 0 ? ((processed / parcels.length) * 100).toFixed(2) : 0;
-}
-
-/**
- * Calculate branch utilization
- */
-function calculateBranchUtilization(parcels) {
-  const branchParcels = groupBy(parcels, "sourceBranch");
-  const utilizationScores = Object.values(branchParcels).map(count => Math.min(count / 100, 1));
-  
-  return utilizationScores.length > 0 
-    ? (utilizationScores.reduce((sum, score) => sum + score, 0) / utilizationScores.length * 100).toFixed(2)
-    : 0;
-}
-
-/**
- * Calculate customer satisfaction (simplified)
- */
-function calculateCustomerSatisfaction(data) {
-  // Use aggregated data instead of filtering individual parcels
-  const totalDelivered = data.parcels.byStatus.Delivered || data.parcels.byStatus.delivered || 0;
-  const totalParcels = data.parcels.total || 0;
-  
-  // Calculate satisfaction based on delivery rate and average delivery time
-  const deliveryRate = totalParcels > 0 ? (totalDelivered / totalParcels * 100) : 0;
-  
-  // Use delivery times if available
-  const avgDeliveryTime = data.parcels.deliveryTimes && data.parcels.deliveryTimes.length > 0
-    ? data.parcels.deliveryTimes.reduce((sum, d) => sum + d.days, 0) / data.parcels.deliveryTimes.length
-    : 7; // Default assumption
-  
-  // Simple satisfaction calculation based on delivery rate and speed
-  // Higher delivery rate and faster delivery = higher satisfaction
-  const timeFactor = Math.max(0, 100 - (avgDeliveryTime - 3) * 10); // Penalty for > 3 days
-  const satisfaction = (deliveryRate * 0.7) + (timeFactor * 0.3);
-  
-  return Math.min(100, Math.max(0, satisfaction)).toFixed(2);
-}
-
-/**
- * Calculate overall performance score
- */
-function calculateOverallPerformanceScore(performance) {
-  const deliveryScore = (performance.delivery.onTimeDeliveries / Math.max(performance.delivery.totalDeliveries, 1)) * 100;
-  const financialScore = performance.financial.paidTransactions / Math.max(performance.financial.paidTransactions + performance.financial.pendingPayments, 1) * 100;
-  const operationalScore = parseFloat(performance.operational.processingEfficiency);
-  
-  return Math.round((deliveryScore + financialScore + operationalScore) / 3);
-}
-
 module.exports = {
   generateAIReport,
-  getAIInsights,
-  getBusinessMetrics,
-  getPerformanceAnalysis
+  getAIInsights
 };
