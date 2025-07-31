@@ -97,8 +97,10 @@ const createShipment = async (req, res) => {
             parcels,
             status,
             createdByCenter,
+            createdByStaff,
             confirmed
         } = req.body;
+        console.log('Parsed request data:', createdByStaff);
 
         // Validation
         if (!deliveryType) {
@@ -173,6 +175,7 @@ const createShipment = async (req, res) => {
             parcels,
             status: status || 'Pending',
             createdByCenter: createdByCenter || sourceCenter,
+            createdByStaff: createdByStaff || req.staff._id,
             confirmed: confirmed || false,
             createdAt: new Date()
         });
